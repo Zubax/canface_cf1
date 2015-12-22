@@ -1,28 +1,28 @@
-# Compiled Object files
-*.slo
-*.lo
+# Build outputs
 *.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-
-# Compiled Static libraries
-*.lai
-*.la
+*.elf
+*.hex
+lib*.so
+lib*.so.*
 *.a
-*.lib
+*.d
+.dep
+build
+.gdbinit
+*.swp
+*~
+*.pyc
+__pycache__
 
-# Executables
-*.exe
-*.out
-*.app
+# Temporary
+*.log
+
+# Eclipse
+.metadata
+.settings
+.project
+.cproject
+.pydevproject
+
+# Libs
+dsdlc_generated
