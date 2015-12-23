@@ -53,9 +53,9 @@ UDEFS += -DGIT_HASH=0x$(GIT_HASH)
 
 #DDEFS += -DCORTEX_VTOR_INIT=$(BOOTLOADER_SIZE)
 
-SERIAL_CLI_PORT_NUMBER = 1
+USE_LTO := yes
 
-CPPWARN := -Wundef -Wno-error=undef
+SERIAL_CLI_PORT_NUMBER = 1
 
 RELEASE_OPT = -Os -fomit-frame-pointer
 DEBUG_OPT = -Os -g3
