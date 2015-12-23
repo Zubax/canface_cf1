@@ -29,16 +29,19 @@ int main()
 {
     board::init();
 
+    board::enableCANPower(true);
+    board::enableCANTerminator(true);
+
     while (true)
     {
         board::setStatusLED(true);
         board::setTrafficLED(true);
 
-        ::usleep(200000);
+        ::usleep(100000);
 
         board::setStatusLED(false);
         board::setTrafficLED(false);
 
-        ::usleep(200000);
+        ::usleep(900000);
     }
 }

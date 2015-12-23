@@ -36,7 +36,7 @@
 #define GPIOA_SWDIO                     13
 #define GPIOA_SWCLK                     14
 
-#define GPIOB_CAN_POWER_EN              1
+#define GPIOB_CAN_POWER_DIS             1
 #define GPIOB_CAN_TERMINATOR_EN         2
 #define GPIOB_CAN_RX                    8
 #define GPIOB_CAN_TX                    9
@@ -175,7 +175,7 @@
  * GPIOB
  */
 #define VAL_GPIOB_MODER             (PIN_MODE_INPUT(0) |\
-                                     PIN_MODE_OUTPUT(GPIOB_CAN_POWER_EN) |\
+                                     PIN_MODE_OUTPUT(GPIOB_CAN_POWER_DIS) |\
                                      PIN_MODE_OUTPUT(GPIOB_CAN_TERMINATOR_EN) |\
                                      PIN_MODE_INPUT(3) |\
                                      PIN_MODE_INPUT(4) |\
@@ -192,7 +192,7 @@
                                      PIN_MODE_INPUT(15))
 
 #define VAL_GPIOB_OTYPER            (PIN_OTYPE_PUSHPULL(0) |\
-                                     PIN_OTYPE_OPENDRAIN(GPIOB_CAN_POWER_EN) |\
+                                     PIN_OTYPE_OPENDRAIN(GPIOB_CAN_POWER_DIS) |\
                                      PIN_OTYPE_PUSHPULL(GPIOB_CAN_TERMINATOR_EN) |\
                                      PIN_OTYPE_PUSHPULL(3) |\
                                      PIN_OTYPE_PUSHPULL(4) |\
@@ -201,15 +201,15 @@
                                      PIN_OTYPE_PUSHPULL(7) |\
                                      PIN_OTYPE_PUSHPULL(GPIOB_CAN_RX) |\
                                      PIN_OTYPE_PUSHPULL(GPIOB_CAN_TX) |\
-                                     PIN_OTYPE_PUSHPULL(GPIOB_LED_STATUS) |\
-                                     PIN_OTYPE_PUSHPULL(GPIOB_LED_TRAFFIC) |\
+                                     PIN_OTYPE_OPENDRAIN(GPIOB_LED_STATUS) |\
+                                     PIN_OTYPE_OPENDRAIN(GPIOB_LED_TRAFFIC) |\
                                      PIN_OTYPE_PUSHPULL(12) |\
                                      PIN_OTYPE_PUSHPULL(13) |\
                                      PIN_OTYPE_PUSHPULL(14) |\
                                      PIN_OTYPE_PUSHPULL(15))
 
 #define VAL_GPIOB_OSPEEDR           (PIN_OSPEED_2M(0) |\
-                                     PIN_OSPEED_2M(GPIOB_CAN_POWER_EN) |\
+                                     PIN_OSPEED_2M(GPIOB_CAN_POWER_DIS) |\
                                      PIN_OSPEED_2M(GPIOB_CAN_TERMINATOR_EN) |\
                                      PIN_OSPEED_2M(3) |\
                                      PIN_OSPEED_2M(4) |\
@@ -226,7 +226,7 @@
                                      PIN_OSPEED_2M(15))
 
 #define VAL_GPIOB_PUPDR             (PIN_PUPDR_PULLDOWN(0) |\
-                                     PIN_PUPDR_FLOATING(GPIOB_CAN_POWER_EN) |\
+                                     PIN_PUPDR_FLOATING(GPIOB_CAN_POWER_DIS) |\
                                      PIN_PUPDR_FLOATING(GPIOB_CAN_TERMINATOR_EN) |\
                                      PIN_PUPDR_PULLDOWN(3) |\
                                      PIN_PUPDR_PULLDOWN(4) |\
@@ -243,7 +243,7 @@
                                      PIN_PUPDR_PULLDOWN(15))
 
 #define VAL_GPIOB_ODR               (PIN_ODR_LOW(0) |\
-                                     PIN_ODR_LOW(GPIOB_CAN_POWER_EN) |\
+                                     PIN_ODR_HIGH(GPIOB_CAN_POWER_DIS) |\
                                      PIN_ODR_LOW(GPIOB_CAN_TERMINATOR_EN) |\
                                      PIN_ODR_LOW(3) |\
                                      PIN_ODR_LOW(4) |\
@@ -260,7 +260,7 @@
                                      PIN_ODR_LOW(15))
 
 #define VAL_GPIOB_AFRL              (PIN_AFIO_AF(0,  0) |\
-                                     PIN_AFIO_AF(GPIOB_CAN_POWER_EN,  0) |\
+                                     PIN_AFIO_AF(GPIOB_CAN_POWER_DIS,  0) |\
                                      PIN_AFIO_AF(GPIOB_CAN_TERMINATOR_EN,  0) |\
                                      PIN_AFIO_AF(3,  0) |\
                                      PIN_AFIO_AF(4,  0) |\
