@@ -41,7 +41,7 @@
 #define HAL_USE_UART                FALSE
 #define HAL_USE_USB                 TRUE
 
-#define SERIAL_DEFAULT_BITRATE      1000000
+#define SERIAL_DEFAULT_BITRATE      460800
 #define SERIAL_BUFFERS_SIZE         256
 #define SERIAL_USB_BUFFERS_SIZE     256
 

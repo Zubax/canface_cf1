@@ -32,16 +32,19 @@ int main()
     board::enableCANPower(true);
     board::enableCANTerminator(true);
 
+    unsigned i = 0;
     while (true)
     {
+        os::lowsyslog("Hey %u\n", i++);
+
         board::setStatusLED(true);
         board::setTrafficLED(true);
 
-        ::usleep(100000);
+        ::sleep(1);
 
         board::setStatusLED(false);
         board::setTrafficLED(false);
 
-        ::usleep(900000);
+        ::sleep(1);
     }
 }

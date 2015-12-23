@@ -21,6 +21,9 @@
   * Based on a ChibiOS demo app.
   */
 
+__main_stack_size__     = 0x0400;
+__process_stack_size__  = 0x0400;
+
 MEMORY
 {
     flash : org = 0x08000000, len = 32k
@@ -76,7 +79,8 @@ SECTIONS
         *(.ARM.extab* .gnu.linkonce.armextab.*)
     } > flash
 
-    .ARM.exidx : {
+    .ARM.exidx :
+    {
         PROVIDE(__exidx_start = .);
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
         PROVIDE(__exidx_end = .);
