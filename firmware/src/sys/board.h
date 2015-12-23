@@ -23,6 +23,8 @@
 
 #pragma once
 
+#define STM32F042x6
+
 /*
  * Pin definitions
  */

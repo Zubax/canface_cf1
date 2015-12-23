@@ -40,8 +40,6 @@
 
 #define STM32F0xx_MCUCONF
 
-#define STM32F042x6
-
 #define STM32_HSECLK                            (16 * 1000 * 1000)
 
 /*
@@ -69,6 +67,13 @@
 #define STM32_I2C1SW                        STM32_I2C1SW_SYSCLK
 #define STM32_USART1SW                      STM32_USART1SW_PCLK
 #define STM32_RTCSEL                        STM32_RTCSEL_LSI
+
+/*
+ * USB driver system settings.
+ */
+#define STM32_USB_USE_USB1                  TRUE
+#define STM32_USB_LOW_POWER_ON_SUSPEND      FALSE
+#define STM32_USB_USB1_LP_IRQ_PRIORITY      2
 
 /*
  * ADC driver system settings.
