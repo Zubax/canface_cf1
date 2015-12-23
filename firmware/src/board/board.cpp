@@ -22,8 +22,6 @@
 #include <ch.hpp>
 #include <hal.h>
 #include <zubax_chibios/os.hpp>
-#include <zubax_chibios/watchdog.hpp>
-#include <zubax_chibios/config.hpp>
 #include <unistd.h>
 
 /// PAL setup
@@ -114,25 +112,6 @@ bool tryReadDeviceSignature(DeviceSignature& out_sign)
     }
 
     return valid;
-}
-
-bool tryWriteDeviceSignature(const DeviceSignature& sign)
-{
-    {
-        DeviceSignature dummy;
-        if (tryReadDeviceSignature(dummy))
-        {
-            return false;               // Already written
-        }
-    }
-
-    // Before flash can be written, the source must be aligned.
-    alignas(4) std::uint8_t aligned_buffer[std::tuple_size<DeviceSignature>::value];
-    std::copy(std::begin(sign), std::end(sign), std::begin(aligned_buffer));
-
-    stm32_flash_writer::Writer writer;
-
-    return writer.write(&DeviceSignatureStorage[0], &aligned_buffer[0], sizeof(aligned_buffer));
 }
 
 }

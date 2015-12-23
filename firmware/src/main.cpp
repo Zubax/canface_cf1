@@ -21,8 +21,6 @@
 #include <hal.h>
 #include <unistd.h>
 #include <zubax_chibios/os.hpp>
-#include <zubax_chibios/watchdog.hpp>
-#include <zubax_chibios/config.hpp>
 
 #include "board/board.hpp"
 
