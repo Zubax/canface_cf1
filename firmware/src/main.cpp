@@ -31,6 +31,14 @@ int main()
 
     while (true)
     {
-        ::sleep(1);
+        board::setStatusLED(true);
+        board::setTrafficLED(true);
+
+        ::usleep(200000);
+
+        board::setStatusLED(false);
+        board::setTrafficLED(false);
+
+        ::usleep(200000);
     }
 }

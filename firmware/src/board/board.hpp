@@ -32,6 +32,12 @@ void die(int error);
 
 void restart();
 
+void setStatusLED(bool state);
+void setTrafficLED(bool state);
+
+void enableCANPower(bool state);
+void enableCANTerminator(bool state);
+
 typedef std::array<std::uint8_t, 12> UniqueID;
 void readUniqueID(UniqueID& out_bytes);
 

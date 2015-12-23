@@ -80,9 +80,9 @@ void die(int error)
     os::lowsyslog("Fatal error %i\n", error);
     while (1)
     {
-        //setStatusLed(false);          // TODO: LED indication
+        setStatusLED(false);
         ::usleep(25000);
-        //setStatusLed(true);
+        setStatusLED(true);
         ::usleep(25000);
     }
 }
@@ -90,6 +90,26 @@ void die(int error)
 void restart()
 {
     NVIC_SystemReset();
+}
+
+void setStatusLED(bool state)
+{
+    palWritePad(GPIOB, GPIOB_LED_STATUS, !state);
+}
+
+void setTrafficLED(bool state)
+{
+    palWritePad(GPIOB, GPIOB_LED_TRAFFIC, !state);
+}
+
+void enableCANPower(bool state)
+{
+    palWritePad(GPIOB, GPIOB_CAN_POWER_EN, !state);
+}
+
+void enableCANTerminator(bool state)
+{
+    palWritePad(GPIOB, GPIOB_CAN_TERMINATOR_EN, state);
 }
 
 void readUniqueID(UniqueID& out_bytes)

@@ -192,7 +192,7 @@
                                      PIN_MODE_INPUT(15))
 
 #define VAL_GPIOB_OTYPER            (PIN_OTYPE_PUSHPULL(0) |\
-                                     PIN_OTYPE_PUSHPULL(GPIOB_CAN_POWER_EN) |\
+                                     PIN_OTYPE_OPENDRAIN(GPIOB_CAN_POWER_EN) |\
                                      PIN_OTYPE_PUSHPULL(GPIOB_CAN_TERMINATOR_EN) |\
                                      PIN_OTYPE_PUSHPULL(3) |\
                                      PIN_OTYPE_PUSHPULL(4) |\
