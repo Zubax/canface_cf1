@@ -40,7 +40,7 @@ void enableCANPower(bool state);
 void enableCANTerminator(bool state);
 
 typedef std::array<std::uint8_t, 12> UniqueID;
-void readUniqueID(UniqueID& out_bytes);
+UniqueID readUniqueID();
 
 typedef std::array<std::uint8_t, 128> DeviceSignature;
 bool tryReadDeviceSignature(DeviceSignature& out_sign);

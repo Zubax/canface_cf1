@@ -23,11 +23,42 @@
 #include <zubax_chibios/os.hpp>
 
 #include "board/board.hpp"
+#include "usb_cdc.hpp"
 
+namespace app
+{
+namespace
+{
+
+constexpr unsigned WatchdogTimeoutMSec = 1000;
+
+auto init()
+{
+    /*
+     * Basic initialization
+     */
+    auto watchdog = board::init(WatchdogTimeoutMSec);
+
+    /*
+     * USB initialization
+     */
+    const auto uid = board::readUniqueID();
+
+    usb_cdc::DeviceSerialNumber sn;
+    std::fill(sn.begin(), sn.end(), 0);
+    std::copy(uid.begin(), uid.end(), sn.begin());
+
+    usb_cdc::init(sn);
+
+    return watchdog;
+}
+
+}
+}
 
 int main()
 {
-    auto watchdog = board::init(1000);
+    auto watchdog = app::init();
 
     board::enableCANPower(true);
     board::enableCANTerminator(true);
@@ -37,7 +68,7 @@ int main()
     {
         watchdog.reset();
 
-        os::lowsyslog("Hey %u\n", i++);
+        os::lowsyslog("Hey %u %i\n", i++, (int)usb_cdc::getState());
 
         board::setStatusLED(true);
         board::setTrafficLED(true);

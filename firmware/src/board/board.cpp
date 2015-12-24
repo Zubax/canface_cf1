@@ -138,9 +138,11 @@ void enableCANTerminator(bool state)
     palWritePad(GPIOB, GPIOB_CAN_TERMINATOR_EN, state);
 }
 
-void readUniqueID(UniqueID& out_bytes)
+UniqueID readUniqueID()
 {
-    std::memcpy(out_bytes.data(), reinterpret_cast<const void*>(0x1FFFF7AC), std::tuple_size<UniqueID>::value);
+    UniqueID bytes;
+    std::memcpy(bytes.data(), reinterpret_cast<const void*>(0x1FFFF7AC), std::tuple_size<UniqueID>::value);
+    return bytes;
 }
 
 bool tryReadDeviceSignature(DeviceSignature& out_sign)
