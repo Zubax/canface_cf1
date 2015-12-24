@@ -27,7 +27,7 @@
 
 int main()
 {
-    board::init();
+    auto watchdog = board::init(1000);
 
     board::enableCANPower(true);
     board::enableCANTerminator(true);
@@ -35,16 +35,18 @@ int main()
     unsigned i = 0;
     while (true)
     {
+        watchdog.reset();
+
         os::lowsyslog("Hey %u\n", i++);
 
         board::setStatusLED(true);
         board::setTrafficLED(true);
 
-        ::sleep(1);
+        ::usleep(200000);
 
         board::setStatusLED(false);
         board::setTrafficLED(false);
 
-        ::sleep(1);
+        ::usleep(200000);
     }
 }

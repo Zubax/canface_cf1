@@ -21,7 +21,6 @@
 #include <cstring>
 #include <ch.hpp>
 #include <hal.h>
-#include <zubax_chibios/os.hpp>
 #include <unistd.h>
 
 /// PAL setup
@@ -53,36 +52,60 @@ const extern std::uint8_t DeviceSignatureStorage[];
 namespace board
 {
 
-void init()
+os::config::Param<unsigned> baudrate("uart.baudrate", SERIAL_DEFAULT_BITRATE, 115200, 3000000);
+
+os::watchdog::Timer init(unsigned watchdog_timeout_msec)
 {
+    /*
+     * OS initialization first
+     */
     halInit();
     chSysInit();
-    sdStart(&STDOUT_SD, NULL);
 
-    os::lowsyslog(PRODUCT_NAME_STRING " %d.%d.%x\n", FW_VERSION_MAJOR, FW_VERSION_MINOR, GIT_HASH);
+    /*
+     * Watchdog
+     */
     os::watchdog::init();
+    os::watchdog::Timer wdt;
+    wdt.startMSec(watchdog_timeout_msec);
 
-    while (true)
+    /*
+     * Configuration manager
+     */
+    if (os::config::init() < 0)
     {
-        const int res = os::config::init();
-        if (res >= 0)
-        {
-            break;
-        }
-        os::lowsyslog("Config init failed %i\n", res);
-        ::sleep(1);
+        die();
     }
+
+    /*
+     * Serial port
+     */
+    static const SerialConfig default_config =
+    {
+        baudrate.get(),
+        0,
+        USART_CR2_STOP1_BITS,
+        0
+    };
+    sdStart(&STDOUT_SD, &default_config);
+
+    /*
+     * Prompt
+     */
+    os::lowsyslog(PRODUCT_NAME_STRING " %d.%d.%x\n", FW_VERSION_MAJOR, FW_VERSION_MINOR, GIT_HASH);
+    return wdt;
 }
 
 __attribute__((noreturn))
-void die(int error)
+void die()
 {
-    os::lowsyslog("Fatal error %i\n", error);
     while (1)
     {
         setStatusLED(false);
+        setTrafficLED(false);
         ::usleep(25000);
         setStatusLED(true);
+        setTrafficLED(true);
         ::usleep(25000);
     }
 }
