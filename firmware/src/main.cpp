@@ -30,7 +30,7 @@ namespace app
 namespace
 {
 
-constexpr unsigned WatchdogTimeoutMSec = 1000;
+constexpr unsigned WatchdogTimeoutMSec = 1500;
 
 auto init()
 {
@@ -48,7 +48,9 @@ auto init()
     std::fill(sn.begin(), sn.end(), 0);
     std::copy(uid.begin(), uid.end(), sn.begin());
 
-    usb_cdc::init(sn);
+    watchdog.reset();
+    usb_cdc::init(sn);                  // Must not exceed watchdog timeout
+    watchdog.reset();
 
     return watchdog;
 }
