@@ -289,9 +289,10 @@ bool waitMSRINAKBitStateChange(bool target_state)
  */
 struct State
 {
-    std::uint64_t error_cnt = 0;
-    std::uint64_t tx_cnt    = 0;
-    std::uint64_t rx_cnt    = 0;
+    std::uint64_t error_cnt       = 0;
+    std::uint64_t rx_overflow_cnt = 0;
+    std::uint64_t tx_cnt          = 0;
+    std::uint64_t rx_cnt          = 0;
 
     RxQueue rx_queue;
     BusEvent bus_event;
@@ -309,6 +310,142 @@ struct State
 };
 
 State* state_ = nullptr;
+
+/*
+ * Interrupt handlers
+ */
+void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const bool txok, const ::systime_t timestamp)
+{
+    assert(mailbox_index < NumTxMailboxes);
+
+    state_->had_activity = state_->had_activity || txok;
+
+    auto& txi = state_->pending_tx[mailbox_index];
+
+    if (state_->loopback && txi.pending)
+    {
+        RxFrame rxf;
+        rxf.frame             = txi.frame;
+        rxf.loopback          = true;
+        rxf.failed            = !txok;
+        rxf.timestamp_systick = timestamp;
+
+        state_->rx_queue.push(rxf);
+    }
+
+    txi.pending = false;
+}
+
+void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t timestamp)
+{
+    static constexpr unsigned CAN_RFR_FMP_MASK = 3;
+
+    assert(fifo_index < 2);
+
+    volatile std::uint32_t& rfr_reg = (fifo_index == 0) ? CAN->RF0R : CAN->RF1R;
+    if ((rfr_reg & CAN_RFR_FMP_MASK) == 0)
+    {
+        assert(0);  // Weird, IRQ is here but no data to read
+        return;
+    }
+
+    /*
+     * Register overflow as a hardware error
+     */
+    if ((rfr_reg & CAN_RF0R_FOVR0) != 0)
+    {
+        state_->rx_overflow_cnt++;
+    }
+
+    /*
+     * Read the frame contents
+     */
+    RxFrame rxf;
+    rxf.timestamp_systick = timestamp;
+
+    const auto& rf = CAN->sFIFOMailBox[fifo_index];
+
+    if ((rf.RIR & CAN_RI0R_IDE) == 0)
+    {
+        rxf.frame.id = Frame::MaskStdID & (rf.RIR >> 21);
+    }
+    else
+    {
+        rxf.frame.id = Frame::MaskExtID & (rf.RIR >> 3);
+        rxf.frame.id |= Frame::FlagEFF;
+    }
+
+    if ((rf.RIR & CAN_RI0R_RTR) != 0)
+    {
+        rxf.frame.id |= Frame::FlagRTR;
+    }
+
+    rxf.frame.dlc = rf.RDTR & 15;
+
+    rxf.frame.data[0] = std::uint8_t(0xFF & (rf.RDLR >> 0));
+    rxf.frame.data[1] = std::uint8_t(0xFF & (rf.RDLR >> 8));
+    rxf.frame.data[2] = std::uint8_t(0xFF & (rf.RDLR >> 16));
+    rxf.frame.data[3] = std::uint8_t(0xFF & (rf.RDLR >> 24));
+    rxf.frame.data[4] = std::uint8_t(0xFF & (rf.RDHR >> 0));
+    rxf.frame.data[5] = std::uint8_t(0xFF & (rf.RDHR >> 8));
+    rxf.frame.data[6] = std::uint8_t(0xFF & (rf.RDHR >> 16));
+    rxf.frame.data[7] = std::uint8_t(0xFF & (rf.RDHR >> 24));
+
+    rfr_reg = CAN_RF0R_RFOM0 | CAN_RF0R_FOVR0 | CAN_RF0R_FULL0;  // Release FIFO entry we just read
+
+    /*
+     * Store with timeout into the FIFO buffer and signal update event
+     */
+    state_->rx_queue.push(rxf);
+    state_->had_activity = true;
+
+    // TODO: proper signaling
+    state_->bus_event.signalFromInterrupt();
+}
+
+void handleStatusChangeInterrupt(const ::systime_t timestamp)
+{
+    CAN->MSR = CAN_MSR_ERRI;        // Clear error
+
+    /*
+     * Cancel all transmissions when we reach bus-off state
+     */
+    if (CAN->ESR & CAN_ESR_BOFF)
+    {
+        CAN->TSR = CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;
+
+        // Marking TX mailboxes empty
+        for (unsigned i = 0; i < NumTxMailboxes; i++)
+        {
+            auto& tx = state_->pending_tx[i];
+            if (tx.pending)
+            {
+                tx.pending = false;
+
+                // If loopback is enabled, reporting that the transmission has failed.
+                if (state_->loopback)
+                {
+                    RxFrame rxf;
+                    rxf.frame = tx.frame;
+                    rxf.failed = true;
+                    rxf.loopback = true;
+                    rxf.timestamp_systick = timestamp;
+
+                    state_->rx_queue.push(rxf);
+                }
+            }
+        }
+    }
+
+    const std::uint8_t lec = std::uint8_t((CAN->ESR & CAN_ESR_LEC) >> 4);
+    if (lec != 0)
+    {
+        state_->last_hw_error_code = lec;
+        state_->error_cnt++;
+    }
+
+    CAN->ESR = 0;
+}
 
 } // namespace
 
@@ -377,7 +514,8 @@ int start(std::uint32_t bitrate, unsigned options)
                CAN_IER_FMPIE0 |         // RX FIFO 0 is not empty
                CAN_IER_FMPIE1 |         // RX FIFO 1 is not empty
                CAN_IER_ERRIE |          // General error IRQ
-               CAN_IER_LECIE;           // Last error code change
+               CAN_IER_LECIE |          // Last error code change
+               CAN_IER_BOFIE;           // Bus-off reached
 
     CAN->MCR &= ~CAN_MCR_INRQ;          // Leave init mode
 
@@ -412,6 +550,12 @@ int start(std::uint32_t bitrate, unsigned options)
 void stop()
 {
     os::MutexLocker mutex_locker(mutex_);
+    os::CriticalSectionLocker cs_lock;
+
+    CAN->IER = 0;                                           // Disable interrupts
+    CAN->MCR = CAN_MCR_SLEEP | CAN_MCR_RESET;               // Force software reset of the macrocell
+
+    NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CEC_CAN_IRQn));
 }
 
 int send(const Frame& frame, unsigned timeout_ms)
@@ -428,6 +572,71 @@ int receive(Frame& out_frame, unsigned timeout_ms)
     (void)out_frame;
     (void)timeout_ms;
     return -1;
+}
+
+}
+
+extern "C"
+{
+
+using namespace can;
+
+CH_IRQ_HANDLER(STM32_CAN1_UNIFIED_HANDLER)
+{
+    CH_IRQ_PROLOGUE();
+
+    const auto timestamp = chVTGetSystemTimeX();
+    assert(state_ != nullptr);
+
+    /*
+     * TX interrupt handling
+     * TXOK == false means that there was a hardware failure
+     */
+    const auto tsr = CAN->TSR;
+    if (tsr & (CAN_TSR_RQCP0 | CAN_TSR_RQCP1 | CAN_TSR_RQCP2))
+    {
+        if (tsr & CAN_TSR_RQCP0)
+        {
+            const bool txok = (tsr & CAN_TSR_TXOK0) != 0;
+            CAN->TSR = CAN_TSR_RQCP0;
+            handleTxMailboxInterrupt(0, txok, timestamp);
+        }
+        if (tsr & CAN_TSR_RQCP1)
+        {
+            const bool txok = (tsr & CAN_TSR_TXOK1) != 0;
+            CAN->TSR = CAN_TSR_RQCP1;
+            handleTxMailboxInterrupt(1, txok, timestamp);
+        }
+        if (tsr & CAN_TSR_RQCP2)
+        {
+            const bool txok = (tsr & CAN_TSR_TXOK2) != 0;
+            CAN->TSR = CAN_TSR_RQCP2;
+            handleTxMailboxInterrupt(2, txok, timestamp);
+        }
+    }
+
+    /*
+     * RX interrupt handling
+     */
+    while ((CAN->RF0R & CAN_RF0R_FMP0) != 0)
+    {
+        handleRxInterrupt(0, timestamp);
+    }
+    while ((CAN->RF1R & CAN_RF1R_FMP1) != 0)
+    {
+        handleRxInterrupt(1, timestamp);
+    }
+
+    /*
+     * Status change interrupt handling
+     */
+    if (CAN->MSR & CAN_MSR_ERRI)
+    {
+        handleStatusChangeInterrupt(timestamp);
+    }
+
+    // TODO: event reporting!
+    CH_IRQ_EPILOGUE();
 }
 
 }

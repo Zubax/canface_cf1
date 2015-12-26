@@ -74,7 +74,13 @@ struct RxFrame
 {
     ::systime_t timestamp_systick = 0;
     Frame frame;
-    bool loopback = false;
+    std::uint8_t loopback : 1;
+    std::uint8_t failed : 1;
+
+    RxFrame() :
+        loopback(false),
+        failed(false)
+    { }
 };
 
 static constexpr unsigned OptionSilentMode = 1;
