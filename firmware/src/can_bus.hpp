@@ -43,6 +43,8 @@ struct Frame
     std::uint8_t data[MaxDataLen] = {};
     std::uint8_t dlc = 0;                                       ///< Data Length Code
 
+    Frame() { }
+
     Frame(std::uint32_t can_id, const void* can_data, std::uint8_t data_len) :
         id(can_id),
         dlc(data_len)
@@ -65,7 +67,18 @@ struct Frame
     bool priorityLowerThan(const Frame& rhs) const { return rhs.priorityHigherThan(*this); }
 };
 
+/**
+ * RX frame data.
+ */
+struct RxFrame
+{
+    ::systime_t timestamp_systick = 0;
+    Frame frame;
+    bool loopback = false;
+};
+
 static constexpr unsigned OptionSilentMode = 1;
+static constexpr unsigned OptionLoopback   = 2;
 
 /**
  * @param bitrate
@@ -94,6 +107,6 @@ int send(const Frame& frame, unsigned timeout_ms);
  *         1 - frame received
  *         negative - error
  */
-int receive(Frame& out_frame, unsigned timeout_ms);
+int receive(RxFrame& out_frame, unsigned timeout_ms);
 
 }

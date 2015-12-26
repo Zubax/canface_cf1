@@ -19,6 +19,8 @@
 
 #pragma once
 
+#define CH_CFG_USE_SEMAPHORES           TRUE
+
 #define PORT_INT_REQUIRED_STACK         256
 #define PORT_IDLE_THREAD_STACK_SIZE     64
 

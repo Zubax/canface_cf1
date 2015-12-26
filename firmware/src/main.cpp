@@ -24,6 +24,7 @@
 
 #include "board/board.hpp"
 #include "usb_cdc.hpp"
+#include "can_bus.hpp"
 
 namespace app
 {
@@ -65,12 +66,12 @@ int main()
     board::enableCANPower(true);
     board::enableCANTerminator(true);
 
-    unsigned i = 0;
+    const auto can_res = can::start(1000000, can::OptionLoopback);
+    os::lowsyslog("CAN res: %d\n", can_res);
+
     while (true)
     {
         watchdog.reset();
-
-        os::lowsyslog("Hey %u %i\n", i++, (int)usb_cdc::getState());
 
         board::setStatusLED(true);
         board::setTrafficLED(true);
