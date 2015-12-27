@@ -33,11 +33,28 @@ namespace
 {
 
 constexpr unsigned WatchdogTimeoutMSec = 1500;
+constexpr unsigned SLCANMaxFrameSize = 40;
 
+os::config::Param<bool> cfg_can_power_on     ("can.power_on",           false);
+os::config::Param<bool> cfg_can_terminator_on("can.terminator_on",      false);
 
-os::config::Param<bool> can_power_on("can.power_on", false);
-os::config::Param<bool> can_terminator_on("can.terminator_on", false);
+os::config::Param<bool> cfg_timestamping_on("slcan.timestamping_on",    true);
+os::config::Param<bool> cfg_flags_on       ("slcan.flags_on",           true);
+os::config::Param<bool> cfg_loopback_on    ("slcan.loopback_on",        false);
 
+struct ParamCache
+{
+    bool timestamping_on;
+    bool flags_on;
+    bool loopback_on;
+
+    void reload()
+    {
+        timestamping_on = cfg_timestamping_on;
+        flags_on        = cfg_flags_on;
+        loopback_on     = cfg_loopback_on;
+    }
+} param_cache;
 
 auto init()
 {
@@ -62,7 +79,7 @@ auto init()
     return watchdog;
 }
 
-class BackgroundThread : public chibios_rt::BaseStaticThread<128>
+class BackgroundThread : public chibios_rt::BaseStaticThread<256>
 {
     static constexpr unsigned BaseFrameMSec = 25;
 
@@ -126,11 +143,14 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<128>
         }
     }
 
-    static void updateConfigs()
+    static void reloadConfigs()
     {
-        // TODO: only on request
-        board::enableCANPower(can_power_on);
-        board::enableCANTerminator(can_terminator_on);
+        os::lowsyslog("Reloading configs\n");           ///< TODO: remove later
+
+        board::enableCANPower(cfg_can_power_on);
+        board::enableCANTerminator(cfg_can_terminator_on);
+
+        param_cache.reload();
     }
 
     void main() override
@@ -138,14 +158,23 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<128>
         os::watchdog::Timer wdt;
         wdt.startMSec(WatchdogTimeoutMSec);     // This thread is quite low-priority, so large timeout is OK
 
+        reloadConfigs();
+
         ::systime_t next_step_at = chVTGetSystemTime();
+        unsigned cfg_modcnt = 0;
 
         while (true)
         {
             wdt.reset();
 
             updateLED();                        // LEDs must be served first in order to reduce jitter
-            updateConfigs();
+
+            const unsigned new_cfg_modcnt = os::config::getModificationCounter();
+            if (new_cfg_modcnt != cfg_modcnt)
+            {
+                cfg_modcnt = new_cfg_modcnt;
+                reloadConfigs();
+            }
 
             next_step_at += MS2ST(BaseFrameMSec);
             os::sleepUntilChTime(next_step_at);
@@ -154,14 +183,130 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<128>
 } background_thread_;
 
 
-class RxThread : public chibios_rt::BaseStaticThread<512>
+class RxThread : public chibios_rt::BaseStaticThread<400>
 {
     static constexpr unsigned ReadTimeoutMSec = 5;
+    static constexpr unsigned WriteTimeoutMSec = 50;
+
+    static inline std::uint8_t hex(std::uint8_t x)
+    {
+        const auto n = std::uint8_t((x & 0xF) + '0');
+        return (n > '9') ? std::uint8_t(n + 'A' - '9' - 1) : n;
+    }
+
+    /**
+     * General frame format:
+     *  <type> <id> <dlc> <data> [timestamp msec] [flags]
+     * Types:
+     *  R - RTR extended
+     *  r - RTR standard
+     *  T - Data extended
+     *  t - Data standard
+     * Flags:
+     *  L - this frame is a loopback frame; timestamp field contains TX timestamp
+     */
+    static void reportFrame(const can::RxFrame& f)
+    {
+        std::uint8_t buffer[SLCANMaxFrameSize];
+        std::uint8_t* p = &buffer[0];
+
+        if (f.failed)
+        {
+            return;
+        }
+
+        if (f.loopback && !param_cache.loopback_on)
+        {
+            return;
+        }
+
+        /*
+         * Frame type
+         */
+        if (f.frame.isRemoteTransmissionRequest())
+        {
+            *p++ = f.frame.isExtended() ? 'R' : 'r';
+        }
+        else if (f.frame.isErrorFrame())
+        {
+            return;     // Not supported
+        }
+        else
+        {
+            *p++ = f.frame.isExtended() ? 'T' : 't';
+        }
+
+        /*
+         * ID
+         */
+        {
+            const std::uint32_t id = f.frame.id & f.frame.MaskExtID;
+            if (f.frame.isExtended())
+            {
+                *p++ = hex(id >> 28);
+                *p++ = hex(id >> 24);
+                *p++ = hex(id >> 20);
+                *p++ = hex(id >> 16);
+                *p++ = hex(id >> 12);
+            }
+            *p++ = hex(id >> 8);
+            *p++ = hex(id >> 4);
+            *p++ = hex(id >> 0);
+        }
+
+        /*
+         * DLC
+         */
+        *p++ = char('0' + f.frame.dlc);
+
+        /*
+         * Data
+         */
+        for (unsigned i = 0; i < f.frame.dlc; i++)
+        {
+            const std::uint8_t byte = f.frame.data[i];
+            *p++ = hex(byte >> 4);
+            *p++ = hex(byte);
+        }
+
+        /*
+         * Timestamp
+         */
+        if (param_cache.timestamping_on)
+        {
+            const auto msec = std::uint16_t(f.timestamp_systick / (CH_CFG_ST_FREQUENCY / 1000));
+            *p++ = hex(msec >> 12);
+            *p++ = hex(msec >> 8);
+            *p++ = hex(msec >> 4);
+            *p++ = hex(msec >> 0);
+        }
+
+        /*
+         * Flags
+         */
+        if (param_cache.flags_on)
+        {
+            if (f.loopback)
+            {
+                *p++ = 'L';
+            }
+        }
+
+        /*
+         * Finalization
+         */
+        *p++ = '\r';
+        const auto frame_size = unsigned(p - &buffer[0]);
+        assert(frame_size <= sizeof(buffer));
+
+        os::MutexLocker mlocker(os::getStdOutMutex());
+        chnWriteTimeout(os::getStdOutStream(), &buffer[0], frame_size, MS2ST(WriteTimeoutMSec));
+    }
 
     void main() override
     {
         os::watchdog::Timer wdt;
-        wdt.startMSec(ReadTimeoutMSec * 2);
+        wdt.startMSec((ReadTimeoutMSec + WriteTimeoutMSec) * 2);
 
         while (true)
         {
@@ -171,11 +316,7 @@ class RxThread : public chibios_rt::BaseStaticThread<512>
             const int res = can::receive(rxf, ReadTimeoutMSec);
             if (res > 0)
             {
-                // TODO: SLCAN
-                os::lowsyslog("%s: %s %u 0x%08x\n",
-                              rxf.loopback ? "LB" : "RX",
-                              rxf.failed ? "FAILED" : "OK",
-                              unsigned(rxf.timestamp_systick), unsigned(rxf.frame.id));
+                reportFrame(rxf);
             }
             else if (res == -can::ErrNotStarted)
             {

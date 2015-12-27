@@ -20,7 +20,7 @@
 #pragma once
 
 #define CH_CFG_USE_SEMAPHORES           TRUE
-#define CH_CFG_USE_REGISTRY             TRUE
+//#define CH_CFG_USE_REGISTRY             TRUE
 
 //#define PORT_INT_REQUIRED_STACK         256
 
