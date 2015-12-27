@@ -236,9 +236,8 @@ int computeTimings(const std::uint32_t target_bitrate, Timings& out_timings)
         return -ErrLogic;
     }
 
-    // TODO: remove later
-    os::lowsyslog("Timings: quanta/bit: %d, sample point location: %.1f%%\n",
-                  int(1 + solution.bs1 + solution.bs2), float(solution.sample_point_permill) / 10.F);
+//    os::lowsyslog("Timings: quanta/bit: %d, sample point location: %.1f%%\n",
+//                  int(1 + solution.bs1 + solution.bs2), float(solution.sample_point_permill) / 10.F);
 
     out_timings.prescaler = std::uint16_t(prescaler - 1U);
     out_timings.sjw = 0;                                        // Which means one
@@ -679,9 +678,8 @@ int start(std::uint32_t bitrate, unsigned options)
     {
         return timings_res;
     }
-    // TODO: remove later
-    os::lowsyslog("Timings: presc=%u sjw=%u bs1=%u bs2=%u\n",
-                  unsigned(timings.prescaler), unsigned(timings.sjw), unsigned(timings.bs1), unsigned(timings.bs2));
+//    os::lowsyslog("Timings: presc=%u sjw=%u bs1=%u bs2=%u\n",
+//                  unsigned(timings.prescaler), unsigned(timings.sjw), unsigned(timings.bs1), unsigned(timings.bs2));
 
     /*
      * Hardware initialization (the hardware has already confirmed initialization mode, see above)

@@ -66,7 +66,7 @@ int main()
     board::enableCANPower(true);
     board::enableCANTerminator(true);
 
-    const auto can_res = can::start(1000000, can::OptionLoopback);
+    const auto can_res = can::start(125000, can::OptionLoopback);
     os::lowsyslog("CAN res: %d\n", can_res);
 
     while (true)
