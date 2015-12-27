@@ -758,7 +758,7 @@ int send(const Frame& frame, std::uint16_t timeout_ms)
 
         // Blocking until next event or timeout
         const auto elapsed = chVTTimeElapsedSinceX(started_at);
-        if (elapsed > MS2ST(timeout_ms))
+        if (elapsed >= MS2ST(timeout_ms))
         {
             return 0;
         }
@@ -768,11 +768,32 @@ int send(const Frame& frame, std::uint16_t timeout_ms)
     return -1;
 }
 
-int receive(Frame& out_frame, std::uint16_t timeout_ms)
+int receive(RxFrame& out_frame, std::uint16_t timeout_ms)
 {
     os::MutexLocker mutex_locker(mutex_);
-    (void)out_frame;
-    (void)timeout_ms;
+
+    const auto started_at = chVTGetSystemTimeX();
+
+    while (true)
+    {
+        {
+            os::CriticalSectionLocker cs_locker;
+            if (state_->rx_queue.getLength() > 0)
+            {
+                state_->rx_queue.pop(out_frame);
+                return 1;
+            }
+        }
+
+        // Blocking until next event or timeout
+        const auto elapsed = chVTTimeElapsedSinceX(started_at);
+        if (elapsed >= MS2ST(timeout_ms))
+        {
+            return 0;
+        }
+        state_->rx_event.waitForSysTicks(MS2ST(timeout_ms) - elapsed);
+    }
+
     return -1;
 }
 

@@ -75,8 +75,18 @@ int main()
         board::setStatusLED(true);
         board::setTrafficLED(true);
 
-        int res = can::send(can::Frame(), 200);
+        static can::Frame txf;
+        txf.data[0]++;
+        txf.dlc = 1;
+        int res = can::send(txf, 200);
         os::lowsyslog("CAN res: %d\n", res);
+
+        can::RxFrame rxf;
+        while (can::receive(rxf, 200) > 0)
+        {
+            os::lowsyslog("%s: %u 0x%08x\n", rxf.loopback ? "LB" : "RX",
+                          unsigned(rxf.timestamp_systick), unsigned(rxf.frame.id));
+        }
 
         watchdog.reset();
         board::setStatusLED(false);
