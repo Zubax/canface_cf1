@@ -30,18 +30,12 @@ class RxQueue
     std::uint8_t in_ = 0;
     std::uint8_t out_ = 0;
     std::uint8_t len_ = 0;
-    std::uint32_t overflow_cnt_ = 0;
-
-    void registerOverflow()
-    {
-        if (overflow_cnt_ < 0xFFFFFFFF)
-        {
-            overflow_cnt_++;
-        }
-    }
 
 public:
-    void push(const RxFrame& frame)
+    /**
+     * @retval true - OK, false - Overflow
+     */
+    bool push(const RxFrame& frame)
     {
         buf_[in_] = frame;
         in_++;
@@ -53,13 +47,14 @@ public:
         if (len_ > Capacity)
         {
             len_ = Capacity;
-            registerOverflow();
             out_++;
             if (out_ >= Capacity)
             {
                 out_ = 0;
             }
+            return false;
         }
+        return true;
     }
 
     void pop(RxFrame& out_frame)
@@ -82,12 +77,9 @@ public:
         in_ = 0;
         out_ = 0;
         len_ = 0;
-        overflow_cnt_ = 0;
     }
 
     unsigned getLength() const { return len_; }
-
-    std::uint32_t getOverflowCount() const { return overflow_cnt_; }
 };
 
 
@@ -261,7 +253,9 @@ bool waitMSRINAKBitStateChange(bool target_state)
     return false;
 }
 
-
+/**
+ * TODO: use a different synchronization primitive, not semaphore
+ */
 class Event
 {
     chibios_rt::CounterSemaphore sem_;
@@ -277,25 +271,19 @@ public:
 /*
  * Driver state
  */
-struct State
+struct DriverState
 {
-    std::uint64_t error_cnt       = 0;
-    std::uint64_t rx_overflow_cnt = 0;
-    std::uint64_t tx_cnt          = 0;
-    std::uint64_t rx_cnt          = 0;
+    Statistics stats;
 
     RxQueue rx_queue;
     Event rx_event;
     Event tx_event;
     TxItem pending_tx[NumTxMailboxes];
-
-    std::uint8_t last_hw_error_code = 0;
-    std::uint8_t peak_tx_mailbox_index = 0;
     bool had_activity = false;
 
     const bool loopback;
 
-    State(bool option_loopback) :
+    DriverState(bool option_loopback) :
         loopback(option_loopback)
     { }
 
@@ -303,18 +291,21 @@ struct State
     {
         os::CriticalSectionLocker cs_locker;
 
-        rx_queue.push(rxf);
+        if (!rx_queue.push(rxf))
+        {
+            stats.sw_rx_overruns++;
+        }
         rx_event.signalI();
 
         if (!rxf.loopback && !rxf.failed)
         {
             had_activity = true;
-            rx_cnt++;
+            stats.frames_rx++;
         }
     }
 };
 
-State* state_ = nullptr;
+DriverState* state_ = nullptr;
 
 /*
  * Interrupt handlers
@@ -326,7 +317,7 @@ void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const bool txok,
     if (txok)
     {
         state_->had_activity = true;
-        state_->tx_cnt++;
+        state_->stats.frames_tx++;
     }
 
     auto& txi = state_->pending_tx[mailbox_index];
@@ -362,11 +353,11 @@ void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t timestam
     }
 
     /*
-     * Register overflow as a hardware error
+     * Register overflow
      */
     if ((rfr_reg & CAN_RF0R_FOVR0) != 0)
     {
-        state_->rx_overflow_cnt++;
+        state_->stats.hw_rx_overruns++;
     }
 
     /*
@@ -459,8 +450,8 @@ void handleStatusChangeInterrupt(const ::systime_t timestamp)
     const std::uint8_t lec = std::uint8_t((CAN->ESR & CAN_ESR_LEC) >> 4);
     if (lec != 0)
     {
-        state_->last_hw_error_code = lec;
-        state_->error_cnt++;
+        state_->stats.last_hw_error_code = lec;
+        state_->stats.errors++;
     }
 
     CAN->ESR = 0;
@@ -549,7 +540,7 @@ int loadTxMailbox(const Frame& frame)
         return 0;       // No transmission for you.
     }
 
-    state_->peak_tx_mailbox_index = std::max(state_->peak_tx_mailbox_index, txmailbox);    // Statistics
+    state_->stats.peak_tx_mailbox_index = std::max(state_->stats.peak_tx_mailbox_index, txmailbox);    // Statistics
 
     /*
      * Setting up the mailbox
@@ -666,8 +657,8 @@ int start(std::uint32_t bitrate, unsigned options)
     /*
      * Resetting driver state - CAN interrupts are disabled, so it's safe to modify it now
      */
-    static std::aligned_storage_t<sizeof(State), alignof(State)> _state_storage;
-    state_ = new (&_state_storage) State((options & OptionLoopback) != 0);
+    static std::aligned_storage_t<sizeof(DriverState), alignof(DriverState)> _state_storage;
+    state_ = new (&_state_storage) DriverState((options & OptionLoopback) != 0);
 
     /*
      * CAN timings for this bitrate
@@ -793,6 +784,46 @@ int receive(RxFrame& out_frame, std::uint16_t timeout_ms)
     }
 
     return -1;
+}
+
+Statistics getStatistics()
+{
+    os::CriticalSectionLocker cs_locker;
+    return state_->stats;
+}
+
+Status getStatus()
+{
+    const std::uint32_t esr = CAN->ESR;         // Access is atomic
+
+    Status s;
+    s.receive_error_counter  = 0xFF & (esr >> 24);
+    s.transmit_error_counter = 0xFF & (esr >> 16);
+
+    if (esr & CAN_ESR_BOFF)
+    {
+        s.state = s.State::BusOff;
+    }
+    else if (esr & CAN_ESR_EPVF)
+    {
+        s.state = s.State::ErrorPassive;
+    }
+    else
+    {
+        s.state = s.State::ErrorActive;
+    }
+
+    return s;
+}
+
+bool hadActivity()
+{
+    if (state_->had_activity)
+    {
+        state_->had_activity = false;   // Critical section is not needed
+        return true;
+    }
+    return false;
 }
 
 }

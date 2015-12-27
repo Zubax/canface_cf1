@@ -84,9 +84,19 @@ int main()
         can::RxFrame rxf;
         while (can::receive(rxf, 200) > 0)
         {
-            os::lowsyslog("%s: %u 0x%08x\n", rxf.loopback ? "LB" : "RX",
+            watchdog.reset();
+            os::lowsyslog("%s: %s %u 0x%08x\n",
+                          rxf.loopback ? "LB" : "RX",
+                          rxf.failed ? "FAILED" : "OK",
                           unsigned(rxf.timestamp_systick), unsigned(rxf.frame.id));
         }
+
+        const auto stats = can::getStatistics();
+        const auto status = can::getStatus();
+        os::lowsyslog("err=%u  rx=%u  tx=%u  ptxmbx=%u  rec=%u  tec=%u  state=%u\n",
+                      unsigned(stats.errors), unsigned(stats.frames_rx), unsigned(stats.frames_tx),
+                      unsigned(stats.peak_tx_mailbox_index),
+                      status.receive_error_counter, status.transmit_error_counter, unsigned(status.state));
 
         watchdog.reset();
         board::setStatusLED(false);

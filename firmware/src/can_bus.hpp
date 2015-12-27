@@ -83,10 +83,42 @@ struct RxFrame
     { }
 };
 
+/**
+ * CAN bus status info.
+ */
+struct Statistics
+{
+    std::uint64_t errors         = 0;
+    std::uint64_t sw_rx_overruns = 0;
+    std::uint64_t hw_rx_overruns = 0;
+    std::uint64_t frames_tx      = 0;
+    std::uint64_t frames_rx      = 0;
+
+    std::uint8_t last_hw_error_code = 0;
+    std::uint8_t peak_tx_mailbox_index = 0;
+};
+
+struct Status
+{
+    std::uint8_t receive_error_counter = 0;
+    std::uint8_t transmit_error_counter = 0;    ///< Only 8 least significant bits (9th bit is not exposed by bxCAN)
+
+    enum class State : std::uint8_t
+    {
+        ErrorActive,            ///< i.e. normal mode
+        ErrorPassive,
+        BusOff
+    } state = State::ErrorActive;
+};
+
+/**
+ * Start options
+ */
 static constexpr unsigned OptionSilentMode = 1;
 static constexpr unsigned OptionLoopback   = 2;
 
 /**
+ * Starts the controller and resets all associated statistics.
  * @param bitrate
  * @return negative on error
  */
@@ -94,6 +126,7 @@ int start(std::uint32_t bitrate, unsigned options = 0);
 
 /**
  * Stops the controller.
+ * Note that this call does not reset the statistics; @ref start() does.
  */
 void stop();
 
@@ -114,5 +147,22 @@ int send(const Frame& frame, std::uint16_t timeout_ms);
  *         negative - error
  */
 int receive(RxFrame& out_frame, std::uint16_t timeout_ms);
+
+/**
+ * Returns the statistics collected since the last @ref start() call.
+ * Note that the statistics object is large, and access to it is protected by a critical section,
+ * so accessing this function may introduce a few microsecond latency to communications.
+ */
+Statistics getStatistics();
+
+/**
+ * Returns current state of the CAN controller.
+ */
+Status getStatus();
+
+/**
+ * Returns true if there were CAN exchange since the previous call to this function.
+ */
+bool hadActivity();
 
 }
