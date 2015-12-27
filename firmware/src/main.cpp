@@ -72,12 +72,13 @@ int main()
     while (true)
     {
         watchdog.reset();
-
         board::setStatusLED(true);
         board::setTrafficLED(true);
 
-        ::usleep(200000);
+        int res = can::send(can::Frame(), 200);
+        os::lowsyslog("CAN res: %d\n", res);
 
+        watchdog.reset();
         board::setStatusLED(false);
         board::setTrafficLED(false);
 

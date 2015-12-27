@@ -104,7 +104,7 @@ void stop();
  *         1 - frame successfully scheduled for transmission
  *         negative - error
  */
-int send(const Frame& frame, unsigned timeout_ms);
+int send(const Frame& frame, std::uint16_t timeout_ms);
 
 /**
  * @param out_frame
@@ -113,6 +113,6 @@ int send(const Frame& frame, unsigned timeout_ms);
  *         1 - frame received
  *         negative - error
  */
-int receive(RxFrame& out_frame, unsigned timeout_ms);
+int receive(RxFrame& out_frame, std::uint16_t timeout_ms);
 
 }

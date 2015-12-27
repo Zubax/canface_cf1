@@ -20,8 +20,8 @@
 #pragma once
 
 #define CH_CFG_USE_SEMAPHORES           TRUE
+#define CH_CFG_USE_REGISTRY             TRUE
 
-#define PORT_INT_REQUIRED_STACK         256
-#define PORT_IDLE_THREAD_STACK_SIZE     64
+//#define PORT_INT_REQUIRED_STACK         256
 
 #include <zubax_chibios/sys/chconf_tail.h>

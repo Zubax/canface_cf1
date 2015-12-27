@@ -6,8 +6,10 @@
 #include <hal.h>
 #include <unistd.h>
 #include <type_traits>
+#include <algorithm>
 #include <new>
 #include "can_bus.hpp"
+
 
 namespace can
 {
@@ -102,30 +104,6 @@ struct TxItem
 {
     Frame frame;
     bool pending = false;
-};
-
-
-class BusEvent
-{
-    chibios_rt::CounterSemaphore sem_ = chibios_rt::CounterSemaphore(0);
-
-public:
-    bool waitMSec(const unsigned msec)
-    {
-        return sem_.wait(msec) == MSG_OK;
-    }
-
-    void signal()
-    {
-        sem_.signal();
-    }
-
-    void signalFromInterrupt()
-    {
-        chSysLockFromISR();
-        sem_.signalI();
-        chSysUnlockFromISR();
-    }
 };
 
 /*
@@ -284,6 +262,19 @@ bool waitMSRINAKBitStateChange(bool target_state)
     return false;
 }
 
+
+class Event
+{
+    chibios_rt::CounterSemaphore sem_;
+
+public:
+    Event() : sem_(0) { }
+
+    void waitForSysTicks(unsigned systicks) { (void)sem_.wait(systicks); }
+
+    void signalI() { sem_.signalI(); }
+};
+
 /*
  * Driver state
  */
@@ -295,7 +286,8 @@ struct State
     std::uint64_t rx_cnt          = 0;
 
     RxQueue rx_queue;
-    BusEvent bus_event;
+    Event rx_event;
+    Event tx_event;
     TxItem pending_tx[NumTxMailboxes];
 
     std::uint8_t last_hw_error_code = 0;
@@ -307,6 +299,20 @@ struct State
     State(bool option_loopback) :
         loopback(option_loopback)
     { }
+
+    void pushRxFromISR(const RxFrame& rxf)
+    {
+        os::CriticalSectionLocker cs_locker;
+
+        rx_queue.push(rxf);
+        rx_event.signalI();
+
+        if (!rxf.loopback && !rxf.failed)
+        {
+            had_activity = true;
+            rx_cnt++;
+        }
+    }
 };
 
 State* state_ = nullptr;
@@ -318,7 +324,11 @@ void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const bool txok,
 {
     assert(mailbox_index < NumTxMailboxes);
 
-    state_->had_activity = state_->had_activity || txok;
+    if (txok)
+    {
+        state_->had_activity = true;
+        state_->tx_cnt++;
+    }
 
     auto& txi = state_->pending_tx[mailbox_index];
 
@@ -330,10 +340,13 @@ void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const bool txok,
         rxf.failed            = !txok;
         rxf.timestamp_systick = timestamp;
 
-        state_->rx_queue.push(rxf);
+        state_->pushRxFromISR(rxf);
     }
 
     txi.pending = false;
+
+    os::CriticalSectionLocker cs_locker;
+    state_->tx_event.signalI();
 }
 
 void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t timestamp)
@@ -382,25 +395,27 @@ void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t timestam
 
     rxf.frame.dlc = rf.RDTR & 15;
 
-    rxf.frame.data[0] = std::uint8_t(0xFF & (rf.RDLR >> 0));
-    rxf.frame.data[1] = std::uint8_t(0xFF & (rf.RDLR >> 8));
-    rxf.frame.data[2] = std::uint8_t(0xFF & (rf.RDLR >> 16));
-    rxf.frame.data[3] = std::uint8_t(0xFF & (rf.RDLR >> 24));
-    rxf.frame.data[4] = std::uint8_t(0xFF & (rf.RDHR >> 0));
-    rxf.frame.data[5] = std::uint8_t(0xFF & (rf.RDHR >> 8));
-    rxf.frame.data[6] = std::uint8_t(0xFF & (rf.RDHR >> 16));
-    rxf.frame.data[7] = std::uint8_t(0xFF & (rf.RDHR >> 24));
+    {
+        const std::uint32_t r = rf.RDLR;
+        rxf.frame.data[0] = std::uint8_t(0xFF & (r >> 0));
+        rxf.frame.data[1] = std::uint8_t(0xFF & (r >> 8));
+        rxf.frame.data[2] = std::uint8_t(0xFF & (r >> 16));
+        rxf.frame.data[3] = std::uint8_t(0xFF & (r >> 24));
+    }
+    {
+        const std::uint32_t r = rf.RDHR;
+        rxf.frame.data[4] = std::uint8_t(0xFF & (r >> 0));
+        rxf.frame.data[5] = std::uint8_t(0xFF & (r >> 8));
+        rxf.frame.data[6] = std::uint8_t(0xFF & (r >> 16));
+        rxf.frame.data[7] = std::uint8_t(0xFF & (r >> 24));
+    }
 
     rfr_reg = CAN_RF0R_RFOM0 | CAN_RF0R_FOVR0 | CAN_RF0R_FULL0;  // Release FIFO entry we just read
 
     /*
      * Store with timeout into the FIFO buffer and signal update event
      */
-    state_->rx_queue.push(rxf);
-    state_->had_activity = true;
-
-    // TODO: proper signaling
-    state_->bus_event.signalFromInterrupt();
+    state_->pushRxFromISR(rxf);
 }
 
 void handleStatusChangeInterrupt(const ::systime_t timestamp)
@@ -413,6 +428,11 @@ void handleStatusChangeInterrupt(const ::systime_t timestamp)
     if (CAN->ESR & CAN_ESR_BOFF)
     {
         CAN->TSR = CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;
+
+        {
+            os::CriticalSectionLocker cs_locker;
+            state_->tx_event.signalI();
+        }
 
         // Marking TX mailboxes empty
         for (unsigned i = 0; i < NumTxMailboxes; i++)
@@ -431,7 +451,7 @@ void handleStatusChangeInterrupt(const ::systime_t timestamp)
                     rxf.loopback = true;
                     rxf.timestamp_systick = timestamp;
 
-                    state_->rx_queue.push(rxf);
+                    state_->pushRxFromISR(rxf);
                 }
             }
         }
@@ -447,7 +467,172 @@ void handleStatusChangeInterrupt(const ::systime_t timestamp)
     CAN->ESR = 0;
 }
 
+bool canAcceptNewTxFrame(const Frame& frame)
+{
+    /*
+     * We can accept more frames only if the following conditions are satisfied:
+     *  - There is at least one TX mailbox free (obvious enough);
+     *  - The priority of the new frame is higher than priority of all TX mailboxes.
+     */
+    {
+        static constexpr std::uint32_t TME = CAN_TSR_TME0 | CAN_TSR_TME1 | CAN_TSR_TME2;
+        const std::uint32_t tme = CAN->TSR & TME;
+
+        if (tme == TME)     // All TX mailboxes are free (as in freedom).
+        {
+            return true;
+        }
+
+        if (tme == 0)       // All TX mailboxes are busy transmitting.
+        {
+            return false;
+        }
+    }
+
+    /*
+     * The second condition requires a critical section.
+     */
+    os::CriticalSectionLocker lock;
+
+    for (unsigned mbx = 0; mbx < NumTxMailboxes; mbx++)
+    {
+        if (state_->pending_tx[mbx].pending && !frame.priorityHigherThan(state_->pending_tx[mbx].frame))
+        {
+            return false;       // There's a mailbox whose priority is higher or equal the priority of the new frame.
+        }
+    }
+
+    return true;                // This new frame will be added to a free TX mailbox in the next @ref send().
+}
+
+int loadTxMailbox(const Frame& frame)
+{
+    if (frame.isErrorFrame() || frame.dlc > 8)
+    {
+        return -ErrUnsupportedFrame;
+    }
+
+    /*
+     * Normally we should perform the same check as in @ref canAcceptNewTxFrame(), because
+     * it is possible that the highest-priority frame between select() and send() could have been
+     * replaced with a lower priority one due to TX timeout. But we don't do this check because:
+     *
+     *  - It is a highly unlikely scenario.
+     *
+     *  - Frames do not timeout on a properly functioning bus. Since frames do not timeout, the new
+     *    frame can only have higher priority, which doesn't break the logic.
+     *
+     *  - If high-priority frames are timing out in the TX queue, there's probably a lot of other
+     *    issues to take care of before this one becomes relevant.
+     *
+     *  - It takes CPU time. Not just CPU time, but critical section time, which is expensive.
+     */
+    os::CriticalSectionLocker cs_lock;
+
+    /*
+     * Seeking for an empty slot
+     */
+    std::uint8_t txmailbox = 0xFF;
+    if ((CAN->TSR & CAN_TSR_TME0) == CAN_TSR_TME0)
+    {
+        txmailbox = 0;
+    }
+    else if ((CAN->TSR & CAN_TSR_TME1) == CAN_TSR_TME1)
+    {
+        txmailbox = 1;
+    }
+    else if ((CAN->TSR & CAN_TSR_TME2) == CAN_TSR_TME2)
+    {
+        txmailbox = 2;
+    }
+    else
+    {
+        return 0;       // No transmission for you.
+    }
+
+    state_->peak_tx_mailbox_index = std::max(state_->peak_tx_mailbox_index, txmailbox);    // Statistics
+
+    /*
+     * Setting up the mailbox
+     */
+    auto& mb = CAN->sTxMailBox[txmailbox];
+    if (frame.isExtended())
+    {
+        mb.TIR = ((frame.id & Frame::MaskExtID) << 3) | CAN_TI0R_IDE;
+    }
+    else
+    {
+        mb.TIR = ((frame.id & Frame::MaskStdID) << 21);
+    }
+
+    if (frame.isRemoteTransmissionRequest())
+    {
+        mb.TIR |= CAN_TI0R_RTR;
+    }
+
+    mb.TDTR = frame.dlc;
+
+    mb.TDHR = (std::uint32_t(frame.data[7]) << 24) |
+              (std::uint32_t(frame.data[6]) << 16) |
+              (std::uint32_t(frame.data[5]) << 8)  |
+              (std::uint32_t(frame.data[4]) << 0);
+    mb.TDLR = (std::uint32_t(frame.data[3]) << 24) |
+              (std::uint32_t(frame.data[2]) << 16) |
+              (std::uint32_t(frame.data[1]) << 8)  |
+              (std::uint32_t(frame.data[0]) << 0);
+
+    mb.TIR |= CAN_TI0R_TXRQ;  // Go. Transmission starts here.
+
+    /*
+     * Registering the pending transmission
+     */
+    auto& txi = state_->pending_tx[txmailbox];
+    txi.frame   = frame;
+    txi.pending = true;
+    return 1;
+}
+
 } // namespace
+
+bool Frame::priorityHigherThan(const Frame& rhs) const
+{
+    const uint32_t clean_id     = id     & MaskExtID;
+    const uint32_t rhs_clean_id = rhs.id & MaskExtID;
+
+    /*
+     * STD vs EXT - if 11 most significant bits are the same, EXT loses.
+     */
+    const bool ext     = id     & FlagEFF;
+    const bool rhs_ext = rhs.id & FlagEFF;
+    if (ext != rhs_ext)
+    {
+        const uint32_t arb11     = ext     ? (clean_id >> 18)     : clean_id;
+        const uint32_t rhs_arb11 = rhs_ext ? (rhs_clean_id >> 18) : rhs_clean_id;
+        if (arb11 != rhs_arb11)
+        {
+            return arb11 < rhs_arb11;
+        }
+        else
+        {
+            return rhs_ext;
+        }
+    }
+
+    /*
+     * RTR vs Data frame - if frame identifiers and frame types are the same, RTR loses.
+     */
+    const bool rtr     = id     & FlagRTR;
+    const bool rhs_rtr = rhs.id & FlagRTR;
+    if (clean_id == rhs_clean_id && rtr != rhs_rtr)
+    {
+        return rhs_rtr;
+    }
+
+    /*
+     * Plain ID arbitration - greater value loses.
+     */
+    return clean_id < rhs_clean_id;
+}
 
 int start(std::uint32_t bitrate, unsigned options)
 {
@@ -558,15 +743,32 @@ void stop()
     NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CEC_CAN_IRQn));
 }
 
-int send(const Frame& frame, unsigned timeout_ms)
+int send(const Frame& frame, std::uint16_t timeout_ms)
 {
     os::MutexLocker mutex_locker(mutex_);
-    (void)frame;
-    (void)timeout_ms;
+
+    const auto started_at = chVTGetSystemTimeX();
+
+    while (true)
+    {
+        if (canAcceptNewTxFrame(frame))
+        {
+            return loadTxMailbox(frame);
+        }
+
+        // Blocking until next event or timeout
+        const auto elapsed = chVTTimeElapsedSinceX(started_at);
+        if (elapsed > MS2ST(timeout_ms))
+        {
+            return 0;
+        }
+        state_->tx_event.waitForSysTicks(MS2ST(timeout_ms) - elapsed);
+    }
+
     return -1;
 }
 
-int receive(Frame& out_frame, unsigned timeout_ms)
+int receive(Frame& out_frame, std::uint16_t timeout_ms)
 {
     os::MutexLocker mutex_locker(mutex_);
     (void)out_frame;
@@ -635,7 +837,6 @@ CH_IRQ_HANDLER(STM32_CAN1_UNIFIED_HANDLER)
         handleStatusChangeInterrupt(timestamp);
     }
 
-    // TODO: event reporting!
     CH_IRQ_EPILOGUE();
 }
 
