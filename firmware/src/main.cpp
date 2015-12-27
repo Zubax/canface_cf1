@@ -156,7 +156,7 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<128>
 
 class RxThread : public chibios_rt::BaseStaticThread<512>
 {
-    static constexpr unsigned ReadTimeoutMSec = 500;
+    static constexpr unsigned ReadTimeoutMSec = 5;
 
     void main() override
     {
@@ -176,6 +176,14 @@ class RxThread : public chibios_rt::BaseStaticThread<512>
                               rxf.loopback ? "LB" : "RX",
                               rxf.failed ? "FAILED" : "OK",
                               unsigned(rxf.timestamp_systick), unsigned(rxf.frame.id));
+            }
+            else if (res == -can::ErrNotStarted)
+            {
+                ::usleep(1000);
+            }
+            else
+            {
+                ;
             }
         }
     }

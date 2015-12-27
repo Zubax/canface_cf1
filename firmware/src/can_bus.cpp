@@ -19,8 +19,6 @@ namespace
 constexpr unsigned IRQPriority = CORTEX_MAX_KERNEL_PRIORITY;
 constexpr unsigned NumTxMailboxes = 3;
 
-chibios_rt::Mutex mutex_;
-
 
 class RxQueue
 {
@@ -305,8 +303,23 @@ struct DriverState
     }
 };
 
+
+chibios_rt::Mutex rx_mutex_;
+chibios_rt::Mutex tx_mutex_;
 DriverState* state_ = nullptr;
-bool started_ = false;
+
+
+class CommonMutexLocker
+{
+    os::MutexLocker rx_;
+    os::MutexLocker tx_;
+public:
+    CommonMutexLocker() :
+        rx_(rx_mutex_),
+        tx_(tx_mutex_)
+    { }
+};
+
 
 /*
  * Interrupt handlers
@@ -627,9 +640,7 @@ bool Frame::priorityHigherThan(const Frame& rhs) const
 
 int start(std::uint32_t bitrate, unsigned options)
 {
-    os::MutexLocker mutex_locker(mutex_);
-
-    started_ = false;
+    CommonMutexLocker mutex_locker;
 
     EXECUTE_ONCE_NON_THREAD_SAFE
     {
@@ -658,12 +669,6 @@ int start(std::uint32_t bitrate, unsigned options)
     }
 
     /*
-     * Resetting driver state - CAN interrupts are disabled, so it's safe to modify it now
-     */
-    static std::aligned_storage_t<sizeof(DriverState), alignof(DriverState)> _state_storage;
-    state_ = new (&_state_storage) DriverState((options & OptionLoopback) != 0);
-
-    /*
      * CAN timings for this bitrate
      */
     Timings timings;
@@ -674,6 +679,18 @@ int start(std::uint32_t bitrate, unsigned options)
     }
 //    os::lowsyslog("Timings: presc=%u sjw=%u bs1=%u bs2=%u\n",
 //                  unsigned(timings.prescaler), unsigned(timings.sjw), unsigned(timings.bs1), unsigned(timings.bs2));
+
+    /*
+     * Resetting driver state - CAN interrupts are disabled, so it's safe to modify it now
+     */
+    if (state_ != nullptr)
+    {
+        delete state_;
+        state_ = nullptr;
+    }
+
+    static std::aligned_storage_t<sizeof(DriverState), alignof(DriverState)> _state_storage;
+    state_ = new (&_state_storage) DriverState((options & OptionLoopback) != 0);
 
     /*
      * Hardware initialization (the hardware has already confirmed initialization mode, see above)
@@ -698,6 +715,8 @@ int start(std::uint32_t bitrate, unsigned options)
 
     if (!waitMSRINAKBitStateChange(false))
     {
+        delete state_;
+        state_ = nullptr;
         return -ErrMsrInakNotCleared;
     }
 
@@ -721,17 +740,12 @@ int start(std::uint32_t bitrate, unsigned options)
 
     CAN->FMR &= ~CAN_FMR_FINIT;
 
-    /*
-     * Final confirmation
-     */
-    started_ = true;
-
     return 0;
 }
 
 void stop()
 {
-    os::MutexLocker mutex_locker(mutex_);
+    CommonMutexLocker mutex_locker;
     os::CriticalSectionLocker cs_lock;
 
     CAN->IER = 0;                                           // Disable interrupts
@@ -739,18 +753,26 @@ void stop()
 
     NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CEC_CAN_IRQn));
 
-    started_ = false;
+    if (state_ != nullptr)
+    {
+        delete state_;
+        state_ = nullptr;
+    }
 }
 
 bool isStarted()
 {
-    return started_;
+    return state_ != nullptr;
 }
 
 int send(const Frame& frame, std::uint16_t timeout_ms)
 {
-    os::MutexLocker mutex_locker(mutex_);
-    assert(started_);
+    os::MutexLocker mutex_locker(tx_mutex_);
+
+    if (state_ == nullptr)
+    {
+        return -ErrNotStarted;
+    }
 
     const auto started_at = chVTGetSystemTimeX();
 
@@ -775,8 +797,12 @@ int send(const Frame& frame, std::uint16_t timeout_ms)
 
 int receive(RxFrame& out_frame, std::uint16_t timeout_ms)
 {
-    os::MutexLocker mutex_locker(mutex_);
-    assert(started_);
+    os::MutexLocker mutex_locker(rx_mutex_);
+
+    if (state_ == nullptr)
+    {
+        return -ErrNotStarted;
+    }
 
     const auto started_at = chVTGetSystemTimeX();
 
@@ -811,11 +837,6 @@ Statistics getStatistics()
 
 Status getStatus()
 {
-    if (!started_)
-    {
-        return Status();
-    }
-
     const std::uint32_t esr = CAN->ESR;         // Access is atomic
 
     Status s;
@@ -840,13 +861,10 @@ Status getStatus()
 
 bool hadActivity()
 {
-    if (!started_)
+    os::CriticalSectionLocker cs_locker;
+    if (state_ != nullptr && state_->had_activity)
     {
-        return false;
-    }
-    if (state_->had_activity)
-    {
-        state_->had_activity = false;   // Critical section is not needed
+        state_->had_activity = false;
         return true;
     }
     return false;

@@ -25,6 +25,7 @@ static const std::int16_t ErrUnsupportedFrame        = 1004; ///< Frame not supp
 static const std::int16_t ErrMsrInakNotSet           = 1005; ///< INAK bit of the MSR register is not 1
 static const std::int16_t ErrMsrInakNotCleared       = 1006; ///< INAK bit of the MSR register is not 0
 static const std::int16_t ErrBitRateNotDetected      = 1007; ///< Auto bit rate detection could not be finished
+static const std::int16_t ErrNotStarted              = 1008; ///< The driver is not started
 
 /**
  * Frame definition like in libuavcan
@@ -136,6 +137,7 @@ void stop();
 bool isStarted();
 
 /**
+ * It is safe to call @ref send() and @ref receive() concurrently from different threads.
  * @param frame
  * @param timeout_ms
  * @retval 0 - timeout
@@ -145,6 +147,7 @@ bool isStarted();
 int send(const Frame& frame, std::uint16_t timeout_ms);
 
 /**
+ * It is safe to call @ref send() and @ref receive() concurrently from different threads.
  * @param out_frame
  * @param timeout_ms
  * @retval 0 - timeout
@@ -162,6 +165,7 @@ Statistics getStatistics();
 
 /**
  * Returns current state of the CAN controller.
+ * If the driver is not started, this function may return garbage.
  */
 Status getStatus();
 
