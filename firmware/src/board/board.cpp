@@ -162,6 +162,17 @@ bool tryReadDeviceSignature(DeviceSignature& out_sign)
     return valid;
 }
 
+} // namespace board
+
+namespace os
+{
+
+void applicationHaltHook()
+{
+    board::setStatusLED(true);
+    board::setTrafficLED(true);
+}
+
 }
 
 /*
