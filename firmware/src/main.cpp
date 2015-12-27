@@ -20,6 +20,7 @@
 #include <ch.hpp>
 #include <hal.h>
 #include <unistd.h>
+#include <cstdio>
 #include <zubax_chibios/os.hpp>
 
 #include "board/board.hpp"
@@ -152,6 +153,34 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<128>
     }
 } background_thread_;
 
+
+class RxThread : public chibios_rt::BaseStaticThread<512>
+{
+    static constexpr unsigned ReadTimeoutMSec = 500;
+
+    void main() override
+    {
+        os::watchdog::Timer wdt;
+        wdt.startMSec(ReadTimeoutMSec * 2);
+
+        while (true)
+        {
+            wdt.reset();
+
+            can::RxFrame rxf;
+            const int res = can::receive(rxf, ReadTimeoutMSec);
+            if (res > 0)
+            {
+                // TODO: SLCAN
+                os::lowsyslog("%s: %s %u 0x%08x\n",
+                              rxf.loopback ? "LB" : "RX",
+                              rxf.failed ? "FAILED" : "OK",
+                              unsigned(rxf.timestamp_systick), unsigned(rxf.frame.id));
+            }
+        }
+    }
+} rx_thread_;
+
 }
 }
 
@@ -162,9 +191,10 @@ int main()
     const auto can_res = can::start(125000, can::OptionLoopback);
     os::lowsyslog("CAN res: %d\n", can_res);
 
-    app::background_thread_.start(LOWPRIO);
-
     chibios_rt::BaseThread::setPriority(NORMALPRIO);
+
+    app::background_thread_.start(LOWPRIO);
+    app::rx_thread_.start(NORMALPRIO + 1);
 
     while (true)
     {
@@ -175,16 +205,6 @@ int main()
         txf.dlc = 1;
         int res = can::send(txf, 200);
         os::lowsyslog("CAN res: %d\n", res);
-
-        can::RxFrame rxf;
-        while (can::receive(rxf, 200) > 0)
-        {
-            watchdog.reset();
-            os::lowsyslog("%s: %s %u 0x%08x\n",
-                          rxf.loopback ? "LB" : "RX",
-                          rxf.failed ? "FAILED" : "OK",
-                          unsigned(rxf.timestamp_systick), unsigned(rxf.frame.id));
-        }
 
         const auto stats = can::getStatistics();
         const auto status = can::getStatus();
