@@ -131,6 +131,11 @@ int start(std::uint32_t bitrate, unsigned options = 0);
 void stop();
 
 /**
+ * True if started. While not started, other API functions may not be available.
+ */
+bool isStarted();
+
+/**
  * @param frame
  * @param timeout_ms
  * @retval 0 - timeout

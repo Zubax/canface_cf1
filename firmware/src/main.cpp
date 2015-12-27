@@ -33,6 +33,11 @@ namespace
 
 constexpr unsigned WatchdogTimeoutMSec = 1500;
 
+
+os::config::Param<bool> can_power_on("can.power_on", false);
+os::config::Param<bool> can_terminator_on("can.terminator_on", false);
+
+
 auto init()
 {
     /*
@@ -56,6 +61,97 @@ auto init()
     return watchdog;
 }
 
+class BackgroundThread : public chibios_rt::BaseStaticThread<128>
+{
+    static constexpr unsigned BaseFrameMSec = 25;
+
+    static std::pair<unsigned, unsigned> getStatusOnOffDurationMSec()
+    {
+        if (can::isStarted())
+        {
+            switch (can::getStatus().state)
+            {
+            case can::Status::State::ErrorActive:
+            {
+                return {50, 950};
+            }
+            case can::Status::State::ErrorPassive:
+            {
+                return {50, 250};
+            }
+            case can::Status::State::BusOff:
+            {
+                return {50, 50};
+            }
+            default:
+            {
+                assert(0);
+                return {50, 50};
+            }
+            }
+        }
+        return {0, 0};
+    }
+
+    static void updateLED()
+    {
+        // Traffic LED
+        board::setTrafficLED(can::hadActivity());
+
+        // Status LED
+        static bool status_on = false;
+        static unsigned status_remaining = 0;
+
+        if (status_remaining > 0)
+        {
+            status_remaining -= 1;
+        }
+
+        if (status_remaining <= 0)
+        {
+            const auto onoff = getStatusOnOffDurationMSec();
+            if (onoff.first == 0 || status_on)
+            {
+                board::setStatusLED(false);
+                status_on = false;
+                status_remaining = onoff.second / BaseFrameMSec;
+            }
+            else
+            {
+                board::setStatusLED(true);
+                status_on = true;
+                status_remaining = onoff.first / BaseFrameMSec;
+            }
+        }
+    }
+
+    static void updateConfigs()
+    {
+        // TODO: only on request
+        board::enableCANPower(can_power_on);
+        board::enableCANTerminator(can_terminator_on);
+    }
+
+    void main() override
+    {
+        os::watchdog::Timer wdt;
+        wdt.startMSec(WatchdogTimeoutMSec);     // This thread is quite low-priority, so large timeout is OK
+
+        ::systime_t next_step_at = chVTGetSystemTime();
+
+        while (true)
+        {
+            wdt.reset();
+
+            updateLED();                        // LEDs must be served first in order to reduce jitter
+            updateConfigs();
+
+            next_step_at += MS2ST(BaseFrameMSec);
+            os::sleepUntilChTime(next_step_at);
+        }
+    }
+} background_thread_;
+
 }
 }
 
@@ -63,17 +159,16 @@ int main()
 {
     auto watchdog = app::init();
 
-    board::enableCANPower(true);
-    board::enableCANTerminator(true);
-
     const auto can_res = can::start(125000, can::OptionLoopback);
     os::lowsyslog("CAN res: %d\n", can_res);
+
+    app::background_thread_.start(LOWPRIO);
+
+    chibios_rt::BaseThread::setPriority(NORMALPRIO);
 
     while (true)
     {
         watchdog.reset();
-        board::setStatusLED(true);
-        board::setTrafficLED(true);
 
         static can::Frame txf;
         txf.data[0]++;
@@ -97,10 +192,6 @@ int main()
                       unsigned(stats.errors), unsigned(stats.frames_rx), unsigned(stats.frames_tx),
                       unsigned(stats.peak_tx_mailbox_index),
                       status.receive_error_counter, status.transmit_error_counter, unsigned(status.state));
-
-        watchdog.reset();
-        board::setStatusLED(false);
-        board::setTrafficLED(false);
 
         ::usleep(200000);
     }

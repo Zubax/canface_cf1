@@ -306,6 +306,7 @@ struct DriverState
 };
 
 DriverState* state_ = nullptr;
+bool started_ = false;
 
 /*
  * Interrupt handlers
@@ -628,6 +629,8 @@ int start(std::uint32_t bitrate, unsigned options)
 {
     os::MutexLocker mutex_locker(mutex_);
 
+    started_ = false;
+
     EXECUTE_ONCE_NON_THREAD_SAFE
     {
         os::CriticalSectionLocker cs_lock;
@@ -718,6 +721,11 @@ int start(std::uint32_t bitrate, unsigned options)
 
     CAN->FMR &= ~CAN_FMR_FINIT;
 
+    /*
+     * Final confirmation
+     */
+    started_ = true;
+
     return 0;
 }
 
@@ -730,11 +738,19 @@ void stop()
     CAN->MCR = CAN_MCR_SLEEP | CAN_MCR_RESET;               // Force software reset of the macrocell
 
     NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CEC_CAN_IRQn));
+
+    started_ = false;
+}
+
+bool isStarted()
+{
+    return started_;
 }
 
 int send(const Frame& frame, std::uint16_t timeout_ms)
 {
     os::MutexLocker mutex_locker(mutex_);
+    assert(started_);
 
     const auto started_at = chVTGetSystemTimeX();
 
@@ -760,6 +776,7 @@ int send(const Frame& frame, std::uint16_t timeout_ms)
 int receive(RxFrame& out_frame, std::uint16_t timeout_ms)
 {
     os::MutexLocker mutex_locker(mutex_);
+    assert(started_);
 
     const auto started_at = chVTGetSystemTimeX();
 
@@ -789,11 +806,16 @@ int receive(RxFrame& out_frame, std::uint16_t timeout_ms)
 Statistics getStatistics()
 {
     os::CriticalSectionLocker cs_locker;
-    return state_->stats;
+    return (state_ == nullptr) ? Statistics() : state_->stats;
 }
 
 Status getStatus()
 {
+    if (!started_)
+    {
+        return Status();
+    }
+
     const std::uint32_t esr = CAN->ESR;         // Access is atomic
 
     Status s;
@@ -818,6 +840,10 @@ Status getStatus()
 
 bool hadActivity()
 {
+    if (!started_)
+    {
+        return false;
+    }
     if (state_->had_activity)
     {
         state_->had_activity = false;   // Critical section is not needed
