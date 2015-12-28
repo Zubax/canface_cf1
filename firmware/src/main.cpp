@@ -147,8 +147,6 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<256>
 
     static void reloadConfigs()
     {
-        os::lowsyslog("Reloading configs\n");           ///< TODO: remove later
-
         board::enableCANPower(cfg_can_power_on);
         board::enableCANTerminator(cfg_can_terminator_on);
 
@@ -459,7 +457,6 @@ bool processCommand(int argc, char *argv[])
         case '8': bitrate = 1000000; break;
         default: return false;
         }
-        os::lowsyslog("Bitrate: %u\n", bitrate);
         return true;
     }
     else if (cmd[0] == 'O')
@@ -629,7 +626,6 @@ int main()
             const bool usb_connected = usb_cdc::getState() == usb_cdc::State::Connected;
             if (using_usb != usb_connected)
             {
-                os::lowsyslog("Using %s\n", usb_connected ? "USB" : "UART");
                 os::setStdIOStream(usb_connected ? usb_serial : uart_port);
                 app::command_parser_.reset();
             }
