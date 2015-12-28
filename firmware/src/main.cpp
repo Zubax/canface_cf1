@@ -335,7 +335,7 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
  * General frame format:
  *  <type> <id> <dlc> <data>
  */
-bool emitFrame(const char* cmd)
+inline bool emitFrame(const char* cmd)
 {
     can::Frame f;
 
@@ -435,14 +435,7 @@ bool processCommand(int argc, char *argv[])
 
     const char* const cmd = argv[0];
 
-    if (cmd[0] == 'T' ||
-        cmd[0] == 't' ||
-        cmd[0] == 'R' ||
-        cmd[0] == 'r')
-    {
-        return emitFrame(cmd);
-    }
-    else if (cmd[0] == 'S')
+    if (cmd[0] == 'S')
     {
         switch (cmd[1])
         {
@@ -530,10 +523,14 @@ class CommandParser
 
         if (args[0] != nullptr)
         {
-            const bool result = processCommand(idx, args);
-            os::MutexLocker mlocker(os::getStdIOMutex());
-            chnPutTimeout(os::getStdIOStream(), result ? '\r' : '\a', MS2ST(1));
+            respond(processCommand(idx, args));
         }
+    }
+
+    static void respond(bool ok)
+    {
+        os::MutexLocker mlocker(os::getStdIOMutex());
+        chnPutTimeout(os::getStdIOStream(), ok ? '\r' : '\a', MS2ST(1));
     }
 
 public:
@@ -544,7 +541,20 @@ public:
             if (pos_ > 0)
             {
                 buf_[pos_] = '\0';
-                tokenizeAndProcess(&buf_[0]);
+
+                if (buf_[0] == 'T' ||
+                    buf_[0] == 't' ||
+                    buf_[0] == 'R' ||
+                    buf_[0] == 'r')
+                {
+                    // Mighty shortcut for high-traffic commands
+                    respond(emitFrame(reinterpret_cast<const char*>(&buf_)));
+                }
+                else
+                {
+                    // Regular way
+                    tokenizeAndProcess(&buf_[0]);
+                }
             }
             reset();
         }
