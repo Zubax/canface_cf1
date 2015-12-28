@@ -34,7 +34,7 @@ namespace
 {
 
 constexpr unsigned WatchdogTimeoutMSec = 1500;
-constexpr unsigned SLCANMaxFrameSize = 40;
+constexpr unsigned CANTxTimeoutMSec = 50;
 
 os::config::Param<bool> cfg_can_power_on     ("can.power_on",           false);
 os::config::Param<bool> cfg_can_terminator_on("can.terminator_on",      false);
@@ -185,7 +185,7 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<256>
 } background_thread_;
 
 
-class RxThread : public chibios_rt::BaseStaticThread<400>
+class RxThread : public chibios_rt::BaseStaticThread<300>
 {
     static constexpr unsigned ReadTimeoutMSec = 5;
     static constexpr unsigned WriteTimeoutMSec = 50;
@@ -209,6 +209,7 @@ class RxThread : public chibios_rt::BaseStaticThread<400>
      */
     static void reportFrame(const can::RxFrame& f)
     {
+        constexpr unsigned SLCANMaxFrameSize = 40;
         std::uint8_t buffer[SLCANMaxFrameSize];
         std::uint8_t* p = &buffer[0];
 
@@ -332,15 +333,157 @@ class RxThread : public chibios_rt::BaseStaticThread<400>
     }
 } rx_thread_;
 
-
-void processCommand(int argc, char *argv[])
+/**
+ * General frame format:
+ *  <type> <id> <dlc> <data>
+ */
+bool emitFrame(const char* cmd)
 {
-    std::printf("Command: ");
-    for (int i = 0; i < argc; i++)
+    can::Frame f;
+
+    /*
+     * Frame type
+     */
+    if (cmd[0] == 'T' || cmd[0] == 'R')
     {
-        std::printf("%s", argv[i]);
+        f.id |= f.FlagEFF;
     }
-    std::puts("");
+    if (cmd[0] == 'r' || cmd[0] == 'R')
+    {
+        f.id |= f.FlagRTR;
+    }
+
+    static bool malformed_hex = false;
+    static const auto hex2nibble = [](char ch)
+    {
+        /* */if (ch >= '0' && ch <= '9') { return std::uint8_t(ch - '0'); }
+        else if (ch >= 'A' && ch <= 'F') { return std::uint8_t(ch - 'A' + 10); }
+        else if (ch >= 'a' && ch <= 'f') { return std::uint8_t(ch - 'a' + 10); }
+        else
+        {
+            malformed_hex = true;
+            return std::uint8_t(0);
+        }
+    };
+
+    /*
+     * ID
+     */
+    const char* p = nullptr;
+    if (f.isExtended())
+    {
+        f.id |= (hex2nibble(cmd[1]) << 28) |
+                (hex2nibble(cmd[2]) << 24) |
+                (hex2nibble(cmd[3]) << 20) |
+                (hex2nibble(cmd[4]) << 16) |
+                (hex2nibble(cmd[5]) << 12) |
+                (hex2nibble(cmd[6]) <<  8) |
+                (hex2nibble(cmd[7]) <<  4) |
+                (hex2nibble(cmd[8]) <<  0);
+        p = &cmd[9];
+    }
+    else
+    {
+        f.id |= (hex2nibble(cmd[1]) << 8) |
+                (hex2nibble(cmd[2]) << 4) |
+                (hex2nibble(cmd[3]) << 0);
+        p = &cmd[4];
+    }
+
+    if (malformed_hex)
+    {
+        return false;
+    }
+
+    /*
+     * DLC
+     */
+    if (*p < '0' || *p > ('0' + can::Frame::MaxDataLen))
+    {
+        return false;
+    }
+    f.dlc = *p++ - '0';
+    assert(f.dlc <= can::Frame::MaxDataLen);
+
+    /*
+     * Data
+     */
+    for (unsigned i = 0; i < f.dlc; i++)
+    {
+        f.data[i] = hex2nibble(*p++);
+        f.data[i] |= hex2nibble(*p++) << 4;
+        if (malformed_hex)
+        {
+            return false;
+        }
+    }
+
+    /*
+     * Parsing is finished here, transmitting
+     */
+    assert(!malformed_hex);
+    return 0 <= can::send(f, CANTxTimeoutMSec);
+}
+
+
+bool processCommand(int argc, char *argv[])
+{
+    if (argc < 1)
+    {
+        return false;
+    }
+
+    static unsigned bitrate = 1000000;
+
+    const char* const cmd = argv[0];
+
+    if (cmd[0] == 'T' ||
+        cmd[0] == 't' ||
+        cmd[0] == 'R' ||
+        cmd[0] == 'r')
+    {
+        return emitFrame(cmd);
+    }
+    else if (cmd[0] == 'S')
+    {
+        switch (cmd[1])
+        {
+        case '0': bitrate = 10000;   break;
+        case '1': bitrate = 20000;   break;
+        case '2': bitrate = 50000;   break;
+        case '3': bitrate = 100000;  break;
+        case '4': bitrate = 125000;  break;
+        case '5': bitrate = 250000;  break;
+        case '6': bitrate = 500000;  break;
+        case '7': bitrate = 800000;  break;
+        case '8': bitrate = 1000000; break;
+        default: return false;
+        }
+        os::lowsyslog("Bitrate: %u\n", bitrate);
+        return true;
+    }
+    else if (cmd[0] == 'O')
+    {
+        return 0 <= can::start(bitrate);
+    }
+    else if (cmd[0] == 'L')
+    {
+        return 0 <= can::start(bitrate, can::OptionSilentMode);
+    }
+    else if (cmd[0] == 'l')
+    {
+        return 0 <= can::start(bitrate, can::OptionLoopback);
+    }
+    else if (cmd[0] == 'C')
+    {
+        can::stop();
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+    return false;
 }
 
 
@@ -390,7 +533,9 @@ class CommandParser
 
         if (args[0] != nullptr)
         {
-            processCommand(idx, args);
+            const bool result = processCommand(idx, args);
+            os::MutexLocker mlocker(os::getStdIOMutex());
+            chnPutTimeout(os::getStdIOStream(), result ? '\r' : '\a', MS2ST(1));
         }
     }
 
