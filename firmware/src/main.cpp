@@ -614,6 +614,9 @@ int main()
     ::sleep(1);
     watchdog.reset();
 
+    // TODO FIXME REMOVE LATER
+    board::enableCANTerminator(true);
+
     /*
      * Running the serial port processing loop
      */
