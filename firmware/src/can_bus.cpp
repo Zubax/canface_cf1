@@ -685,7 +685,7 @@ int start(std::uint32_t bitrate, unsigned options)
      */
     if (state_ != nullptr)
     {
-        delete state_;
+        state_->~DriverState();
         state_ = nullptr;
     }
 
@@ -715,7 +715,7 @@ int start(std::uint32_t bitrate, unsigned options)
 
     if (!waitMSRINAKBitStateChange(false))
     {
-        delete state_;
+        state_->~DriverState();
         state_ = nullptr;
         return -ErrMsrInakNotCleared;
     }
@@ -755,7 +755,7 @@ void stop()
 
     if (state_ != nullptr)
     {
-        delete state_;
+        state_->~DriverState();
         state_ = nullptr;
     }
 }
