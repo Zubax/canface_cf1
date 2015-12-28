@@ -410,8 +410,8 @@ bool emitFrame(const char* cmd)
      */
     for (unsigned i = 0; i < f.dlc; i++)
     {
-        f.data[i] = hex2nibble(*p++);
-        f.data[i] |= hex2nibble(*p++) << 4;
+        f.data[i] = hex2nibble(*p++) << 4;
+        f.data[i] |= hex2nibble(*p++);
         if (malformed_hex)
         {
             return false;
