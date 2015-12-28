@@ -93,7 +93,7 @@ os::watchdog::Timer init(unsigned watchdog_timeout_msec)
     /*
      * Prompt
      */
-    os::lowsyslog(PRODUCT_NAME_STRING " %d.%d.%x / %d %s\n",
+    os::lowsyslog(PRODUCT_NAME_STRING " %d.%d.%08x / %d %s\n",
                   FW_VERSION_MAJOR, FW_VERSION_MINOR, GIT_HASH, config_init_res,
                   watchdogTriggeredLastReset() ? "WDTRESET" : "OK");
     return wdt;
