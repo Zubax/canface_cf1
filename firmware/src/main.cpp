@@ -20,6 +20,7 @@
 #include <ch.hpp>
 #include <hal.h>
 #include <unistd.h>
+#include <cstring>
 #include <cstdio>
 #include <zubax_chibios/os.hpp>
 
@@ -55,6 +56,7 @@ struct ParamCache
         loopback_on     = cfg_loopback_on;
     }
 } param_cache;
+
 
 auto init()
 {
@@ -299,8 +301,8 @@ class RxThread : public chibios_rt::BaseStaticThread<400>
         const auto frame_size = unsigned(p - &buffer[0]);
         assert(frame_size <= sizeof(buffer));
 
-        os::MutexLocker mlocker(os::getStdOutMutex());
-        chnWriteTimeout(os::getStdOutStream(), &buffer[0], frame_size, MS2ST(WriteTimeoutMSec));
+        os::MutexLocker mlocker(os::getStdIOMutex());
+        chnWriteTimeout(os::getStdIOStream(), &buffer[0], frame_size, MS2ST(WriteTimeoutMSec));
     }
 
     void main() override
@@ -330,38 +332,166 @@ class RxThread : public chibios_rt::BaseStaticThread<400>
     }
 } rx_thread_;
 
+
+void processCommand(int argc, char *argv[])
+{
+    std::printf("Command: ");
+    for (int i = 0; i < argc; i++)
+    {
+        std::printf("%s", argv[i]);
+    }
+    std::puts("");
+}
+
+
+class CommandParser
+{
+    static constexpr unsigned BufferSize = 200;
+    static constexpr unsigned MaxArgs = 5;
+    char buf_[BufferSize + 1];
+    std::uint8_t pos_ = 0;
+    mutable char* token_ptr = nullptr;
+
+    char* tokenize(char* str) const
+    {
+        if (str)
+        {
+            token_ptr = str;
+        }
+        char* token = token_ptr;
+        if (!token)
+        {
+            return NULL;
+        }
+        static const char* const Delims = " \t";
+        token += std::strspn(token, Delims);
+        token_ptr = std::strpbrk(token, Delims);
+        if (token_ptr)
+        {
+            *token_ptr++ = '\0';
+        }
+        return *token ? token : NULL;
+    }
+
+    void tokenizeAndProcess(char* buf) const
+    {
+        char* args[MaxArgs] = {nullptr};
+        std::uint8_t idx = 0;
+        char* token = tokenize(buf);
+        while (token != nullptr)
+        {
+            args[idx++] = token;
+            if (idx >= MaxArgs)
+            {
+                break;
+            }
+            token = tokenize(nullptr);
+        }
+
+        if (args[0] != nullptr)
+        {
+            processCommand(idx, args);
+        }
+    }
+
+public:
+    void addByte(std::uint8_t byte)
+    {
+        if (byte == '\r')                       // End of command (SLCAN)
+        {
+            if (pos_ > 0)
+            {
+                buf_[pos_] = '\0';
+                tokenizeAndProcess(&buf_[0]);
+            }
+            reset();
+        }
+        else if (byte >= 32 && byte <= 126)     // Normal printable ASCII character
+        {
+            if (pos_ < BufferSize)
+            {
+                buf_[pos_] = char(byte);
+                pos_ += 1;
+            }
+            else
+            {
+                reset();                        // Buffer overrun; silently drop the data
+            }
+        }
+        else if (byte == 8 || byte == 127)      // DEL or BS (backspace)
+        {
+            if (pos_ > 0)
+            {
+                pos_ -= 1;
+            }
+        }
+        else
+        {
+            reset();                            // Invalid byte - drop the current command
+        }
+
+        // Invariants
+        assert(pos_ <= BufferSize);
+    }
+
+    void reset()
+    {
+        pos_ = 0;
+    }
+} command_parser_;
+
 }
 }
 
 int main()
 {
+    /*
+     * Initializing
+     */
     auto watchdog = app::init();
-
-    const auto can_res = can::start(125000, can::OptionLoopback);
-    os::lowsyslog("CAN res: %d\n", can_res);
 
     chibios_rt::BaseThread::setPriority(NORMALPRIO);
 
     app::background_thread_.start(LOWPRIO);
     app::rx_thread_.start(NORMALPRIO + 1);
 
+    // This delay is not required, but it allows the USB driver to complete initialization before the loop begins
+    watchdog.reset();
+    ::sleep(1);
+    watchdog.reset();
+
+    /*
+     * Running the serial port processing loop
+     */
+    static constexpr unsigned ReadTimeoutMSec = 5;
+
+    const auto usb_serial = reinterpret_cast<::BaseChannel*>(usb_cdc::getSerialUSBDriver());
+    const auto uart_port = reinterpret_cast<::BaseChannel*>(&STDOUT_SD);
+
     while (true)
     {
         watchdog.reset();
 
-        static can::Frame txf;
-        txf.data[0]++;
-        txf.dlc = 1;
-        int res = can::send(txf, 200);
-        os::lowsyslog("CAN res: %d\n", res);
-
-        const auto stats = can::getStatistics();
-        const auto status = can::getStatus();
-        os::lowsyslog("err=%u  rx=%u  tx=%u  ptxmbx=%u  rec=%u  tec=%u  state=%u\n",
-                      unsigned(stats.errors), unsigned(stats.frames_rx), unsigned(stats.frames_tx),
-                      unsigned(stats.peak_tx_mailbox_index),
-                      status.receive_error_counter, status.transmit_error_counter, unsigned(status.state));
-
-        ::usleep(200000);
+        const auto read_res = chnGetTimeout(os::getStdIOStream(), MS2ST(ReadTimeoutMSec));
+        if (read_res >= 0)
+        {
+            app::command_parser_.addByte(static_cast<std::uint8_t>(read_res));
+        }
+        else if (read_res == STM_TIMEOUT)
+        {
+            // Switching interfaces if necessary
+            const bool using_usb = os::getStdIOStream() == usb_serial;
+            const bool usb_connected = usb_cdc::getState() == usb_cdc::State::Connected;
+            if (using_usb != usb_connected)
+            {
+                os::lowsyslog("Using %s\n", usb_connected ? "USB" : "UART");
+                os::setStdIOStream(usb_connected ? usb_serial : uart_port);
+                app::command_parser_.reset();
+            }
+        }
+        else
+        {
+            ;   // Some other error - ignoring silently
+        }
     }
 }
