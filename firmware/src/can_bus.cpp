@@ -10,7 +10,6 @@
 #include <new>
 #include "can_bus.hpp"
 
-#pragma GCC optimize 3
 
 namespace can
 {

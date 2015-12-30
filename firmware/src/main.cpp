@@ -28,7 +28,6 @@
 #include "usb_cdc.hpp"
 #include "can_bus.hpp"
 
-#pragma GCC optimize 3
 
 namespace app
 {
@@ -157,9 +156,7 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<256>
 
     void main() override
     {
-        os::watchdog::Timer wdt;
-        wdt.startMSec(WatchdogTimeoutMSec);     // This thread is quite low-priority, so large timeout is OK
-
+        // This thread does not have a watchdog, it's intentional
         reloadConfigs();
 
         ::systime_t next_step_at = chVTGetSystemTime();
@@ -167,8 +164,6 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<256>
 
         while (true)
         {
-            wdt.reset();
-
             updateLED();                        // LEDs must be served first in order to reduce jitter
 
             const unsigned new_cfg_modcnt = os::config::getModificationCounter();
@@ -333,95 +328,150 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
     }
 } rx_thread_;
 
+// Using global state is UGLY, but it's also FASTER
+static bool hex2nibble_error;
+std::uint8_t hex2nibble(char ch)
+{
+    // Must go into RAM, not flash, because flash is slow
+    static std::uint8_t ConversionTable[] __attribute__((section(".data"))) =
+    {
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,           // 0..9
+        255, 255, 255, 255, 255, 255, 255,
+        10, 11, 12, 13, 14, 15,                 // A..F
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255,
+        10, 11, 12, 13, 14, 15,                 // a..f
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
+    };
+    static_assert(sizeof(ConversionTable) == 256, "ConversionTable");
+    const std::uint8_t out = ConversionTable[int(ch)];
+    if UNLIKELY(out == 255)
+    {
+        hex2nibble_error = true;
+    }
+    return out;
+}
+
 /**
  * General frame format:
  *  <type> <id> <dlc> <data>
+ * The emitting functions below are highly optimized for speed.
  */
-inline bool emitFrame(const char* cmd)
+inline bool emitFrameDataExt(const char* cmd)
 {
     can::Frame f;
-
-    /*
-     * Frame type
-     */
-    if (cmd[0] == 'T' || cmd[0] == 'R')
-    {
-        f.id |= f.FlagEFF;
-    }
-    if (cmd[0] == 'r' || cmd[0] == 'R')
-    {
-        f.id |= f.FlagRTR;
-    }
-
-    static bool malformed_hex = false;
-    static const auto hex2nibble = [](char ch)
-    {
-        /* */if (ch >= '0' && ch <= '9') { return std::uint8_t(ch - '0'); }
-        else if (ch >= 'A' && ch <= 'F') { return std::uint8_t(ch - 'A' + 10); }
-        else if (ch >= 'a' && ch <= 'f') { return std::uint8_t(ch - 'a' + 10); }
-        else
-        {
-            malformed_hex = true;
-            return std::uint8_t(0);
-        }
-    };
-
-    /*
-     * ID
-     */
-    const char* p = nullptr;
-    if (f.isExtended())
-    {
-        f.id |= (hex2nibble(cmd[1]) << 28) |
-                (hex2nibble(cmd[2]) << 24) |
-                (hex2nibble(cmd[3]) << 20) |
-                (hex2nibble(cmd[4]) << 16) |
-                (hex2nibble(cmd[5]) << 12) |
-                (hex2nibble(cmd[6]) <<  8) |
-                (hex2nibble(cmd[7]) <<  4) |
-                (hex2nibble(cmd[8]) <<  0);
-        p = &cmd[9];
-    }
-    else
-    {
-        f.id |= (hex2nibble(cmd[1]) << 8) |
-                (hex2nibble(cmd[2]) << 4) |
-                (hex2nibble(cmd[3]) << 0);
-        p = &cmd[4];
-    }
-
-    if (malformed_hex)
+    hex2nibble_error = false;
+    f.id = f.FlagEFF |
+           (hex2nibble(cmd[1]) << 28) |
+           (hex2nibble(cmd[2]) << 24) |
+           (hex2nibble(cmd[3]) << 20) |
+           (hex2nibble(cmd[4]) << 16) |
+           (hex2nibble(cmd[5]) << 12) |
+           (hex2nibble(cmd[6]) <<  8) |
+           (hex2nibble(cmd[7]) <<  4) |
+           (hex2nibble(cmd[8]) <<  0);
+    if UNLIKELY(cmd[9] < '0' || cmd[9] > ('0' + can::Frame::MaxDataLen))
     {
         return false;
     }
-
-    /*
-     * DLC
-     */
-    if (*p < '0' || *p > ('0' + can::Frame::MaxDataLen))
-    {
-        return false;
-    }
-    f.dlc = *p++ - '0';
+    f.dlc = cmd[9] - '0';
     assert(f.dlc <= can::Frame::MaxDataLen);
-
-    /*
-     * Data
-     */
-    for (unsigned i = 0; i < f.dlc; i++)
     {
-        f.data[i] = hex2nibble(*p++) << 4;
-        f.data[i] |= hex2nibble(*p++);
-        if (malformed_hex)
+        const char* p = &cmd[10];
+        for (unsigned i = 0; i < f.dlc; i++)
         {
-            return false;
+            f.data[i] = (hex2nibble(*p) << 4) | hex2nibble(*(p + 1));
+            p += 2;
         }
     }
+    if UNLIKELY(hex2nibble_error)
+    {
+        return false;
+    }
+    return 0 <= can::send(f, CANTxTimeoutMSec);
+}
 
-    /*
-     * Parsing is finished here, transmitting
-     */
-    assert(!malformed_hex);
+inline bool emitFrameDataStd(const char* cmd)
+{
+    can::Frame f;
+    hex2nibble_error = false;
+    f.id = (hex2nibble(cmd[1]) << 8) |
+           (hex2nibble(cmd[2]) << 4) |
+           (hex2nibble(cmd[3]) << 0);
+    if UNLIKELY(cmd[4] < '0' || cmd[4] > ('0' + can::Frame::MaxDataLen))
+    {
+        return false;
+    }
+    f.dlc = cmd[4] - '0';
+    assert(f.dlc <= can::Frame::MaxDataLen);
+    {
+        const char* p = &cmd[5];
+        for (unsigned i = 0; i < f.dlc; i++)
+        {
+            f.data[i] = (hex2nibble(*p) << 4) | hex2nibble(*(p + 1));
+            p += 2;
+        }
+    }
+    if UNLIKELY(hex2nibble_error)
+    {
+        return false;
+    }
+    return 0 <= can::send(f, CANTxTimeoutMSec);
+}
+
+inline bool emitFrameRTRExt(const char* cmd)
+{
+    can::Frame f;
+    hex2nibble_error = false;
+    f.id = f.FlagEFF | f.FlagRTR |
+           (hex2nibble(cmd[1]) << 28) |
+           (hex2nibble(cmd[2]) << 24) |
+           (hex2nibble(cmd[3]) << 20) |
+           (hex2nibble(cmd[4]) << 16) |
+           (hex2nibble(cmd[5]) << 12) |
+           (hex2nibble(cmd[6]) <<  8) |
+           (hex2nibble(cmd[7]) <<  4) |
+           (hex2nibble(cmd[8]) <<  0);
+    if UNLIKELY(cmd[9] < '0' || cmd[9] > ('0' + can::Frame::MaxDataLen))
+    {
+        return false;
+    }
+    f.dlc = cmd[9] - '0';
+    assert(f.dlc <= can::Frame::MaxDataLen);
+    if UNLIKELY(hex2nibble_error)
+    {
+        return false;
+    }
+    return 0 <= can::send(f, CANTxTimeoutMSec);
+}
+
+inline bool emitFrameRTRStd(const char* cmd)
+{
+    can::Frame f;
+    hex2nibble_error = false;
+    f.id = f.FlagRTR |
+           (hex2nibble(cmd[1]) << 8) |
+           (hex2nibble(cmd[2]) << 4) |
+           (hex2nibble(cmd[3]) << 0);
+    if UNLIKELY(cmd[4] < '0' || cmd[4] > ('0' + can::Frame::MaxDataLen))
+    {
+        return false;
+    }
+    f.dlc = cmd[4] - '0';
+    assert(f.dlc <= can::Frame::MaxDataLen);
+    if UNLIKELY(hex2nibble_error)
+    {
+        return false;
+    }
     return 0 <= can::send(f, CANTxTimeoutMSec);
 }
 
@@ -441,14 +491,14 @@ bool processCommand(int argc, char *argv[])
     {
         switch (cmd[1])
         {
-        case '0': bitrate = 10000;   break;
-        case '1': bitrate = 20000;   break;
-        case '2': bitrate = 50000;   break;
-        case '3': bitrate = 100000;  break;
-        case '4': bitrate = 125000;  break;
-        case '5': bitrate = 250000;  break;
-        case '6': bitrate = 500000;  break;
-        case '7': bitrate = 800000;  break;
+        case '0': bitrate =   10000; break;
+        case '1': bitrate =   20000; break;
+        case '2': bitrate =   50000; break;
+        case '3': bitrate =  100000; break;
+        case '4': bitrate =  125000; break;
+        case '5': bitrate =  250000; break;
+        case '6': bitrate =  500000; break;
+        case '7': bitrate =  800000; break;
         case '8': bitrate = 1000000; break;
         default: return false;
         }
@@ -536,43 +586,55 @@ class CommandParser
     }
 
 public:
-    void addByte(std::uint8_t byte)
+    /**
+     * Please keep in mind that this function is strongly optimized for speed.
+     */
+    inline void addByte(const std::uint8_t byte)
     {
-        if (byte == '\r')                       // End of command (SLCAN)
+        if LIKELY((byte >= 32 && byte <= 126))                  // Normal printable ASCII character
         {
-            if (pos_ > 0)
-            {
-                buf_[pos_] = '\0';
-
-                if (buf_[0] == 'T' ||
-                    buf_[0] == 't' ||
-                    buf_[0] == 'R' ||
-                    buf_[0] == 'r')
-                {
-                    // Mighty shortcut for high-traffic commands
-                    respond(emitFrame(reinterpret_cast<const char*>(&buf_)));
-                }
-                else
-                {
-                    // Regular way
-                    tokenizeAndProcess(&buf_[0]);
-                }
-            }
-            reset();
-        }
-        else if (byte >= 32 && byte <= 126)     // Normal printable ASCII character
-        {
-            if (pos_ < BufferSize)
+            if LIKELY(pos_ < BufferSize)
             {
                 buf_[pos_] = char(byte);
                 pos_ += 1;
             }
             else
             {
-                reset();                        // Buffer overrun; silently drop the data
+                reset();                                        // Buffer overrun; silently drop the data
             }
         }
-        else if (byte == 8 || byte == 127)      // DEL or BS (backspace)
+        else if LIKELY(byte == '\r')                            // End of command (SLCAN)
+        {
+            buf_[pos_] = '\0';
+
+            if LIKELY(buf_[0] == 'T')
+            {
+                respond(emitFrameDataExt(reinterpret_cast<const char*>(&buf_)));
+            }
+            else if LIKELY(buf_[0] == 't')
+            {
+                respond(emitFrameDataStd(reinterpret_cast<const char*>(&buf_)));
+            }
+            else if LIKELY(buf_[0] == 'R')
+            {
+                respond(emitFrameRTRExt(reinterpret_cast<const char*>(&buf_)));
+            }
+            else if LIKELY(buf_[0] == 'r')
+            {
+                respond(emitFrameRTRStd(reinterpret_cast<const char*>(&buf_)));
+            }
+            else
+            {
+                if LIKELY(pos_ > 0)
+                {
+                    // Regular way
+                    tokenizeAndProcess(&buf_[0]);
+                }
+            }
+
+            reset();
+        }
+        else if UNLIKELY(byte == 8 || byte == 127)              // DEL or BS (backspace)
         {
             if (pos_ > 0)
             {
@@ -581,7 +643,7 @@ public:
         }
         else
         {
-            reset();                            // Invalid byte - drop the current command
+            reset();                                            // Invalid byte - drop the current command
         }
 
         // Invariants
@@ -622,32 +684,40 @@ int main()
      */
     static constexpr unsigned ReadTimeoutMSec = 5;
 
-    const auto usb_serial = reinterpret_cast<::BaseChannel*>(usb_cdc::getSerialUSBDriver());
-    const auto uart_port = reinterpret_cast<::BaseChannel*>(&STDOUT_SD);
+    const auto usb_serial = usb_cdc::getSerialUSBDriver();
+    const auto uart_port = &STDOUT_SD;
 
     while (true)
     {
         watchdog.reset();
 
-        const auto read_res = chnGetTimeout(os::getStdIOStream(), MS2ST(ReadTimeoutMSec));
-        if (read_res >= 0)
+        ::BaseChannel* const stdio_stream = os::getStdIOStream();
+        const bool using_usb = reinterpret_cast<::BaseChannel*>(stdio_stream) ==
+                               reinterpret_cast<::BaseChannel*>(usb_serial);
+        std::size_t nread = using_usb ? usb_serial->iqueue.q_counter : uart_port->iqueue.q_counter;
+
+        static std::uint8_t buf[64];
+        nread = chnReadTimeout(stdio_stream, buf, std::max(1U, std::min<unsigned>(sizeof(buf), nread)),
+                               MS2ST(ReadTimeoutMSec));
+
+        if LIKELY(nread > 0)
         {
-            app::command_parser_.addByte(static_cast<std::uint8_t>(read_res));
-        }
-        else if (read_res == STM_TIMEOUT)
-        {
-            // Switching interfaces if necessary
-            const bool using_usb = os::getStdIOStream() == usb_serial;
-            const bool usb_connected = usb_cdc::getState() == usb_cdc::State::Connected;
-            if (using_usb != usb_connected)
+            for (unsigned i = 0; i < nread; i++)
             {
-                os::setStdIOStream(usb_connected ? usb_serial : uart_port);
-                app::command_parser_.reset();
+                app::command_parser_.addByte(buf[i]);
             }
         }
         else
         {
-            ;   // Some other error - ignoring silently
+            // Switching interfaces if necessary
+            const bool usb_connected = usb_cdc::getState() == usb_cdc::State::Connected;
+            if (using_usb != usb_connected)
+            {
+                os::setStdIOStream(usb_connected ?
+                                   reinterpret_cast<::BaseChannel*>(usb_serial) :
+                                   reinterpret_cast<::BaseChannel*>(uart_port));
+                app::command_parser_.reset();
+            }
         }
     }
 }
