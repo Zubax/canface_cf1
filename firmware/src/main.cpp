@@ -187,8 +187,12 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
 
     static inline std::uint8_t hex(std::uint8_t x)
     {
-        const auto n = std::uint8_t((x & 0xF) + '0');
-        return (n > '9') ? std::uint8_t(n + 'A' - '9' - 1) : n;
+        // Allocating in RAM because it's faster
+        static std::uint8_t ConversionTable[] __attribute__((section(".data"))) =
+        {
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+        };
+        return ConversionTable[x & 0x0F];
     }
 
     /**
@@ -208,12 +212,12 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
         std::uint8_t buffer[SLCANMaxFrameSize];
         std::uint8_t* p = &buffer[0];
 
-        if (f.failed)
+        if UNLIKELY(f.failed)
         {
             return;
         }
 
-        if (f.loopback && !param_cache.loopback_on)
+        if LIKELY(f.loopback && !param_cache.loopback_on)
         {
             return;
         }
@@ -221,11 +225,11 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
         /*
          * Frame type
          */
-        if (f.frame.isRemoteTransmissionRequest())
+        if UNLIKELY(f.frame.isRemoteTransmissionRequest())
         {
             *p++ = f.frame.isExtended() ? 'R' : 'r';
         }
-        else if (f.frame.isErrorFrame())
+        else if UNLIKELY(f.frame.isErrorFrame())
         {
             return;     // Not supported
         }
@@ -239,7 +243,7 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
          */
         {
             const std::uint32_t id = f.frame.id & f.frame.MaskExtID;
-            if (f.frame.isExtended())
+            if LIKELY(f.frame.isExtended())
             {
                 *p++ = hex(id >> 28);
                 *p++ = hex(id >> 24);
@@ -270,7 +274,7 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
         /*
          * Timestamp
          */
-        if (param_cache.timestamping_on)
+        if LIKELY(param_cache.timestamping_on)
         {
             const auto msec = std::uint16_t(f.timestamp_systick / (CH_CFG_ST_FREQUENCY / 1000));
             *p++ = hex(msec >> 12);
@@ -282,7 +286,7 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
         /*
          * Flags
          */
-        if (param_cache.flags_on)
+        if LIKELY(param_cache.flags_on)
         {
             if (f.loopback)
             {
@@ -312,7 +316,7 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
 
             can::RxFrame rxf;
             const int res = can::receive(rxf, ReadTimeoutMSec);
-            if (res > 0)
+            if LIKELY(res > 0)
             {
                 reportFrame(rxf);
             }
