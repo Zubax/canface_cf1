@@ -55,17 +55,12 @@ UDEFS += -DGIT_HASH=0x$(GIT_HASH)
 
 UDEFS += -DCONFIG_PARAMS_MAX=10
 
-RELEASE ?= 0
-ifeq ($(RELEASE),0)
-    UDEFS += -DDISABLE_WATCHDOG=1
-endif
-
 USE_LTO := yes
 
 SERIAL_CLI_PORT_NUMBER = 1
 
 RELEASE_OPT = -O2 -fomit-frame-pointer -g3	# -g3 is needed for profiling
-DEBUG_OPT = -O2 -g3
+DEBUG_OPT = -O2 -g3 -DDISABLE_WATCHDOG=1
 
 LDSCRIPT = ld.ld
 
