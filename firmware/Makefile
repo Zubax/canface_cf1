@@ -59,8 +59,8 @@ USE_LTO := yes
 
 SERIAL_CLI_PORT_NUMBER = 1
 
-RELEASE_OPT = -O2 -fomit-frame-pointer -g3	# -g3 is needed for profiling
-DEBUG_OPT = -O2 -g3 -DDISABLE_WATCHDOG=1
+RELEASE_OPT = -O3 -fomit-frame-pointer -g3	# -g3 is needed for profiling
+DEBUG_OPT = -O3 -g3 -DDISABLE_WATCHDOG=1
 
 LDSCRIPT = ld.ld
 
