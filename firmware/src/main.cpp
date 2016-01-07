@@ -525,6 +525,10 @@ bool processCommand(int argc, char *argv[])
         can::stop();
         return true;
     }
+    else if (!std::strcmp("cfg", cmd))
+    {
+        os::config::executeCLICommand(argc - 1, &argv[1]);
+    }
     else
     {
         return false;
