@@ -75,7 +75,7 @@ static const uint8_t vcom_configuration_descriptor_data[] = {
                            0x01,          // bConfigurationValue.
                            0,             // iConfiguration.
                            0b11000000,    // bmAttributes (self powered).
-                           90),           // bMaxPower.
+                           250),          // bMaxPower.
     /*
      * Interface Descriptor 0.
      */
