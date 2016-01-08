@@ -734,6 +734,11 @@ public:
             std::printf("%02X\r", unsigned(response));
             return true;
         }
+        case 'V':               // HW/SW version
+        {
+            std::printf("%x%x%x%x\r", HW_VERSION, 0, FW_VERSION_MAJOR, FW_VERSION_MINOR);
+            return true;
+        }
         case 'N':               // Serial number
         {
             for (auto x : board::readUniqueID())
