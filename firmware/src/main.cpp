@@ -39,14 +39,14 @@ namespace
 constexpr unsigned WatchdogTimeoutMSec = 1500;
 constexpr unsigned CANTxTimeoutMSec = 50;
 
-os::config::Param<unsigned> cfg_can_bitrate  ("can.bitrate",            1000000, 10000, 1000000);
+os::config::Param<unsigned> cfg_can_bitrate  ("can.bitrate",            1000000, 10000, 1000000); // Exposed via SLCAN
 os::config::Param<bool> cfg_can_power_on     ("can.power_on",           false);
 os::config::Param<bool> cfg_can_terminator_on("can.terminator_on",      false);
 
-os::config::Param<bool> cfg_timestamping_on("slcan.timestamping_on",    true);
+os::config::Param<bool> cfg_timestamping_on("slcan.timestamping_on",    true);                    // Exposed via SLCAN
 os::config::Param<bool> cfg_flags_on       ("slcan.flags_on",           true);
 
-os::config::Param<unsigned> cfg_baudrate("uart.baudrate", SERIAL_DEFAULT_BITRATE, 2400, 3000000);
+os::config::Param<unsigned> cfg_baudrate("uart.baudrate", SERIAL_DEFAULT_BITRATE, 2400, 3000000); // Exposed via SLCAN
 
 struct ParamCache
 {
@@ -774,6 +774,14 @@ public:
         else if (startsWith(cmd, "zubax_id"))
         {
             return processComplexCommand(cmd, &CommandProcessor::cmdZubaxID);
+        }
+        else if (startsWith(cmd, "_stat"))
+        {
+            // TODO: implement
+        }
+        else if (startsWith(cmd, "_reboot"))
+        {
+            // TODO: implement
         }
         else
         {
