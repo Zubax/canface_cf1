@@ -503,13 +503,8 @@ class CommandProcessor
 
             char base64_buf[os::base64::predictEncodedDataLength(std::tuple_size<board::DeviceSignature>::value) + 1];
 
-            std::array<std::uint8_t, 16> uid_128;
-            std::fill(std::begin(uid_128), std::end(uid_128), 0);
-            {
-                auto uid = board::readUniqueID();
-                std::copy(std::begin(uid), std::end(uid), std::begin(uid_128));
-            }
-            std::printf("hw_unique_id : '%s'\n", os::base64::encode(uid_128, base64_buf));
+            const auto uid = board::readUniqueID();
+            std::printf("hw_unique_id : '%s'\n", os::base64::encode(uid, base64_buf));
 
             // TODO: read and report the signature
         }
@@ -737,6 +732,15 @@ public:
 
             // Responding
             std::printf("%02X\r", unsigned(response));
+            return true;
+        }
+        case 'N':               // Serial number
+        {
+            for (auto x : board::readUniqueID())
+            {
+                std::printf("%02X", unsigned(x));
+            }
+            std::printf("%c", '\r');
             return true;
         }
         default:

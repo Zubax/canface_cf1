@@ -41,7 +41,7 @@ void setTrafficLED(bool state);
 void enableCANPower(bool state);
 void enableCANTerminator(bool state);
 
-typedef std::array<std::uint8_t, 12> UniqueID;
+typedef std::array<std::uint8_t, 16> UniqueID;
 UniqueID readUniqueID();
 
 typedef std::array<std::uint8_t, 128> DeviceSignature;

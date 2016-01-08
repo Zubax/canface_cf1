@@ -149,7 +149,8 @@ void enableCANTerminator(bool state)
 UniqueID readUniqueID()
 {
     UniqueID bytes;
-    std::memcpy(bytes.data(), reinterpret_cast<const void*>(0x1FFFF7AC), std::tuple_size<UniqueID>::value);
+    std::fill(bytes.begin(), bytes.end(), 0);
+    std::memcpy(bytes.data(), reinterpret_cast<const void*>(0x1FFFF7AC), 12);
     return bytes;
 }
 
