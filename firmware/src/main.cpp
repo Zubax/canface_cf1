@@ -23,6 +23,7 @@
 #include <cstring>
 #include <cstdio>
 #include <zubax_chibios/os.hpp>
+#include <zubax_chibios/util/base64.hpp>
 
 #include "board/board.hpp"
 #include "usb_cdc.hpp"
@@ -480,97 +481,98 @@ inline bool emitFrameRTRStd(const char* cmd)
 }
 
 
-bool processCommand(int argc, char *argv[])
+class CommandProcessor
 {
-    if (argc < 1)
+    unsigned bitrate_ = 1000000;
+
+    bool cmdConfig(int argc, char** argv)
     {
-        return false;
-    }
-
-    static unsigned bitrate = 1000000;
-
-    const char* const cmd = argv[0];
-
-    if (cmd[0] == 'S')
-    {
-        switch (cmd[1])
-        {
-        case '0': bitrate =   10000; break;
-        case '1': bitrate =   20000; break;
-        case '2': bitrate =   50000; break;
-        case '3': bitrate =  100000; break;
-        case '4': bitrate =  125000; break;
-        case '5': bitrate =  250000; break;
-        case '6': bitrate =  500000; break;
-        case '7': bitrate =  800000; break;
-        case '8': bitrate = 1000000; break;
-        default: return false;
-        }
+        (void)os::config::executeCLICommand(argc - 1, &argv[1]);
         return true;
     }
-    else if (cmd[0] == 'O')
+
+    bool cmdZubaxID(int argc, char** argv)
     {
-        return 0 <= can::start(bitrate);
-    }
-    else if (cmd[0] == 'L')
-    {
-        return 0 <= can::start(bitrate, can::OptionSilentMode);
-    }
-    else if (cmd[0] == 'l')
-    {
-        return 0 <= can::start(bitrate, can::OptionLoopback);
-    }
-    else if (cmd[0] == 'C')
-    {
-        can::stop();
+        if (argc == 1)
+        {
+            std::printf("product_id   : '%s'\n", PRODUCT_ID_STRING);
+            std::printf("product_name : '%s'\n", PRODUCT_NAME_STRING);
+
+            std::printf("sw_version   : '%u.%u'\n", FW_VERSION_MAJOR, FW_VERSION_MINOR);
+            std::printf("sw_vcs_commit: %u\n", unsigned(GIT_HASH));
+            std::printf("sw_build_date: %s\n", __DATE__);
+
+            auto hw_version = board::detectHardwareVersion();
+            std::printf("hw_version   : '%u.%u'\n", hw_version.major, hw_version.minor);
+
+            char base64_buf[os::base64::predictEncodedDataLength(std::tuple_size<board::DeviceSignature>::value) + 1];
+
+            std::array<std::uint8_t, 16> uid_128;
+            std::fill(std::begin(uid_128), std::end(uid_128), 0);
+            {
+                auto uid = board::readUniqueID();
+                std::copy(std::begin(uid), std::end(uid), std::begin(uid_128));
+            }
+            std::printf("hw_unique_id : '%s'\n", os::base64::encode(uid_128, base64_buf));
+
+            // TODO: read and report the signature
+        }
+        else if (argc == 2)
+        {
+            // TODO: signature installation
+            (void)argv;
+        }
+        else
+        {
+            return false;
+        }
+
         return true;
     }
-    else if (!std::strcmp("cfg", cmd))
-    {
-        os::config::executeCLICommand(argc - 1, &argv[1]);
-    }
-    else
-    {
-        return false;
-    }
-    return false;
-}
 
-
-class CommandParser
-{
-    static constexpr unsigned BufferSize = 200;
-    static constexpr unsigned MaxArgs = 5;
-    char buf_[BufferSize + 1];
-    std::uint8_t pos_ = 0;
-    mutable char* token_ptr = nullptr;
-
-    char* tokenize(char* str) const
+    static bool startsWith(const char* const str, const char* const prefix)
     {
-        if (str)
-        {
-            token_ptr = str;
-        }
-        char* token = token_ptr;
-        if (!token)
-        {
-            return NULL;
-        }
-        static const char* const Delims = " \t";
-        token += std::strspn(token, Delims);
-        token_ptr = std::strpbrk(token, Delims);
-        if (token_ptr)
-        {
-            *token_ptr++ = '\0';
-        }
-        return *token ? token : NULL;
+        return std::strncmp(prefix, str, std::strlen(prefix)) == 0;
     }
 
-    void tokenizeAndProcess(char* buf) const
+    bool processComplexCommand(char* buf, bool (CommandProcessor::*handler)(int, char**))
     {
+        // Replying with echo
+        std::puts(buf);
+
+        // Parsing the line
+        class Tokenizer
+        {
+            char* token_ptr = nullptr;
+
+        public:
+            char* tokenize(char* str)
+            {
+                if (str)
+                {
+                    token_ptr = str;
+                }
+                char* token = token_ptr;
+                if (!token)
+                {
+                    return NULL;
+                }
+                static const char* const Delims = " \t";
+                token += std::strspn(token, Delims);
+                token_ptr = std::strpbrk(token, Delims);
+                if (token_ptr)
+                {
+                    *token_ptr++ = '\0';
+                }
+                return *token ? token : NULL;
+            }
+        };
+
+        constexpr unsigned MaxArgs = 5;
         char* args[MaxArgs] = {nullptr};
         std::uint8_t idx = 0;
-        char* token = tokenize(buf);
+        Tokenizer tokenizer;
+        char* token = tokenizer.tokenize(buf);
         while (token != nullptr)
         {
             args[idx++] = token;
@@ -578,20 +580,116 @@ class CommandParser
             {
                 break;
             }
-            token = tokenize(nullptr);
+            token = tokenizer.tokenize(nullptr);
         }
 
+        // Invoking the handler
         if (args[0] != nullptr)
         {
-            respond(processCommand(idx, args));
+            return (this->*handler)(idx, args);
         }
+        return false;
     }
 
-    static void respond(bool ok)
+public:
+    bool processCommand(char* cmd)
     {
-        os::MutexLocker mlocker(os::getStdIOMutex());
-        chnPutTimeout(os::getStdIOStream(), ok ? '\r' : '\a', MS2ST(1));
+        /*
+         * High-traffic SLCAN commands go first
+         */
+        if LIKELY(cmd[0] == 'T')
+        {
+            return emitFrameDataExt(cmd);
+        }
+        else if LIKELY(cmd[0] == 't')
+        {
+            return emitFrameDataStd(cmd);
+        }
+        else if LIKELY(cmd[0] == 'R')
+        {
+            return emitFrameRTRExt(cmd);
+        }
+        else if LIKELY(cmd[0] == 'r')
+        {
+            return emitFrameRTRStd(cmd);
+        }
+        else
+        {
+            ; // Looking further
+        }
+
+        /*
+         * Regular SLCAN commands
+         */
+        switch (cmd[0])
+        {
+        case 'S':
+        {
+            switch (cmd[1])
+            {
+            case '0': bitrate_ =   10000; break;
+            case '1': bitrate_ =   20000; break;
+            case '2': bitrate_ =   50000; break;
+            case '3': bitrate_ =  100000; break;
+            case '4': bitrate_ =  125000; break;
+            case '5': bitrate_ =  250000; break;
+            case '6': bitrate_ =  500000; break;
+            case '7': bitrate_ =  800000; break;
+            case '8': bitrate_ = 1000000; break;
+            default: return false;
+            }
+            return true;
+        }
+        case 'O':
+        {
+            return 0 <= can::start(bitrate_);
+        }
+        case 'L':
+        {
+            return 0 <= can::start(bitrate_, can::OptionSilentMode);
+        }
+        case 'l':
+        {
+            return 0 <= can::start(bitrate_, can::OptionLoopback);
+        }
+        case 'C':
+        {
+            can::stop();
+            return true;
+        }
+        default:
+        {
+            break;
+        }
+        }
+
+        /*
+         * Complex commands
+         */
+        if (startsWith(cmd, "cfg"))
+        {
+            return processComplexCommand(cmd, &CommandProcessor::cmdConfig);
+        }
+        else if (startsWith(cmd, "zubax_id"))
+        {
+            return processComplexCommand(cmd, &CommandProcessor::cmdZubaxID);
+        }
+        else
+        {
+            return false;
+        }
+        return false;
     }
+};
+
+
+class CommandParser
+{
+    static constexpr unsigned BufferSize = 200;
+    char buf_[BufferSize + 1];
+    std::uint8_t pos_ = 0;
+
+    CommandProcessor proc_;
 
 public:
     /**
@@ -613,34 +711,14 @@ public:
         }
         else if LIKELY(byte == '\r')                            // End of command (SLCAN)
         {
+            // Processing the command
             buf_[pos_] = '\0';
-
-            if LIKELY(buf_[0] == 'T')
-            {
-                respond(emitFrameDataExt(reinterpret_cast<const char*>(&buf_)));
-            }
-            else if LIKELY(buf_[0] == 't')
-            {
-                respond(emitFrameDataStd(reinterpret_cast<const char*>(&buf_)));
-            }
-            else if LIKELY(buf_[0] == 'R')
-            {
-                respond(emitFrameRTRExt(reinterpret_cast<const char*>(&buf_)));
-            }
-            else if LIKELY(buf_[0] == 'r')
-            {
-                respond(emitFrameRTRStd(reinterpret_cast<const char*>(&buf_)));
-            }
-            else
-            {
-                if LIKELY(pos_ > 0)
-                {
-                    // Regular way
-                    tokenizeAndProcess(&buf_[0]);
-                }
-            }
-
+            const bool response = proc_.processCommand(reinterpret_cast<char*>(&buf_[0]));
             reset();
+
+            // Sending the SLCAN standard response
+            os::MutexLocker mlocker(os::getStdIOMutex());
+            chnPutTimeout(os::getStdIOStream(), response ? '\r' : '\a', MS2ST(1));
         }
         else if UNLIKELY(byte == 8 || byte == 127)              // DEL or BS (backspace)
         {

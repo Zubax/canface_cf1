@@ -162,6 +162,16 @@ bool tryReadDeviceSignature(DeviceSignature& out_sign)
     return valid;
 }
 
+HardwareVersion detectHardwareVersion()
+{
+    auto v = HardwareVersion();
+
+    v.major = HW_VERSION;
+    v.minor = 0;                // Some detection will be added in future versions
+
+    return v;
+}
+
 } // namespace board
 
 namespace os
