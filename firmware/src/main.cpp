@@ -649,7 +649,7 @@ public:
                 pos_ -= 1;
             }
         }
-        else
+        else                                                    // This also includes Ctrl+C, Ctrl+D
         {
             reset();                                            // Invalid byte - drop the current command
         }
@@ -683,9 +683,6 @@ int main()
     watchdog.reset();
     ::sleep(1);
     watchdog.reset();
-
-    // TODO FIXME REMOVE LATER
-    board::enableCANTerminator(true);
 
     /*
      * Running the serial port processing loop
