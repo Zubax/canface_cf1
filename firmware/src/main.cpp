@@ -688,6 +688,18 @@ public:
 
             return cfg_baudrate.setAndSave(baudrate) >= 0;
         }
+        case 'Z':               // Enable/disable RX and loopback timestamping
+        {
+            if (cmd[1] < '0' || cmd[1] > '1')
+            {
+                return false;
+            }
+
+            const bool on = cmd[1] == '1';
+            DEBUG_LOG("Timestamping %u\n", unsigned(on));
+
+            return cfg_timestamping_on.setAndSave(on);
+        }
         default:
         {
             break;
