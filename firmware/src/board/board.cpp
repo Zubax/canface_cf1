@@ -94,7 +94,7 @@ void reconfigureUART(const unsigned baudrate)
 {
     static SerialConfig config =
     {
-        SERIAL_DEFAULT_BITRATE,
+        0,
         0,
         USART_CR2_STOP1_BITS,
         0
