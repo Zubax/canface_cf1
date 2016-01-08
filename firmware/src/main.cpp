@@ -39,6 +39,7 @@ namespace
 constexpr unsigned WatchdogTimeoutMSec = 1500;
 constexpr unsigned CANTxTimeoutMSec = 50;
 
+os::config::Param<unsigned> cfg_can_bitrate  ("can.bitrate",            1000000, 10000, 1000000);
 os::config::Param<bool> cfg_can_power_on     ("can.power_on",           false);
 os::config::Param<bool> cfg_can_terminator_on("can.terminator_on",      false);
 
@@ -480,8 +481,6 @@ inline bool emitFrameRTRStd(const char* cmd)
 
 class CommandProcessor
 {
-    unsigned bitrate_ = 1000000;
-
     bool cmdConfig(int argc, char** argv)
     {
         (void)os::config::executeCLICommand(argc - 1, &argv[1]);
@@ -622,36 +621,48 @@ public:
         {
         case 'S':               // Set CAN bitrate
         {
-            switch (cmd[1])
+            if (cmd[1] < '0' || cmd[1] > '9')
             {
-            case '0': bitrate_ =   10000; break;
-            case '1': bitrate_ =   20000; break;
-            case '2': bitrate_ =   50000; break;
-            case '3': bitrate_ =  100000; break;
-            case '4': bitrate_ =  125000; break;
-            case '5': bitrate_ =  250000; break;
-            case '6': bitrate_ =  500000; break;
-            case '7': bitrate_ =  800000; break;
-            case '8': bitrate_ = 1000000; break;
-            default: return false;
+                return false;
             }
-            return true;
+
+            unsigned br = unsigned(std::atoi(&cmd[1]));
+            switch (br)
+            {
+            case 0: br =   10000; break;
+            case 1: br =   20000; break;
+            case 2: br =   50000; break;
+            case 3: br =  100000; break;
+            case 4: br =  125000; break;
+            case 5: br =  250000; break;
+            case 6: br =  500000; break;
+            case 7: br =  800000; break;
+            case 8: br = 1000000; break;
+            default: break;
+            }
+            DEBUG_LOG("Bitrate %u\n", br);
+
+            return cfg_can_bitrate.setAndSave(br) >= 0;
         }
         case 'O':               // Open CAN in normal mode
         {
-            return 0 <= can::start(bitrate_);
+            DEBUG_LOG("Open normal\n");
+            return 0 <= can::start(cfg_can_bitrate.get());
         }
         case 'L':               // Open CAN in listen-only mode
         {
-            return 0 <= can::start(bitrate_, can::OptionSilentMode);
+            DEBUG_LOG("Open silent\n");
+            return 0 <= can::start(cfg_can_bitrate.get(), can::OptionSilentMode);
         }
         case 'l':               // Open CAN with loopback enabled
         {
-            return 0 <= can::start(bitrate_, can::OptionLoopback);
+            DEBUG_LOG("Open loopback\n");
+            return 0 <= can::start(cfg_can_bitrate.get(), can::OptionLoopback);
         }
         case 'C':               // Close CAN
         {
             can::stop();
+            DEBUG_LOG("Closed\n");
             return true;
         }
         case 'U':               // Set UART baud rate, see http://www.can232.com/docs/can232_v3.pdf
@@ -673,6 +684,7 @@ public:
             case 6: baudrate =   2400; break;
             default: break;
             }
+            DEBUG_LOG("Baudrate %u\n", baudrate);
 
             return cfg_baudrate.setAndSave(baudrate) >= 0;
         }
