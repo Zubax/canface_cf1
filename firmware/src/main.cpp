@@ -44,7 +44,6 @@ os::config::Param<bool> cfg_can_terminator_on("can.terminator_on",      false);
 
 os::config::Param<bool> cfg_timestamping_on("slcan.timestamping_on",    true);
 os::config::Param<bool> cfg_flags_on       ("slcan.flags_on",           true);
-os::config::Param<bool> cfg_loopback_on    ("slcan.loopback_on",        false);
 
 os::config::Param<unsigned> cfg_baudrate("uart.baudrate", SERIAL_DEFAULT_BITRATE, 2400, 3000000);
 
@@ -52,13 +51,11 @@ struct ParamCache
 {
     bool timestamping_on;
     bool flags_on;
-    bool loopback_on;
 
     void reload()
     {
         timestamping_on = cfg_timestamping_on;
         flags_on        = cfg_flags_on;
-        loopback_on     = cfg_loopback_on;
     }
 } param_cache;
 
@@ -219,11 +216,6 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
         std::uint8_t* p = &buffer[0];
 
         if UNLIKELY(f.failed)
-        {
-            return;
-        }
-
-        if LIKELY(f.loopback && !param_cache.loopback_on)
         {
             return;
         }
