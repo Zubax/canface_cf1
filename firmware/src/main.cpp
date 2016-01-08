@@ -700,6 +700,45 @@ public:
 
             return cfg_timestamping_on.setAndSave(on);
         }
+        case 'F':               // Get status flags
+        {
+            static constexpr unsigned FlagRxOverrun    = 1 << 3;
+            static constexpr unsigned FlagErrorPassive = 1 << 5;
+            static constexpr unsigned FlagBusOff       = 1 << 7;        ///< Instead of bus error flag
+
+            std::uint8_t response = 0;
+
+            const auto status = can::getStatus();
+
+            // CAN state flags
+            if (status.state == status.State::ErrorPassive ||
+                status.state == status.State::BusOff)
+            {
+                response |= FlagErrorPassive;
+            }
+            if (status.state == status.State::BusOff)
+            {
+                response |= FlagBusOff;
+            }
+
+            // RX overrun flag
+            const auto stats = can::getStatistics();
+
+            static std::uint64_t last_rx_overrun_cnt = 0;
+            const std::uint64_t rx_overrun_cnt = stats.hw_rx_overruns + stats.sw_rx_overruns;
+
+            if (rx_overrun_cnt > last_rx_overrun_cnt)
+            {
+                response |= FlagRxOverrun;
+            }
+            last_rx_overrun_cnt = rx_overrun_cnt;
+
+            DEBUG_LOG("Flags %02X\n", unsigned(response));
+
+            // Responding
+            std::printf("%02X\r", unsigned(response));
+            return true;
+        }
         default:
         {
             break;
