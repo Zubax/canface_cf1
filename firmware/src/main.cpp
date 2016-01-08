@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
 #include <zubax_chibios/os.hpp>
 #include <zubax_chibios/util/base64.hpp>
 
@@ -45,6 +46,8 @@ os::config::Param<bool> cfg_timestamping_on("slcan.timestamping_on",    true);
 os::config::Param<bool> cfg_flags_on       ("slcan.flags_on",           true);
 os::config::Param<bool> cfg_loopback_on    ("slcan.loopback_on",        false);
 
+os::config::Param<unsigned> cfg_baudrate("uart.baudrate", SERIAL_DEFAULT_BITRATE, 2400, 3000000);
+
 struct ParamCache
 {
     bool timestamping_on;
@@ -65,7 +68,7 @@ auto init()
     /*
      * Basic initialization
      */
-    auto watchdog = board::init(WatchdogTimeoutMSec);
+    auto watchdog = board::init(WatchdogTimeoutMSec, cfg_baudrate);
 
     /*
      * USB initialization
@@ -151,6 +154,8 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<256>
     {
         board::enableCANPower(cfg_can_power_on);
         board::enableCANTerminator(cfg_can_terminator_on);
+
+        board::reconfigureUART(cfg_baudrate.get());
 
         param_cache.reload();
     }
@@ -623,7 +628,7 @@ public:
          */
         switch (cmd[0])
         {
-        case 'S':
+        case 'S':               // Set CAN bitrate
         {
             switch (cmd[1])
             {
@@ -640,22 +645,44 @@ public:
             }
             return true;
         }
-        case 'O':
+        case 'O':               // Open CAN in normal mode
         {
             return 0 <= can::start(bitrate_);
         }
-        case 'L':
+        case 'L':               // Open CAN in listen-only mode
         {
             return 0 <= can::start(bitrate_, can::OptionSilentMode);
         }
-        case 'l':
+        case 'l':               // Open CAN with loopback enabled
         {
             return 0 <= can::start(bitrate_, can::OptionLoopback);
         }
-        case 'C':
+        case 'C':               // Close CAN
         {
             can::stop();
             return true;
+        }
+        case 'U':               // Set UART baud rate, see http://www.can232.com/docs/can232_v3.pdf
+        {
+            if (cmd[1] < '0' || cmd[1] > '9')
+            {
+                return false;
+            }
+
+            unsigned baudrate = unsigned(std::atoi(&cmd[1]));
+            switch (baudrate)
+            {
+            case 0: baudrate = 230400; break;
+            case 1: baudrate = 115200; break;
+            case 2: baudrate =  57600; break;
+            case 3: baudrate =  38400; break;
+            case 4: baudrate =  19200; break;
+            case 5: baudrate =   9600; break;
+            case 6: baudrate =   2400; break;
+            default: break;
+            }
+
+            return cfg_baudrate.setAndSave(baudrate) >= 0;
         }
         default:
         {

@@ -52,9 +52,7 @@ const extern std::uint8_t DeviceSignatureStorage[];
 namespace board
 {
 
-os::config::Param<unsigned> baudrate("uart.baudrate", SERIAL_DEFAULT_BITRATE, 115200, 3000000);
-
-os::watchdog::Timer init(unsigned watchdog_timeout_msec)
+os::watchdog::Timer init(unsigned watchdog_timeout_msec, os::config::Param<unsigned>& cfg_uart_baudrate)
 {
     /*
      * OS initialization first
@@ -81,14 +79,7 @@ os::watchdog::Timer init(unsigned watchdog_timeout_msec)
     /*
      * Serial port
      */
-    static const SerialConfig default_config =
-    {
-        baudrate.get(),
-        0,
-        USART_CR2_STOP1_BITS,
-        0
-    };
-    sdStart(&STDOUT_SD, &default_config);
+    reconfigureUART(cfg_uart_baudrate.get());
 
     /*
      * Prompt
@@ -97,6 +88,23 @@ os::watchdog::Timer init(unsigned watchdog_timeout_msec)
                   FW_VERSION_MAJOR, FW_VERSION_MINOR, GIT_HASH, config_init_res,
                   watchdogTriggeredLastReset() ? "WDTRESET" : "OK");
     return wdt;
+}
+
+void reconfigureUART(const unsigned baudrate)
+{
+    static SerialConfig config =
+    {
+        SERIAL_DEFAULT_BITRATE,
+        0,
+        USART_CR2_STOP1_BITS,
+        0
+    };
+
+    if (baudrate != config.speed)
+    {
+        config.speed = baudrate;
+        sdStart(&STDOUT_SD, &config);
+    }
 }
 
 __attribute__((noreturn))

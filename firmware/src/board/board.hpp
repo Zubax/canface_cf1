@@ -26,7 +26,9 @@
 namespace board
 {
 
-os::watchdog::Timer init(unsigned watchdog_timeout_msec);
+os::watchdog::Timer init(unsigned watchdog_timeout_msec, os::config::Param<unsigned>& cfg_uart_baudrate);
+
+void reconfigureUART(unsigned baudrate);
 
 __attribute__((noreturn))
 void die();
