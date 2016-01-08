@@ -660,6 +660,16 @@ public:
             DEBUG_LOG("Closed\n");
             return true;
         }
+        case 'M':               // Set CAN acceptance filter ID
+        {
+            // TODO: implement
+            return true;
+        }
+        case 'm':               // Set CAN acceptance filter mask
+        {
+            // TODO: implement
+            return true;
+        }
         case 'U':               // Set UART baud rate, see http://www.can232.com/docs/can232_v3.pdf
         {
             if (cmd[1] < '0' || cmd[1] > '9')
