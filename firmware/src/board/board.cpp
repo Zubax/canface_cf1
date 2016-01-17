@@ -128,12 +128,12 @@ void restart()
 
 void setStatusLED(bool state)
 {
-    palWritePad(GPIOB, GPIOB_LED_STATUS, !state);
+    palWritePad(GPIOB, GPIOE_LED_STATUS, !state);
 }
 
 void setTrafficLED(bool state)
 {
-    palWritePad(GPIOB, GPIOB_LED_TRAFFIC, !state);
+    palWritePad(GPIOB, GPIOE_LED_TRAFFIC, !state);
 }
 
 void enableCANPower(bool state)

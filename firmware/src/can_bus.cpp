@@ -649,7 +649,10 @@ int start(std::uint32_t bitrate, unsigned options)
         RCC->APB1ENR  |=  RCC_APB1ENR_CANEN;
         RCC->APB1RSTR |=  RCC_APB1RSTR_CANRST;
         RCC->APB1RSTR &= ~RCC_APB1RSTR_CANRST;
-        nvicEnableVector(CEC_CAN_IRQn, IRQPriority);
+        nvicEnableVector(CAN_TX_IRQn, IRQPriority);
+        nvicEnableVector(CAN_RX0_IRQn, IRQPriority);
+        nvicEnableVector(CAN_RX1_IRQn, IRQPriority);
+        nvicEnableVector(CAN_SCE_IRQn, IRQPriority);
     }
 
     /*
@@ -751,7 +754,10 @@ void stop()
     CAN->IER = 0;                                           // Disable interrupts
     CAN->MCR = CAN_MCR_SLEEP | CAN_MCR_RESET;               // Force software reset of the macrocell
 
-    NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CEC_CAN_IRQn));
+    NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_TX_IRQn));
+    NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_RX0_IRQn));
+    NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_RX1_IRQn));
+    NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_SCE_IRQn));
 
     if (state_ != nullptr)
     {
@@ -877,7 +883,7 @@ extern "C"
 
 using namespace can;
 
-CH_IRQ_HANDLER(STM32_CAN1_UNIFIED_HANDLER)
+CH_IRQ_HANDLER(STM32_CAN1_TX_HANDLER)
 {
     CH_IRQ_PROLOGUE();
 
@@ -911,25 +917,46 @@ CH_IRQ_HANDLER(STM32_CAN1_UNIFIED_HANDLER)
         }
     }
 
-    /*
-     * RX interrupt handling
-     */
+    CH_IRQ_EPILOGUE();
+}
+
+CH_IRQ_HANDLER(STM32_CAN1_RX0_HANDLER)
+{
+    CH_IRQ_PROLOGUE();
+
+    const auto timestamp = chVTGetSystemTimeX();
+    assert(state_ != nullptr);
+
     while ((CAN->RF0R & CAN_RF0R_FMP0) != 0)
     {
         handleRxInterrupt(0, timestamp);
     }
+
+    CH_IRQ_EPILOGUE();
+}
+
+CH_IRQ_HANDLER(STM32_CAN1_RX1_HANDLER)
+{
+    CH_IRQ_PROLOGUE();
+
+    const auto timestamp = chVTGetSystemTimeX();
+    assert(state_ != nullptr);
+
     while ((CAN->RF1R & CAN_RF1R_FMP1) != 0)
     {
         handleRxInterrupt(1, timestamp);
     }
 
-    /*
-     * Status change interrupt handling
-     */
-    if (CAN->MSR & CAN_MSR_ERRI)
-    {
-        handleStatusChangeInterrupt(timestamp);
-    }
+    CH_IRQ_EPILOGUE();
+}
+
+CH_IRQ_HANDLER(STM32_CAN1_SCE_HANDLER)
+{
+    CH_IRQ_PROLOGUE();
+
+    assert(state_ != nullptr);
+
+    handleStatusChangeInterrupt(chVTGetSystemTimeX());
 
     CH_IRQ_EPILOGUE();
 }

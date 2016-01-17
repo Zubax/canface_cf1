@@ -23,7 +23,7 @@
 
 #pragma once
 
-#define STM32F072xB
+#define STM32F373xC
 
 /*
  * Pin definitions
@@ -35,13 +35,15 @@
 #define GPIOA_USB_DP                    12
 #define GPIOA_SWDIO                     13
 #define GPIOA_SWCLK                     14
+#define GPIOA_USB_EN                    15
 
 #define GPIOB_CAN_POWER_DIS             1
 #define GPIOB_CAN_TERMINATOR_EN         2
 #define GPIOB_CAN_RX                    8
 #define GPIOB_CAN_TX                    9
-#define GPIOB_LED_STATUS                10
-#define GPIOB_LED_TRAFFIC               11
+
+#define GPIOE_LED_STATUS                8
+#define GPIOE_LED_TRAFFIC               9
 
 #define GPIOF_OSC_IN                    0
 #define GPIOF_OSC_OUT                   1
@@ -84,7 +86,7 @@
                                      PIN_MODE_ANALOG(GPIOA_USB_DP) |\
                                      PIN_MODE_ALTERNATE(GPIOA_SWDIO) |\
                                      PIN_MODE_ALTERNATE(GPIOA_SWCLK) |\
-                                     PIN_MODE_INPUT(15))
+                                     PIN_MODE_OUTPUT(GPIOA_USB_EN))
 
 #define VAL_GPIOA_OTYPER            (PIN_OTYPE_PUSHPULL(GPIOA_ADCIN0) |\
                                      PIN_OTYPE_PUSHPULL(1) |\
@@ -101,7 +103,7 @@
                                      PIN_OTYPE_PUSHPULL(GPIOA_USB_DP) |\
                                      PIN_OTYPE_PUSHPULL(GPIOA_SWDIO) |\
                                      PIN_OTYPE_PUSHPULL(GPIOA_SWCLK) |\
-                                     PIN_OTYPE_PUSHPULL(15))
+                                     PIN_OTYPE_PUSHPULL(GPIOA_USB_EN))
 
 #define VAL_GPIOA_OSPEEDR           (PIN_OSPEED_2M(GPIOA_ADCIN0) |\
                                      PIN_OSPEED_2M(1) |\
@@ -118,7 +120,7 @@
                                      PIN_OSPEED_40M(GPIOA_USB_DP) |\
                                      PIN_OSPEED_40M(GPIOA_SWDIO) |\
                                      PIN_OSPEED_40M(GPIOA_SWCLK) |\
-                                     PIN_OSPEED_2M(15))
+                                     PIN_OSPEED_2M(GPIOA_USB_EN))
 
 #define VAL_GPIOA_PUPDR             (PIN_PUPDR_FLOATING(GPIOA_ADCIN0) |\
                                      PIN_PUPDR_PULLDOWN(1) |\
@@ -135,7 +137,7 @@
                                      PIN_PUPDR_FLOATING(GPIOA_USB_DP) |\
                                      PIN_PUPDR_PULLUP(GPIOA_SWDIO) |\
                                      PIN_PUPDR_PULLDOWN(GPIOA_SWCLK) |\
-                                     PIN_PUPDR_PULLDOWN(15))
+                                     PIN_PUPDR_PULLDOWN(GPIOA_USB_EN))
 
 #define VAL_GPIOA_ODR               (PIN_ODR_LOW(GPIOA_ADCIN0) |\
                                      PIN_ODR_LOW(1) |\
@@ -152,7 +154,7 @@
                                      PIN_ODR_LOW(GPIOA_USB_DP) |\
                                      PIN_ODR_LOW(GPIOA_SWDIO) |\
                                      PIN_ODR_LOW(GPIOA_SWCLK) |\
-                                     PIN_ODR_LOW(15))
+                                     PIN_ODR_LOW(GPIOA_USB_EN))
 
 #define VAL_GPIOA_AFRL              (PIN_AFIO_AF(GPIOA_ADCIN0,  0) |\
                                      PIN_AFIO_AF(1,  0) |\
@@ -163,13 +165,13 @@
                                      PIN_AFIO_AF(6,  0) |\
                                      PIN_AFIO_AF(7,  0) )
 #define VAL_GPIOA_AFRH              (PIN_AFIO_AF(8,  0) |\
-                                     PIN_AFIO_AF(GPIOA_UART1_TX, 1) |\
-                                     PIN_AFIO_AF(GPIOA_UART1_RX, 1) |\
+                                     PIN_AFIO_AF(GPIOA_UART1_TX, 7) |\
+                                     PIN_AFIO_AF(GPIOA_UART1_RX, 7) |\
                                      PIN_AFIO_AF(GPIOA_USB_DM, 0) |\
                                      PIN_AFIO_AF(GPIOA_USB_DP, 0) |\
                                      PIN_AFIO_AF(GPIOA_SWDIO, 0) |\
                                      PIN_AFIO_AF(GPIOA_SWCLK, 0) |\
-                                     PIN_AFIO_AF(15, 0))
+                                     PIN_AFIO_AF(GPIOA_USB_EN, 0))
 
 /*
  * GPIOB
@@ -184,8 +186,8 @@
                                      PIN_MODE_INPUT(7) |\
                                      PIN_MODE_ALTERNATE(GPIOB_CAN_RX) |\
                                      PIN_MODE_ALTERNATE(GPIOB_CAN_TX) |\
-                                     PIN_MODE_OUTPUT(GPIOB_LED_STATUS) |\
-                                     PIN_MODE_OUTPUT(GPIOB_LED_TRAFFIC) |\
+                                     PIN_MODE_INPUT(10) |\
+                                     PIN_MODE_INPUT(11) |\
                                      PIN_MODE_INPUT(12) |\
                                      PIN_MODE_INPUT(13) |\
                                      PIN_MODE_INPUT(14) |\
@@ -201,8 +203,8 @@
                                      PIN_OTYPE_PUSHPULL(7) |\
                                      PIN_OTYPE_PUSHPULL(GPIOB_CAN_RX) |\
                                      PIN_OTYPE_PUSHPULL(GPIOB_CAN_TX) |\
-                                     PIN_OTYPE_OPENDRAIN(GPIOB_LED_STATUS) |\
-                                     PIN_OTYPE_OPENDRAIN(GPIOB_LED_TRAFFIC) |\
+                                     PIN_OTYPE_PUSHPULL(10) |\
+                                     PIN_OTYPE_PUSHPULL(11) |\
                                      PIN_OTYPE_PUSHPULL(12) |\
                                      PIN_OTYPE_PUSHPULL(13) |\
                                      PIN_OTYPE_PUSHPULL(14) |\
@@ -218,8 +220,8 @@
                                      PIN_OSPEED_2M(7) |\
                                      PIN_OSPEED_2M(GPIOB_CAN_RX) |\
                                      PIN_OSPEED_40M(GPIOB_CAN_TX) |\
-                                     PIN_OSPEED_2M(GPIOB_LED_STATUS) |\
-                                     PIN_OSPEED_2M(GPIOB_LED_TRAFFIC) |\
+                                     PIN_OSPEED_2M(10) |\
+                                     PIN_OSPEED_2M(11) |\
                                      PIN_OSPEED_2M(12) |\
                                      PIN_OSPEED_2M(13) |\
                                      PIN_OSPEED_2M(14) |\
@@ -235,8 +237,8 @@
                                      PIN_PUPDR_PULLDOWN(7) |\
                                      PIN_PUPDR_PULLUP(GPIOB_CAN_RX) |\
                                      PIN_PUPDR_PULLUP(GPIOB_CAN_TX) |\
-                                     PIN_PUPDR_FLOATING(GPIOB_LED_STATUS) |\
-                                     PIN_PUPDR_FLOATING(GPIOB_LED_TRAFFIC) |\
+                                     PIN_PUPDR_PULLDOWN(10) |\
+                                     PIN_PUPDR_PULLDOWN(11) |\
                                      PIN_PUPDR_PULLDOWN(12) |\
                                      PIN_PUPDR_PULLDOWN(13) |\
                                      PIN_PUPDR_PULLDOWN(14) |\
@@ -252,8 +254,8 @@
                                      PIN_ODR_LOW(7) |\
                                      PIN_ODR_HIGH(GPIOB_CAN_RX) |\
                                      PIN_ODR_HIGH(GPIOB_CAN_TX) |\
-                                     PIN_ODR_HIGH(GPIOB_LED_STATUS) |\
-                                     PIN_ODR_HIGH(GPIOB_LED_TRAFFIC) |\
+                                     PIN_ODR_LOW(10) |\
+                                     PIN_ODR_LOW(11) |\
                                      PIN_ODR_LOW(12) |\
                                      PIN_ODR_LOW(13) |\
                                      PIN_ODR_LOW(14) |\
@@ -267,10 +269,10 @@
                                      PIN_AFIO_AF(5,  0) |\
                                      PIN_AFIO_AF(6,  0) |\
                                      PIN_AFIO_AF(7,  0) )
-#define VAL_GPIOB_AFRH              (PIN_AFIO_AF(GPIOB_CAN_RX,  4) |\
-                                     PIN_AFIO_AF(GPIOB_CAN_TX,  4) |\
-                                     PIN_AFIO_AF(GPIOB_LED_STATUS, 0) |\
-                                     PIN_AFIO_AF(GPIOB_LED_TRAFFIC, 0) |\
+#define VAL_GPIOB_AFRH              (PIN_AFIO_AF(GPIOB_CAN_RX,  9) |\
+                                     PIN_AFIO_AF(GPIOB_CAN_TX,  9) |\
+                                     PIN_AFIO_AF(10, 0) |\
+                                     PIN_AFIO_AF(11, 0) |\
                                      PIN_AFIO_AF(12, 0) |\
                                      PIN_AFIO_AF(13, 0) |\
                                      PIN_AFIO_AF(14, 0) |\
@@ -497,8 +499,8 @@
                                      PIN_MODE_INPUT(5) |\
                                      PIN_MODE_INPUT(6) |\
                                      PIN_MODE_INPUT(7) |\
-                                     PIN_MODE_INPUT(8) |\
-                                     PIN_MODE_INPUT(9) |\
+                                     PIN_MODE_OUTPUT(GPIOE_LED_STATUS) |\
+                                     PIN_MODE_OUTPUT(GPIOE_LED_TRAFFIC) |\
                                      PIN_MODE_INPUT(10) |\
                                      PIN_MODE_INPUT(11) |\
                                      PIN_MODE_INPUT(12) |\
@@ -514,8 +516,8 @@
                                      PIN_OTYPE_PUSHPULL(5) |\
                                      PIN_OTYPE_PUSHPULL(6) |\
                                      PIN_OTYPE_PUSHPULL(7) |\
-                                     PIN_OTYPE_PUSHPULL(8) |\
-                                     PIN_OTYPE_PUSHPULL(9) |\
+                                     PIN_OTYPE_OPENDRAIN(GPIOE_LED_STATUS) |\
+                                     PIN_OTYPE_OPENDRAIN(GPIOE_LED_TRAFFIC) |\
                                      PIN_OTYPE_PUSHPULL(10) |\
                                      PIN_OTYPE_PUSHPULL(11) |\
                                      PIN_OTYPE_PUSHPULL(12) |\
@@ -531,8 +533,8 @@
                                      PIN_OSPEED_2M(5) |\
                                      PIN_OSPEED_2M(6) |\
                                      PIN_OSPEED_2M(7) |\
-                                     PIN_OSPEED_2M(8) |\
-                                     PIN_OSPEED_2M(9) |\
+                                     PIN_OSPEED_2M(GPIOE_LED_STATUS) |\
+                                     PIN_OSPEED_2M(GPIOE_LED_TRAFFIC) |\
                                      PIN_OSPEED_2M(10) |\
                                      PIN_OSPEED_2M(11) |\
                                      PIN_OSPEED_2M(12) |\
@@ -548,8 +550,8 @@
                                      PIN_PUPDR_PULLDOWN(5) |\
                                      PIN_PUPDR_PULLDOWN(6) |\
                                      PIN_PUPDR_PULLDOWN(7) |\
-                                     PIN_PUPDR_PULLDOWN(8) |\
-                                     PIN_PUPDR_PULLDOWN(9) |\
+                                     PIN_PUPDR_PULLUP(GPIOE_LED_STATUS) |\
+                                     PIN_PUPDR_PULLUP(GPIOE_LED_TRAFFIC) |\
                                      PIN_PUPDR_PULLDOWN(10) |\
                                      PIN_PUPDR_PULLDOWN(11) |\
                                      PIN_PUPDR_PULLDOWN(12) |\
@@ -565,8 +567,8 @@
                                      PIN_ODR_LOW(5) |\
                                      PIN_ODR_LOW(6) |\
                                      PIN_ODR_LOW(7) |\
-                                     PIN_ODR_LOW(8) |\
-                                     PIN_ODR_LOW(9) |\
+                                     PIN_ODR_HIGH(GPIOE_LED_STATUS) |\
+                                     PIN_ODR_HIGH(GPIOE_LED_TRAFFIC) |\
                                      PIN_ODR_LOW(10) |\
                                      PIN_ODR_LOW(11) |\
                                      PIN_ODR_LOW(12) |\
@@ -582,8 +584,8 @@
                                      PIN_AFIO_AF(5,  0) |\
                                      PIN_AFIO_AF(6,  0) |\
                                      PIN_AFIO_AF(7,  0) )
-#define VAL_GPIOE_AFRH              (PIN_AFIO_AF(8,  0) |\
-                                     PIN_AFIO_AF(9,  0) |\
+#define VAL_GPIOE_AFRH              (PIN_AFIO_AF(GPIOE_LED_STATUS,  0) |\
+                                     PIN_AFIO_AF(GPIOE_LED_TRAFFIC,  0) |\
                                      PIN_AFIO_AF(10, 0) |\
                                      PIN_AFIO_AF(11, 0) |\
                                      PIN_AFIO_AF(12, 0) |\
@@ -696,6 +698,11 @@
                                      PIN_AFIO_AF(14, 0) |\
                                      PIN_AFIO_AF(15, 0))
 
+/*
+ * Board-specific USB pullup control; required by the USB driver.
+ */
+#define usb_lld_connect_bus(usbp)       palSetPad(GPIOA, GPIOA_USB_EN)
+#define usb_lld_disconnect_bus(usbp)    palClearPad(GPIOA, GPIOA_USB_EN)
 
 #if !defined(_FROM_ASM_)
 #ifdef __cplusplus

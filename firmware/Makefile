@@ -49,7 +49,7 @@ UDEFS += -DGIT_HASH=0x$(GIT_HASH)
 # ChibiOS
 #
 
-#BOOTLOADER_SIZE = 4096
+#BOOTLOADER_SIZE = 8192
 
 #DDEFS += -DCORTEX_VTOR_INIT=$(BOOTLOADER_SIZE)
 
@@ -64,4 +64,4 @@ DEBUG_OPT = -O2 -g3 -DDISABLE_WATCHDOG=1
 
 LDSCRIPT = ld.ld
 
-include zubax_chibios/rules_stm32f0x2.mk
+include zubax_chibios/rules_stm32f37x.mk
