@@ -184,20 +184,21 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<256>
 } background_thread_;
 
 
+inline std::uint8_t nibble2hex(std::uint8_t x)
+{
+    // Allocating in RAM because it's faster
+    static std::uint8_t ConversionTable[] __attribute__((section(".data"))) =
+    {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    };
+    return ConversionTable[x & 0x0F];
+}
+
+
 class RxThread : public chibios_rt::BaseStaticThread<300>
 {
     static constexpr unsigned ReadTimeoutMSec = 5;
     static constexpr unsigned WriteTimeoutMSec = 50;
-
-    static inline std::uint8_t hex(std::uint8_t x)
-    {
-        // Allocating in RAM because it's faster
-        static std::uint8_t ConversionTable[] __attribute__((section(".data"))) =
-        {
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-        };
-        return ConversionTable[x & 0x0F];
-    }
 
     /**
      * General frame format:
@@ -244,15 +245,15 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
             const std::uint32_t id = f.frame.id & f.frame.MaskExtID;
             if LIKELY(f.frame.isExtended())
             {
-                *p++ = hex(id >> 28);
-                *p++ = hex(id >> 24);
-                *p++ = hex(id >> 20);
-                *p++ = hex(id >> 16);
-                *p++ = hex(id >> 12);
+                *p++ = nibble2hex(id >> 28);
+                *p++ = nibble2hex(id >> 24);
+                *p++ = nibble2hex(id >> 20);
+                *p++ = nibble2hex(id >> 16);
+                *p++ = nibble2hex(id >> 12);
             }
-            *p++ = hex(id >> 8);
-            *p++ = hex(id >> 4);
-            *p++ = hex(id >> 0);
+            *p++ = nibble2hex(id >> 8);
+            *p++ = nibble2hex(id >> 4);
+            *p++ = nibble2hex(id >> 0);
         }
 
         /*
@@ -266,8 +267,8 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
         for (unsigned i = 0; i < f.frame.dlc; i++)
         {
             const std::uint8_t byte = f.frame.data[i];
-            *p++ = hex(byte >> 4);
-            *p++ = hex(byte);
+            *p++ = nibble2hex(byte >> 4);
+            *p++ = nibble2hex(byte);
         }
 
         /*
@@ -276,10 +277,10 @@ class RxThread : public chibios_rt::BaseStaticThread<300>
         if LIKELY(param_cache.timestamping_on)
         {
             const auto msec = std::uint16_t(f.timestamp_systick / (CH_CFG_ST_FREQUENCY / 1000));
-            *p++ = hex(msec >> 12);
-            *p++ = hex(msec >> 8);
-            *p++ = hex(msec >> 4);
-            *p++ = hex(msec >> 0);
+            *p++ = nibble2hex(msec >> 12);
+            *p++ = nibble2hex(msec >> 8);
+            *p++ = nibble2hex(msec >> 4);
+            *p++ = nibble2hex(msec >> 0);
         }
 
         /*
@@ -481,13 +482,13 @@ inline bool emitFrameRTRStd(const char* cmd)
 
 class CommandProcessor
 {
-    bool cmdConfig(int argc, char** argv)
+    const char* cmdConfig(int argc, char** argv)
     {
         (void)os::config::executeCLICommand(argc - 1, &argv[1]);
-        return true;
+        return getASCIIStatusCode(true);
     }
 
-    bool cmdZubaxID(int argc, char** argv)
+    const char* cmdZubaxID(int argc, char** argv)
     {
         if (argc == 1)
         {
@@ -515,10 +516,10 @@ class CommandProcessor
         }
         else
         {
-            return false;
+            return getASCIIStatusCode(false);
         }
 
-        return true;
+        return getASCIIStatusCode(true);
     }
 
     static bool startsWith(const char* const str, const char* const prefix)
@@ -526,7 +527,7 @@ class CommandProcessor
         return std::strncmp(prefix, str, std::strlen(prefix)) == 0;
     }
 
-    bool processComplexCommand(char* buf, bool (CommandProcessor::*handler)(int, char**))
+    const char* processComplexCommand(char* buf, const char* (CommandProcessor::*handler)(int, char**))
     {
         // Replying with echo
         std::puts(buf);
@@ -579,30 +580,35 @@ class CommandProcessor
         {
             return (this->*handler)(idx, args);
         }
-        return false;
+        return getASCIIStatusCode(false);
     }
 
+    static inline const char* getASCIIStatusCode(bool status) { return status ? "\r" : "\a"; }
+
 public:
-    bool processCommand(char* cmd)
+    /**
+     * Accepts command string, returns response string or nullptr if no response is needed.
+     */
+    const char* processCommand(char* cmd)
     {
         /*
          * High-traffic SLCAN commands go first
          */
         if LIKELY(cmd[0] == 'T')
         {
-            return emitFrameDataExt(cmd);
+            return emitFrameDataExt(cmd) ? "Z\r" : "\a";
         }
         else if LIKELY(cmd[0] == 't')
         {
-            return emitFrameDataStd(cmd);
+            return emitFrameDataStd(cmd) ? "z\r" : "\a";
         }
         else if LIKELY(cmd[0] == 'R')
         {
-            return emitFrameRTRExt(cmd);
+            return emitFrameRTRExt(cmd) ? "Z\r" : "\a";
         }
         else if LIKELY(cmd[0] == 'r')
         {
-            return emitFrameRTRStd(cmd);
+            return emitFrameRTRStd(cmd) ? "z\r" : "\a";
         }
         else
         {
@@ -618,7 +624,7 @@ public:
         {
             if (cmd[1] < '0' || cmd[1] > '9')
             {
-                return false;
+                return getASCIIStatusCode(false);
             }
 
             unsigned br = unsigned(std::atoi(&cmd[1]));
@@ -637,44 +643,44 @@ public:
             }
             DEBUG_LOG("Bitrate %u\n", br);
 
-            return cfg_can_bitrate.setAndSave(br) >= 0;
+            return getASCIIStatusCode(cfg_can_bitrate.setAndSave(br) >= 0);
         }
         case 'O':               // Open CAN in normal mode
         {
             DEBUG_LOG("Open normal\n");
-            return 0 <= can::start(cfg_can_bitrate.get());
+            return getASCIIStatusCode(0 <= can::start(cfg_can_bitrate.get()));
         }
         case 'L':               // Open CAN in listen-only mode
         {
             DEBUG_LOG("Open silent\n");
-            return 0 <= can::start(cfg_can_bitrate.get(), can::OptionSilentMode);
+            return getASCIIStatusCode(0 <= can::start(cfg_can_bitrate.get(), can::OptionSilentMode));
         }
         case 'l':               // Open CAN with loopback enabled
         {
             DEBUG_LOG("Open loopback\n");
-            return 0 <= can::start(cfg_can_bitrate.get(), can::OptionLoopback);
+            return getASCIIStatusCode(0 <= can::start(cfg_can_bitrate.get(), can::OptionLoopback));
         }
         case 'C':               // Close CAN
         {
             can::stop();
             DEBUG_LOG("Closed\n");
-            return true;
+            return getASCIIStatusCode(true);
         }
         case 'M':               // Set CAN acceptance filter ID
         {
             // TODO: implement
-            return true;
+            return getASCIIStatusCode(true);
         }
         case 'm':               // Set CAN acceptance filter mask
         {
             // TODO: implement
-            return true;
+            return getASCIIStatusCode(true);
         }
         case 'U':               // Set UART baud rate, see http://www.can232.com/docs/can232_v3.pdf
         {
             if (cmd[1] < '0' || cmd[1] > '9')
             {
-                return false;
+                return getASCIIStatusCode(false);
             }
 
             unsigned baudrate = unsigned(std::atoi(&cmd[1]));
@@ -691,19 +697,19 @@ public:
             }
             DEBUG_LOG("Baudrate %u\n", baudrate);
 
-            return cfg_baudrate.setAndSave(baudrate) >= 0;
+            return getASCIIStatusCode(cfg_baudrate.setAndSave(baudrate) >= 0);
         }
         case 'Z':               // Enable/disable RX and loopback timestamping
         {
             if (cmd[1] < '0' || cmd[1] > '1')
             {
-                return false;
+                return getASCIIStatusCode(false);
             }
 
             const bool on = cmd[1] == '1';
             DEBUG_LOG("Timestamping %u\n", unsigned(on));
 
-            return cfg_timestamping_on.setAndSave(on);
+            return getASCIIStatusCode(cfg_timestamping_on.setAndSave(on) >= 0);
         }
         case 'F':               // Get status flags
         {
@@ -741,22 +747,26 @@ public:
             DEBUG_LOG("Flags %02X\n", unsigned(response));
 
             // Responding
-            std::printf("%02X\r", unsigned(response));
-            return true;
+            std::printf("F%02X\r", unsigned(response));
+            return nullptr;
         }
         case 'V':               // HW/SW version
         {
-            std::printf("%x%x%x%x\r", HW_VERSION, 0, FW_VERSION_MAJOR, FW_VERSION_MINOR);
-            return true;
+            std::printf("V%x%x%x%x\r", HW_VERSION, 0, FW_VERSION_MAJOR, FW_VERSION_MINOR);
+            return nullptr;
         }
         case 'N':               // Serial number
         {
+            char buf[std::tuple_size<board::UniqueID>::value * 2 + 1] = { '\0' };
+            char* pos = &buf[0];
             for (auto x : board::readUniqueID())
             {
-                std::printf("%02X", unsigned(x));
+                *pos++ = nibble2hex(x >> 4);
+                *pos++ = nibble2hex(x);
             }
-            std::printf("%c", '\r');
-            return true;
+            *pos++ = '\0';
+            std::printf("N%s\r", &buf[0]);
+            return nullptr;
         }
         default:
         {
@@ -785,9 +795,10 @@ public:
         }
         else
         {
-            return false;
+            ;   // No handler
         }
-        return false;
+
+        return getASCIIStatusCode(false);
     }
 };
 
@@ -822,12 +833,16 @@ public:
         {
             // Processing the command
             buf_[pos_] = '\0';
-            const bool response = proc_.processCommand(reinterpret_cast<char*>(&buf_[0]));
+            const char* const response = proc_.processCommand(reinterpret_cast<char*>(&buf_[0]));
             reset();
 
-            // Sending the SLCAN standard response
-            os::MutexLocker mlocker(os::getStdIOMutex());
-            chnPutTimeout(os::getStdIOStream(), response ? '\r' : '\a', MS2ST(1));
+            // Sending the response if provided
+            if LIKELY(response != nullptr)
+            {
+                os::MutexLocker mlocker(os::getStdIOMutex());
+                chnWriteTimeout(os::getStdIOStream(), reinterpret_cast<const std::uint8_t*>(response),
+                                std::strlen(response), MS2ST(1));
+            }
         }
         else if UNLIKELY(byte == 8 || byte == 127)              // DEL or BS (backspace)
         {
@@ -864,7 +879,7 @@ int main()
     chibios_rt::BaseThread::setPriority(NORMALPRIO);
 
     app::background_thread_.start(LOWPRIO);
-    app::rx_thread_.start(NORMALPRIO + 1);
+    app::rx_thread_.start(NORMALPRIO - 1);
 
     // This delay is not required, but it allows the USB driver to complete initialization before the loop begins
     watchdog.reset();
