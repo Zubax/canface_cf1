@@ -138,7 +138,7 @@
                                      PIN_PUPDR_FLOATING(GPIOA_USB_DP) |\
                                      PIN_PUPDR_PULLUP(GPIOA_SWDIO) |\
                                      PIN_PUPDR_PULLDOWN(GPIOA_SWCLK) |\
-                                     PIN_PUPDR_PULLDOWN(GPIOA_USB_EN))
+                                     PIN_PUPDR_FLOATING(GPIOA_USB_EN))
 
 #define VAL_GPIOA_ODR               (PIN_ODR_LOW(GPIOA_ADCIN0) |\
                                      PIN_ODR_LOW(1) |\
@@ -551,8 +551,8 @@
                                      PIN_PUPDR_PULLDOWN(5) |\
                                      PIN_PUPDR_PULLDOWN(6) |\
                                      PIN_PUPDR_PULLDOWN(7) |\
-                                     PIN_PUPDR_PULLUP(GPIOE_LED_STATUS) |\
-                                     PIN_PUPDR_PULLUP(GPIOE_LED_TRAFFIC) |\
+                                     PIN_PUPDR_FLOATING(GPIOE_LED_STATUS) |\
+                                     PIN_PUPDR_FLOATING(GPIOE_LED_TRAFFIC) |\
                                      PIN_PUPDR_PULLDOWN(10) |\
                                      PIN_PUPDR_PULLDOWN(11) |\
                                      PIN_PUPDR_PULLDOWN(12) |\
