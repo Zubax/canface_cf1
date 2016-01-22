@@ -84,7 +84,7 @@ auto init()
     return watchdog;
 }
 
-class BackgroundThread : public chibios_rt::BaseStaticThread<256>
+class BackgroundThread : public chibios_rt::BaseStaticThread<512>
 {
     static constexpr unsigned BaseFrameMSec = 25;
 
@@ -195,7 +195,7 @@ inline std::uint8_t nibble2hex(std::uint8_t x)
 }
 
 
-class RxThread : public chibios_rt::BaseStaticThread<300>
+class RxThread : public chibios_rt::BaseStaticThread<512>
 {
     static constexpr unsigned ReadTimeoutMSec = 5;
     static constexpr unsigned WriteTimeoutMSec = 50;

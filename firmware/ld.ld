@@ -21,13 +21,13 @@
   * Based on a ChibiOS demo app.
   */
 
-__main_stack_size__     = 0x0350;
-__process_stack_size__  = 0x0350;
+__main_stack_size__     = 0x0400;
+__process_stack_size__  = 0x0400;
 
 MEMORY
 {
-    flash : org = 0x08000000, len = 64k
-    ram   : org = 0x20000000, len = 16k
+    flash : org = 0x08000000, len = 128k
+    ram   : org = 0x20000000, len = 24k
 }
 
 
