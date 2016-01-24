@@ -22,7 +22,7 @@ constexpr unsigned NumTxMailboxes = 3;
 
 class RxQueue
 {
-    static constexpr unsigned Capacity = 20;
+    static constexpr unsigned Capacity = 50;
 
     RxFrame buf_[Capacity];
     std::uint8_t in_ = 0;
@@ -78,6 +78,177 @@ public:
     }
 
     unsigned getLength() const { return len_; }
+};
+
+/**
+ * Frame makeFrame(unsigned id)
+ * {
+ *     static unsigned count = 0;
+ *     const auto s = std::to_string(count++);
+ *     return Frame(id, s.c_str(), s.length());
+ * }
+ * void flush(TxQueue& q)
+ * {
+ *     std::cout << "Peak usage: " << q.getPeakUsage() << std::endl;
+ *     while (q.peek())
+ *     {
+ *         std::cout << q.peek()->toString() << std::endl;
+ *         q.pop();
+ *     }
+ * }
+ * int main()
+ * {
+ *     TxQueue ptxq;
+ *     ENFORCE(ptxq.getPeakUsage() == 0);
+ *     ENFORCE(ptxq.getCapacity() == 30);
+ *     ENFORCE(ptxq.peek() == nullptr);
+ *     ptxq.push(makeFrame(5));
+ *     ptxq.push(makeFrame(3));
+ *     ptxq.push(makeFrame(4));
+ *     ptxq.push(makeFrame(4));
+ *     ptxq.push(makeFrame(2));
+ *     ptxq.push(makeFrame(4));
+ *     flush(ptxq);
+ * }
+ */
+class TxQueue
+{
+    static constexpr unsigned Capacity = 50;
+
+    struct TxFrame
+    {
+        TxFrame* next = nullptr;
+        Frame frame;
+
+        TxFrame(const Frame& f) : frame(f) { }
+    };
+
+    class Allocator
+    {
+        union Node
+        {
+            alignas(TxFrame) std::uint8_t data[sizeof(TxFrame)];
+            Node* next;
+        };
+
+        alignas(Node) std::uint8_t pool_[Capacity * sizeof(TxFrame)];
+        Node* free_list_;
+
+        unsigned used_ = 0;
+        unsigned max_used_ = 0;
+
+    public:
+        Allocator() :
+            free_list_(reinterpret_cast<Node*>(pool_))
+        {
+            (void)std::fill_n(pool_, sizeof(pool_), 0);
+            for (unsigned i = 0; (i + 1) < (Capacity - 1 + 1); i++) // -Werror=type-limits
+            {
+                // coverity[dead_error_line : FALSE]
+                free_list_[i].next = free_list_ + i + 1;
+            }
+            free_list_[Capacity - 1].next = nullptr;
+        }
+
+        template <typename... Args>
+        TxFrame* allocate(Args... args)
+        {
+            if UNLIKELY(free_list_ == nullptr)
+            {
+                return nullptr;
+            }
+
+            void* const pmem = free_list_;
+            free_list_ = free_list_->next;
+
+            // Statistics
+            assert(used_ < Capacity);
+            used_++;
+            if UNLIKELY(used_ > max_used_)
+            {
+                max_used_ = used_;
+            }
+
+            return new (pmem) TxFrame(args...);
+        }
+
+        void deallocate(void* ptr)
+        {
+            if UNLIKELY(ptr == nullptr)
+            {
+                assert(false);
+                return;
+            }
+
+            auto p = static_cast<Node*>(ptr);
+            p->next = free_list_;
+            free_list_ = p;
+
+            // Statistics
+            assert(used_ > 0);
+            used_--;
+        }
+
+        unsigned getPeakNumUsedBlocks() const { return max_used_; }
+    };
+
+    Allocator allocator_;
+    TxFrame* head_ = nullptr;
+
+public:
+    bool push(const Frame& frame)
+    {
+        auto* const txf = allocator_.allocate(frame);
+        if UNLIKELY(txf == nullptr)
+        {
+            return false;
+        }
+
+        if UNLIKELY(head_ == nullptr || frame.priorityHigherThan(head_->frame))
+        {
+            txf->next = head_;
+            head_ = txf;
+        }
+        else
+        {
+            auto* p = head_;
+            while (p->next != nullptr)
+            {
+                if UNLIKELY(frame.priorityHigherThan(p->next->frame))
+                {
+                    break;
+                }
+                p = p->next;
+            }
+            txf->next = p->next;
+            p->next = txf;
+        }
+
+        return true;
+    }
+
+    void pop()
+    {
+        if LIKELY(head_ != nullptr)
+        {
+            auto next = head_->next;
+            head_->~TxFrame();
+            allocator_.deallocate(head_);
+            head_ = next;
+        }
+        else
+        {
+            assert(false);
+        }
+    }
+
+    const Frame* peek() const
+    {
+        return (head_ == nullptr) ? nullptr : &head_->frame;
+    }
+
+    unsigned getPeakUsage() const { return allocator_.getPeakNumUsedBlocks(); }
+    unsigned getCapacity() const { return Capacity; }
 };
 
 
@@ -274,6 +445,7 @@ struct DriverState
     Statistics stats;
 
     RxQueue rx_queue;
+    TxQueue tx_queue;
     Event rx_event;
     Event tx_event;
     TxItem pending_tx[NumTxMailboxes];
@@ -320,6 +492,108 @@ public:
     { }
 };
 
+/*
+ * TX management helpers
+ */
+/// Must be invoked from ISR or Critical Section
+bool canAcceptNewTxFrameCS(const Frame& frame)
+{
+    /*
+     * We can accept more frames only if the following conditions are satisfied:
+     *  - There is at least one TX mailbox free (obvious enough);
+     *  - The priority of the new frame is higher than priority of all TX mailboxes.
+     */
+    {
+        static constexpr std::uint32_t TME = CAN_TSR_TME0 | CAN_TSR_TME1 | CAN_TSR_TME2;
+        const std::uint32_t tme = CAN->TSR & TME;
+
+        if (tme == TME)     // All TX mailboxes are free (as in freedom).
+        {
+            return true;
+        }
+
+        if (tme == 0)       // All TX mailboxes are busy transmitting.
+        {
+            return false;
+        }
+    }
+
+    for (unsigned mbx = 0; mbx < NumTxMailboxes; mbx++)
+    {
+        if (state_->pending_tx[mbx].pending && !frame.priorityHigherThan(state_->pending_tx[mbx].frame))
+        {
+            return false;       // There's a mailbox whose priority is higher or equal the priority of the new frame.
+        }
+    }
+
+    return true;                // This new frame will be added to a free TX mailbox in the next @ref send().
+}
+
+/// Must be invoked from ISR or Critical Section
+void loadTxMailboxCS(const Frame& frame)
+{
+    /*
+     * Seeking for an empty slot
+     */
+    std::uint8_t txmailbox = 0xFF;
+    if ((CAN->TSR & CAN_TSR_TME0) == CAN_TSR_TME0)
+    {
+        txmailbox = 0;
+    }
+    else if ((CAN->TSR & CAN_TSR_TME1) == CAN_TSR_TME1)
+    {
+        txmailbox = 1;
+    }
+    else if ((CAN->TSR & CAN_TSR_TME2) == CAN_TSR_TME2)
+    {
+        txmailbox = 2;
+    }
+    else
+    {
+        assert(false);
+        return;         // No transmission for you.
+    }
+
+    state_->stats.peak_tx_mailbox_index = std::max(state_->stats.peak_tx_mailbox_index, txmailbox);    // Statistics
+
+    /*
+     * Setting up the mailbox
+     */
+    auto& mb = CAN->sTxMailBox[txmailbox];
+    if (frame.isExtended())
+    {
+        mb.TIR = ((frame.id & Frame::MaskExtID) << 3) | CAN_TI0R_IDE;
+    }
+    else
+    {
+        mb.TIR = ((frame.id & Frame::MaskStdID) << 21);
+    }
+
+    if (frame.isRemoteTransmissionRequest())
+    {
+        mb.TIR |= CAN_TI0R_RTR;
+    }
+
+    mb.TDTR = frame.dlc;
+
+    mb.TDHR = (std::uint32_t(frame.data[7]) << 24) |
+              (std::uint32_t(frame.data[6]) << 16) |
+              (std::uint32_t(frame.data[5]) << 8)  |
+              (std::uint32_t(frame.data[4]) << 0);
+    mb.TDLR = (std::uint32_t(frame.data[3]) << 24) |
+              (std::uint32_t(frame.data[2]) << 16) |
+              (std::uint32_t(frame.data[1]) << 8)  |
+              (std::uint32_t(frame.data[0]) << 0);
+
+    mb.TIR |= CAN_TI0R_TXRQ;  // Go. Transmission starts here.
+
+    /*
+     * Registering the pending transmission
+     */
+    auto& txi = state_->pending_tx[txmailbox];
+    txi.frame   = frame;
+    txi.pending = true;
+}
 
 /*
  * Interrupt handlers
@@ -328,27 +602,50 @@ void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const bool txok,
 {
     assert(mailbox_index < NumTxMailboxes);
 
+    /*
+     * Updating statistics
+     */
     if (txok)
     {
         state_->had_activity = true;
         state_->stats.frames_tx++;
     }
 
-    auto& txi = state_->pending_tx[mailbox_index];
-
-    if (state_->loopback && txi.pending)
+    /*
+     * Updating the state and reporting the loopback event
+     */
     {
-        RxFrame rxf;
-        rxf.frame             = txi.frame;
-        rxf.loopback          = true;
-        rxf.failed            = !txok;
-        rxf.timestamp_systick = timestamp;
+        auto& txi = state_->pending_tx[mailbox_index];
 
-        state_->pushRxFromISR(rxf);
+        if (state_->loopback && txi.pending)
+        {
+            RxFrame rxf;
+            rxf.frame             = txi.frame;
+            rxf.loopback          = true;
+            rxf.failed            = !txok;
+            rxf.timestamp_systick = timestamp;
+
+            state_->pushRxFromISR(rxf);
+        }
+
+        txi.pending = false;
     }
 
-    txi.pending = false;
+    /*
+     * Handling other frames scheduled for transmission
+     */
+    if (const auto top = state_->tx_queue.peek())
+    {
+        if (canAcceptNewTxFrameCS(*top))
+        {
+            loadTxMailboxCS(*top);
+            state_->tx_queue.pop();
+        }
+    }
 
+    /*
+     * Reporting a TX event
+     */
     os::CriticalSectionLocker cs_locker;
     state_->tx_event.signalI();
 }
@@ -469,131 +766,6 @@ void handleStatusChangeInterrupt(const ::systime_t timestamp)
     }
 
     CAN->ESR = 0;
-}
-
-bool canAcceptNewTxFrame(const Frame& frame)
-{
-    /*
-     * We can accept more frames only if the following conditions are satisfied:
-     *  - There is at least one TX mailbox free (obvious enough);
-     *  - The priority of the new frame is higher than priority of all TX mailboxes.
-     */
-    {
-        static constexpr std::uint32_t TME = CAN_TSR_TME0 | CAN_TSR_TME1 | CAN_TSR_TME2;
-        const std::uint32_t tme = CAN->TSR & TME;
-
-        if (tme == TME)     // All TX mailboxes are free (as in freedom).
-        {
-            return true;
-        }
-
-        if (tme == 0)       // All TX mailboxes are busy transmitting.
-        {
-            return false;
-        }
-    }
-
-    /*
-     * The second condition requires a critical section.
-     */
-    os::CriticalSectionLocker lock;
-
-    for (unsigned mbx = 0; mbx < NumTxMailboxes; mbx++)
-    {
-        if (state_->pending_tx[mbx].pending && !frame.priorityHigherThan(state_->pending_tx[mbx].frame))
-        {
-            return false;       // There's a mailbox whose priority is higher or equal the priority of the new frame.
-        }
-    }
-
-    return true;                // This new frame will be added to a free TX mailbox in the next @ref send().
-}
-
-int loadTxMailbox(const Frame& frame)
-{
-    if (frame.isErrorFrame() || frame.dlc > 8)
-    {
-        return -ErrUnsupportedFrame;
-    }
-
-    /*
-     * Normally we should perform the same check as in @ref canAcceptNewTxFrame(), because
-     * it is possible that the highest-priority frame between select() and send() could have been
-     * replaced with a lower priority one due to TX timeout. But we don't do this check because:
-     *
-     *  - It is a highly unlikely scenario.
-     *
-     *  - Frames do not timeout on a properly functioning bus. Since frames do not timeout, the new
-     *    frame can only have higher priority, which doesn't break the logic.
-     *
-     *  - If high-priority frames are timing out in the TX queue, there's probably a lot of other
-     *    issues to take care of before this one becomes relevant.
-     *
-     *  - It takes CPU time. Not just CPU time, but critical section time, which is expensive.
-     */
-    os::CriticalSectionLocker cs_lock;
-
-    /*
-     * Seeking for an empty slot
-     */
-    std::uint8_t txmailbox = 0xFF;
-    if ((CAN->TSR & CAN_TSR_TME0) == CAN_TSR_TME0)
-    {
-        txmailbox = 0;
-    }
-    else if ((CAN->TSR & CAN_TSR_TME1) == CAN_TSR_TME1)
-    {
-        txmailbox = 1;
-    }
-    else if ((CAN->TSR & CAN_TSR_TME2) == CAN_TSR_TME2)
-    {
-        txmailbox = 2;
-    }
-    else
-    {
-        return 0;       // No transmission for you.
-    }
-
-    state_->stats.peak_tx_mailbox_index = std::max(state_->stats.peak_tx_mailbox_index, txmailbox);    // Statistics
-
-    /*
-     * Setting up the mailbox
-     */
-    auto& mb = CAN->sTxMailBox[txmailbox];
-    if (frame.isExtended())
-    {
-        mb.TIR = ((frame.id & Frame::MaskExtID) << 3) | CAN_TI0R_IDE;
-    }
-    else
-    {
-        mb.TIR = ((frame.id & Frame::MaskStdID) << 21);
-    }
-
-    if (frame.isRemoteTransmissionRequest())
-    {
-        mb.TIR |= CAN_TI0R_RTR;
-    }
-
-    mb.TDTR = frame.dlc;
-
-    mb.TDHR = (std::uint32_t(frame.data[7]) << 24) |
-              (std::uint32_t(frame.data[6]) << 16) |
-              (std::uint32_t(frame.data[5]) << 8)  |
-              (std::uint32_t(frame.data[4]) << 0);
-    mb.TDLR = (std::uint32_t(frame.data[3]) << 24) |
-              (std::uint32_t(frame.data[2]) << 16) |
-              (std::uint32_t(frame.data[1]) << 8)  |
-              (std::uint32_t(frame.data[0]) << 0);
-
-    mb.TIR |= CAN_TI0R_TXRQ;  // Go. Transmission starts here.
-
-    /*
-     * Registering the pending transmission
-     */
-    auto& txi = state_->pending_tx[txmailbox];
-    txi.frame   = frame;
-    txi.pending = true;
-    return 1;
 }
 
 } // namespace
@@ -780,13 +952,30 @@ int send(const Frame& frame, std::uint16_t timeout_ms)
         return -ErrNotStarted;
     }
 
+    if (frame.isErrorFrame() || frame.dlc > 8)
+    {
+        return -ErrUnsupportedFrame;
+    }
+
     const auto started_at = chVTGetSystemTimeX();
 
     while (true)
     {
-        if (canAcceptNewTxFrame(frame))
         {
-            return loadTxMailbox(frame);
+            os::CriticalSectionLocker cs_locker;
+
+            if (state_->tx_queue.push(frame))                   // Pushing the prioritized queue
+            {
+                const auto top = state_->tx_queue.peek();       // Returned frame may be different (always non-null)
+
+                if (canAcceptNewTxFrameCS(*top))                // Checking if the hardware can accept the frame
+                {
+                    loadTxMailboxCS(*top);                      // Starting transmission
+                    state_->tx_queue.pop();                     // Removing the top frame from the queue
+                }
+
+                return 1;
+            }
         }
 
         // Blocking until next event or timeout
