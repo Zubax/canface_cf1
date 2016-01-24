@@ -23,11 +23,13 @@ constexpr unsigned NumTxMailboxes = 3;
 class RxQueue
 {
     static constexpr unsigned Capacity = 100;
+    typedef std::uint8_t Size;
 
     RxFrame buf_[Capacity];
-    std::uint8_t in_ = 0;
-    std::uint8_t out_ = 0;
-    std::uint8_t len_ = 0;
+    Size in_ = 0;
+    Size out_ = 0;
+    Size len_ = 0;
+    Size peak_len_ = 0;
 
 public:
     /**
@@ -37,31 +39,35 @@ public:
     {
         buf_[in_] = frame;
         in_++;
-        if (in_ >= Capacity)
+        if UNLIKELY(in_ >= Capacity)
         {
             in_ = 0;
         }
-        len_++;
-        if (len_ > Capacity)
+        if UNLIKELY(len_ >= Capacity)
         {
             len_ = Capacity;
             out_++;
-            if (out_ >= Capacity)
+            if UNLIKELY(out_ >= Capacity)
             {
                 out_ = 0;
             }
             return false;
+        }
+        len_++;
+        if UNLIKELY(peak_len_ < len_)
+        {
+            peak_len_ = len_;
         }
         return true;
     }
 
     void pop(RxFrame& out_frame)
     {
-        if (len_ > 0)
+        if LIKELY(len_ > 0)
         {
             out_frame = buf_[out_];
             out_++;
-            if (out_ >= Capacity)
+            if UNLIKELY(out_ >= Capacity)
             {
                 out_ = 0;
             }
@@ -77,7 +83,9 @@ public:
         len_ = 0;
     }
 
-    unsigned getLength() const { return len_; }
+    Size getLength() const    { return len_; }
+    Size getPeakUsage() const { return peak_len_; }
+    Size getCapacity() const  { return Capacity; }
 };
 
 /**
@@ -487,8 +495,10 @@ struct DriverState
     /// FIXME This is ugly but I don't have a better idea at the moment.
     void updateStatistics() const
     {
-        statistics_.tx_queue_capacity = tx_queue.getCapacity();
+        statistics_.tx_queue_capacity   = tx_queue.getCapacity();
         statistics_.tx_queue_peak_usage = tx_queue.getPeakUsage();
+        statistics_.rx_queue_capacity   = rx_queue.getCapacity();
+        statistics_.rx_queue_peak_usage = rx_queue.getPeakUsage();
     }
 };
 

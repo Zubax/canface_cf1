@@ -527,7 +527,7 @@ class CommandProcessor
         const auto s = can::getStatistics();
 
         // We can't use printf() for conversion because ChibiOS's printf() implementation does not support `long long`.
-#       define STAT_PRINT_ONE_KEY(x)    std::printf("%-24s: %s\n", STRINGIZE(x), os::uintToString(s. x).c_str());
+#       define STAT_PRINT_ONE_KEY(x)    std::printf("%-21s: %s\n", STRINGIZE(x), os::uintToString(s. x).c_str());
 
         STAT_PRINT_ONE_KEY(errors)
         STAT_PRINT_ONE_KEY(sw_rx_queue_overruns)
@@ -536,6 +536,8 @@ class CommandProcessor
         STAT_PRINT_ONE_KEY(frames_rx)
         STAT_PRINT_ONE_KEY(tx_queue_capacity)
         STAT_PRINT_ONE_KEY(tx_queue_peak_usage)
+        STAT_PRINT_ONE_KEY(rx_queue_capacity)
+        STAT_PRINT_ONE_KEY(rx_queue_peak_usage)
         STAT_PRINT_ONE_KEY(tx_peak_mailbox_index)
         STAT_PRINT_ONE_KEY(last_hw_error_code)
 

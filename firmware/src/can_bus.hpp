@@ -96,6 +96,8 @@ struct Statistics
     std::uint64_t frames_rx               = 0;
     std::uint16_t tx_queue_capacity       = 0;
     std::uint16_t tx_queue_peak_usage     = 0;
+    std::uint16_t rx_queue_capacity       = 0;
+    std::uint16_t rx_queue_peak_usage     = 0;
     std::uint8_t tx_peak_mailbox_index    = 0;
     std::uint8_t last_hw_error_code       = 0;
 };
