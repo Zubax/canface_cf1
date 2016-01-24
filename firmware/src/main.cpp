@@ -901,11 +901,6 @@ int main()
     app::background_thread_.start(LOWPRIO);
     app::rx_thread_.start(NORMALPRIO - 1);
 
-    // This delay is not required, but it allows the USB driver to complete initialization before the loop begins
-    watchdog.reset();
-    ::usleep(200000);
-    watchdog.reset();
-
     /*
      * Running the serial port processing loop
      */
