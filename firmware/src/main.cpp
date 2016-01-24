@@ -710,14 +710,18 @@ public:
             return getASCIIStatusCode(true);
         }
         case 'M':               // Set CAN acceptance filter ID
-        {
-            // TODO: implement
-            return getASCIIStatusCode(true);
-        }
         case 'm':               // Set CAN acceptance filter mask
         {
-            // TODO: implement
-            return getASCIIStatusCode(true);
+            /*
+             * These SLCAN commands were designed to work with the SJA1000 controller.
+             * SJA1000's hardware acceptance filters are very peculiar to say the least,
+             * so implementing compatible commands would require to implement all of that ugly trickery
+             * to mimic SJA1000.
+             * I see litle value in prolonging the life of such brain-dead conventions, so this feature will
+             * remain unimplemented until someone explicitly requested it.
+             * If you REALLY need this feature, please contact us at http://productforums.zubax.com.
+             */
+            return getASCIIStatusCode(false);
         }
         case 'U':               // Set UART baud rate, see http://www.can232.com/docs/can232_v3.pdf
         {
