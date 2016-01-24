@@ -48,6 +48,10 @@ os::config::Param<bool> cfg_flags_on       ("slcan.flags_on",           true);
 
 os::config::Param<unsigned> cfg_baudrate("uart.baudrate", SERIAL_DEFAULT_BITRATE, 2400, 3000000); // Exposed via SLCAN
 
+/**
+ * This struct keeps cached configuration parameters for quick access.
+ * It is updated automatically when configuration changes from the background thread.
+ */
 struct ParamCache
 {
     bool timestamping_on;
@@ -59,6 +63,11 @@ struct ParamCache
         flags_on        = cfg_flags_on;
     }
 } param_cache;
+
+/**
+ * This global is set when an external reboot command is received.
+ */
+bool reboot_requested = false;
 
 
 auto init()
@@ -175,6 +184,12 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<512>
             {
                 cfg_modcnt = new_cfg_modcnt;
                 reloadConfigs();
+            }
+
+            if (reboot_requested)
+            {
+                ::usleep(10000);        // Providing time to send the response
+                NVIC_SystemReset();
             }
 
             next_step_at += MS2ST(BaseFrameMSec);
@@ -544,6 +559,12 @@ class CommandProcessor
         return getASCIIStatusCode(true);
     }
 
+    const char* cmdReboot(int, char**)
+    {
+        reboot_requested = true;
+        return getASCIIStatusCode(true);
+    }
+
     static bool startsWith(const char* const str, const char* const prefix)
     {
         return std::strncmp(prefix, str, std::strlen(prefix)) == 0;
@@ -813,7 +834,7 @@ public:
         }
         else if (startsWith(cmd, "_reboot"))
         {
-            // TODO: implement
+            return processComplexCommand(cmd, &CommandProcessor::cmdReboot);
         }
         else
         {
