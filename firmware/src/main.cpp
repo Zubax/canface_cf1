@@ -44,7 +44,7 @@ os::config::Param<bool> cfg_can_power_on     ("can.power_on",           false);
 os::config::Param<bool> cfg_can_terminator_on("can.terminator_on",      false);
 
 os::config::Param<bool> cfg_timestamping_on("slcan.timestamping_on",    true);                    // Exposed via SLCAN
-os::config::Param<bool> cfg_flags_on       ("slcan.flags_on",           true);
+os::config::Param<bool> cfg_flags_on       ("slcan.flags_on",           false);
 
 os::config::Param<unsigned> cfg_baudrate("uart.baudrate", SERIAL_DEFAULT_BITRATE, 2400, 3000000); // Exposed via SLCAN
 
