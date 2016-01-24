@@ -855,7 +855,7 @@ inline bool Frame::priorityHigherThan(const Frame& rhs) const
     return clean_id < rhs_clean_id;
 }
 
-int start(std::uint32_t bitrate, unsigned options)
+int open(std::uint32_t bitrate, unsigned options)
 {
     CommonMutexLocker mutex_locker;
 
@@ -977,7 +977,7 @@ int start(std::uint32_t bitrate, unsigned options)
     return 0;
 }
 
-void stop()
+void close()
 {
     CommonMutexLocker mutex_locker;
     os::CriticalSectionLocker cs_lock;
@@ -998,7 +998,7 @@ void stop()
     }
 }
 
-bool isStarted()
+bool isOpen()
 {
     return state_ != nullptr;
 }
@@ -1009,7 +1009,7 @@ int send(const Frame& frame, std::uint16_t timeout_ms)
 
     if (state_ == nullptr)
     {
-        return -ErrNotStarted;
+        return -ErrClosed;
     }
 
     if (frame.isErrorFrame() || frame.dlc > 8)
@@ -1056,7 +1056,7 @@ int receive(RxFrame& out_frame, std::uint16_t timeout_ms)
 
     if (state_ == nullptr)
     {
-        return -ErrNotStarted;
+        return -ErrClosed;
     }
 
     const auto started_at = chVTGetSystemTimeX();

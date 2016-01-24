@@ -25,7 +25,7 @@ static const std::int16_t ErrUnsupportedFrame        = 1004; ///< Frame not supp
 static const std::int16_t ErrMsrInakNotSet           = 1005; ///< INAK bit of the MSR register is not 1
 static const std::int16_t ErrMsrInakNotCleared       = 1006; ///< INAK bit of the MSR register is not 0
 static const std::int16_t ErrBitRateNotDetected      = 1007; ///< Auto bit rate detection could not be finished
-static const std::int16_t ErrNotStarted              = 1008; ///< The driver is not started
+static const std::int16_t ErrClosed                  = 1008; ///< The driver is not started
 
 /**
  * Frame definition like in libuavcan
@@ -131,28 +131,28 @@ struct Status
 };
 
 /**
- * Start options
+ * Open options
  */
 static constexpr unsigned OptionSilentMode = 1;
 static constexpr unsigned OptionLoopback   = 2;
 
 /**
- * Starts the controller and resets all associated statistics.
+ * Opens the channel and resets all associated statistics.
  * @param bitrate
  * @return negative on error
  */
-int start(std::uint32_t bitrate, unsigned options = 0);
+int open(std::uint32_t bitrate, unsigned options = 0);
 
 /**
- * Stops the controller.
- * Note that this call does not reset the statistics; @ref start() does.
+ * Closes the channel.
+ * Note that this call does not reset the statistics; @ref open() does.
  */
-void stop();
+void close();
 
 /**
- * True if started. While not started, other API functions may not be available.
+ * True if open. While not open, other API functions may not be available.
  */
-bool isStarted();
+bool isOpen();
 
 /**
  * It is safe to call @ref send() and @ref receive() concurrently from different threads.
@@ -175,7 +175,7 @@ int send(const Frame& frame, std::uint16_t timeout_ms);
 int receive(RxFrame& out_frame, std::uint16_t timeout_ms);
 
 /**
- * Returns the statistics collected since the last @ref start() call.
+ * Returns the statistics collected since the last @ref open() call.
  * Note that the statistics object is large, and access to it is protected by a critical section,
  * so accessing this function may introduce a few microsecond latency to communications.
  */
@@ -183,7 +183,7 @@ Statistics getStatistics();
 
 /**
  * Returns current state of the CAN controller.
- * If the driver is not started, this function may return garbage.
+ * If the channel is not open, this function may return garbage.
  */
 Status getStatus();
 

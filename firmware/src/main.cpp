@@ -99,7 +99,7 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<512>
 
     static std::pair<unsigned, unsigned> getStatusOnOffDurationMSec()
     {
-        if (can::isStarted())
+        if (can::isOpen())
         {
             switch (can::getStatus().state)
             {
@@ -335,7 +335,7 @@ class RxThread : public chibios_rt::BaseStaticThread<512>
             {
                 reportFrame(rxf);
             }
-            else if (res == -can::ErrNotStarted)
+            else if (res == -can::ErrClosed)
             {
                 ::usleep(1000);
             }
@@ -545,7 +545,7 @@ class CommandProcessor
 #       define STAT_PRINT_ONE_KEY(object, field) \
             std::printf(FormatString, STRINGIZE(field), os::uintToString(object . field).c_str());
 
-        std::printf(FormatString, "open",  can::isStarted() ? "true" : "false");
+        std::printf(FormatString, "open",  can::isOpen() ? "true" : "false");
 
         {
             const auto status = can::getStatus();
@@ -706,21 +706,21 @@ public:
         case 'O':               // Open CAN in normal mode
         {
             DEBUG_LOG("Open normal\n");
-            return getASCIIStatusCode(0 <= can::start(cfg_can_bitrate.get()));
+            return getASCIIStatusCode(0 <= can::open(cfg_can_bitrate.get()));
         }
         case 'L':               // Open CAN in listen-only mode
         {
             DEBUG_LOG("Open silent\n");
-            return getASCIIStatusCode(0 <= can::start(cfg_can_bitrate.get(), can::OptionSilentMode));
+            return getASCIIStatusCode(0 <= can::open(cfg_can_bitrate.get(), can::OptionSilentMode));
         }
         case 'l':               // Open CAN with loopback enabled
         {
             DEBUG_LOG("Open loopback\n");
-            return getASCIIStatusCode(0 <= can::start(cfg_can_bitrate.get(), can::OptionLoopback));
+            return getASCIIStatusCode(0 <= can::open(cfg_can_bitrate.get(), can::OptionLoopback));
         }
         case 'C':               // Close CAN
         {
-            can::stop();
+            can::close();
             DEBUG_LOG("Closed\n");
             return getASCIIStatusCode(true);
         }
