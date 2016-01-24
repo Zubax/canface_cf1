@@ -883,7 +883,7 @@ int main()
 
     // This delay is not required, but it allows the USB driver to complete initialization before the loop begins
     watchdog.reset();
-    ::sleep(1);
+    ::usleep(200000);
     watchdog.reset();
 
     /*
@@ -891,7 +891,7 @@ int main()
      */
     static constexpr unsigned ReadTimeoutMSec = 5;
 
-    const auto usb_serial = usb_cdc::getSerialUSBDriver();
+    const auto usb_port = usb_cdc::getSerialUSBDriver();
     const auto uart_port = &STDOUT_SD;
 
     while (true)
@@ -900,8 +900,8 @@ int main()
 
         ::BaseChannel* const stdio_stream = os::getStdIOStream();
         const bool using_usb = reinterpret_cast<::BaseChannel*>(stdio_stream) ==
-                               reinterpret_cast<::BaseChannel*>(usb_serial);
-        std::size_t nread = using_usb ? usb_serial->iqueue.q_counter : uart_port->iqueue.q_counter;
+                               reinterpret_cast<::BaseChannel*>(usb_port);
+        std::size_t nread = using_usb ? usb_port->iqueue.q_counter : uart_port->iqueue.q_counter;
 
         static std::uint8_t buf[128];
         nread = chnReadTimeout(stdio_stream, buf, std::max<std::size_t>(1, std::min<std::size_t>(sizeof(buf), nread)),
@@ -920,8 +920,9 @@ int main()
             const bool usb_connected = usb_cdc::getState() == usb_cdc::State::Connected;
             if (using_usb != usb_connected)
             {
+                DEBUG_LOG("Switching to %s\n", usb_connected ? "USB" : "UART");
                 os::setStdIOStream(usb_connected ?
-                                   reinterpret_cast<::BaseChannel*>(usb_serial) :
+                                   reinterpret_cast<::BaseChannel*>(usb_port) :
                                    reinterpret_cast<::BaseChannel*>(uart_port));
                 app::command_parser_.reset();
             }
