@@ -204,7 +204,7 @@ public:
             return false;
         }
 
-        if UNLIKELY(head_ == nullptr || frame.priorityHigherThan(head_->frame))
+        if LIKELY(head_ == nullptr || frame.priorityHigherThan(head_->frame))
         {
             txf->next = head_;
             head_ = txf;
@@ -496,7 +496,7 @@ public:
  * TX management helpers
  */
 /// Must be invoked from ISR or Critical Section
-bool canAcceptNewTxFrameCS(const Frame& frame)
+inline bool canAcceptNewTxFrameCS(const Frame& frame)
 {
     /*
      * We can accept more frames only if the following conditions are satisfied:
@@ -507,12 +507,12 @@ bool canAcceptNewTxFrameCS(const Frame& frame)
         static constexpr std::uint32_t TME = CAN_TSR_TME0 | CAN_TSR_TME1 | CAN_TSR_TME2;
         const std::uint32_t tme = CAN->TSR & TME;
 
-        if (tme == TME)     // All TX mailboxes are free (as in freedom).
+        if LIKELY(tme == TME)   // All TX mailboxes are free (as in freedom).
         {
             return true;
         }
 
-        if (tme == 0)       // All TX mailboxes are busy transmitting.
+        if UNLIKELY(tme == 0)   // All TX mailboxes are busy transmitting.
         {
             return false;
         }
@@ -530,7 +530,7 @@ bool canAcceptNewTxFrameCS(const Frame& frame)
 }
 
 /// Must be invoked from ISR or Critical Section
-void loadTxMailboxCS(const Frame& frame)
+inline void loadTxMailboxCS(const Frame& frame)
 {
     /*
      * Seeking for an empty slot
@@ -598,7 +598,7 @@ void loadTxMailboxCS(const Frame& frame)
 /*
  * Interrupt handlers
  */
-void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const bool txok, const ::systime_t timestamp)
+inline void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const bool txok, const ::systime_t timestamp)
 {
     assert(mailbox_index < NumTxMailboxes);
 
@@ -650,7 +650,7 @@ void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const bool txok,
     state_->tx_event.signalI();
 }
 
-void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t timestamp)
+inline void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t timestamp)
 {
     static constexpr unsigned CAN_RFR_FMP_MASK = 3;
 
@@ -719,7 +719,7 @@ void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t timestam
     state_->pushRxFromISR(rxf);
 }
 
-void handleStatusChangeInterrupt(const ::systime_t timestamp)
+inline void handleStatusChangeInterrupt(const ::systime_t timestamp)
 {
     CAN->MSR = CAN_MSR_ERRI;        // Clear error
 
@@ -770,7 +770,7 @@ void handleStatusChangeInterrupt(const ::systime_t timestamp)
 
 } // namespace
 
-bool Frame::priorityHigherThan(const Frame& rhs) const
+inline bool Frame::priorityHigherThan(const Frame& rhs) const
 {
     const uint32_t clean_id     = id     & MaskExtID;
     const uint32_t rhs_clean_id = rhs.id & MaskExtID;
@@ -780,7 +780,7 @@ bool Frame::priorityHigherThan(const Frame& rhs) const
      */
     const bool ext     = id     & FlagEFF;
     const bool rhs_ext = rhs.id & FlagEFF;
-    if (ext != rhs_ext)
+    if UNLIKELY(ext != rhs_ext)
     {
         const uint32_t arb11     = ext     ? (clean_id >> 18)     : clean_id;
         const uint32_t rhs_arb11 = rhs_ext ? (rhs_clean_id >> 18) : rhs_clean_id;
@@ -799,7 +799,7 @@ bool Frame::priorityHigherThan(const Frame& rhs) const
      */
     const bool rtr     = id     & FlagRTR;
     const bool rhs_rtr = rhs.id & FlagRTR;
-    if (clean_id == rhs_clean_id && rtr != rhs_rtr)
+    if UNLIKELY(clean_id == rhs_clean_id && rtr != rhs_rtr)
     {
         return rhs_rtr;
     }
