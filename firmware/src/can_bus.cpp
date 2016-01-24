@@ -783,6 +783,24 @@ inline void handleStatusChangeInterrupt(const ::systime_t timestamp)
                 }
             }
         }
+
+        // Flushing the TX queue
+        while (const auto tx = state_->tx_queue.peek())
+        {
+            // If loopback is enabled, reporting that the transmission has failed.
+            if (state_->loopback)
+            {
+                RxFrame rxf;
+                rxf.frame = *tx;
+                rxf.failed = true;
+                rxf.loopback = true;
+                rxf.timestamp_systick = timestamp;
+
+                state_->pushRxFromISR(rxf);
+            }
+
+            state_->tx_queue.pop();
+        }
     }
 
     const std::uint8_t lec = std::uint8_t((CAN->ESR & CAN_ESR_LEC) >> 4);
@@ -860,9 +878,21 @@ int start(std::uint32_t bitrate, unsigned options)
     {
         os::CriticalSectionLocker cs_lock;
 
+        // APB reset is the only way to guaranteedly bring the macrocell to the well-known initial state.
+        RCC->APB1RSTR |=  RCC_APB1RSTR_CANRST;
+        RCC->APB1RSTR &= ~RCC_APB1RSTR_CANRST;
+
         CAN->MCR &= ~CAN_MCR_SLEEP;     // Exit sleep mode
         CAN->MCR |= CAN_MCR_INRQ;       // Request init
         CAN->IER = 0;                   // Disable interrupts while initialization is in progress
+
+        CAN->TSR = CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;   // Cancel all transmissions
+
+        // This covers the case if this function was invoked while the controller was still active
+        NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_TX_IRQn));
+        NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_RX0_IRQn));
+        NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_RX1_IRQn));
+        NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_SCE_IRQn));
     }
 
     if (!waitMSRINAKBitStateChange(true))
@@ -952,8 +982,9 @@ void stop()
     CommonMutexLocker mutex_locker;
     os::CriticalSectionLocker cs_lock;
 
-    CAN->IER = 0;                                           // Disable interrupts
-    CAN->MCR = CAN_MCR_SLEEP | CAN_MCR_RESET;               // Force software reset of the macrocell
+    CAN->IER = 0;                                               // Disable interrupts
+    CAN->TSR = CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;   // Cancel all transmissions
+    CAN->MCR = CAN_MCR_SLEEP | CAN_MCR_RESET;                   // Force software reset of the macrocell
 
     NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_TX_IRQn));
     NVIC_ClearPendingIRQ(static_cast<IRQn_Type>(CAN_RX0_IRQn));
