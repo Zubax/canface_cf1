@@ -581,7 +581,7 @@ inline void loadTxMailboxCS(const Frame& frame)
         return;         // No transmission for you.
     }
 
-    statistics_.tx_peak_mailbox_index = std::max(statistics_.tx_peak_mailbox_index, txmailbox); // Statistics
+    statistics_.tx_mailbox_peak_usage = std::max(statistics_.tx_mailbox_peak_usage, txmailbox); // Statistics
 
     /*
      * Setting up the mailbox

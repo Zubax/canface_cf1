@@ -553,7 +553,7 @@ class CommandProcessor
         STAT_PRINT_ONE_KEY(tx_queue_peak_usage)
         STAT_PRINT_ONE_KEY(rx_queue_capacity)
         STAT_PRINT_ONE_KEY(rx_queue_peak_usage)
-        STAT_PRINT_ONE_KEY(tx_peak_mailbox_index)
+        STAT_PRINT_ONE_KEY(tx_mailbox_peak_usage)
         STAT_PRINT_ONE_KEY(last_hw_error_code)
 
         return getASCIIStatusCode(true);
