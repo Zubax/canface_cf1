@@ -22,7 +22,7 @@ constexpr unsigned NumTxMailboxes = 3;
 
 class RxQueue
 {
-    static constexpr unsigned Capacity = 50;
+    static constexpr unsigned Capacity = 100;
 
     RxFrame buf_[Capacity];
     std::uint8_t in_ = 0;
@@ -113,7 +113,7 @@ public:
  */
 class TxQueue
 {
-    static constexpr unsigned Capacity = 50;
+    static constexpr unsigned Capacity = 100;
 
     struct TxFrame
     {
