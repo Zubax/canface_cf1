@@ -113,6 +113,21 @@ struct Status
         ErrorPassive,
         BusOff
     } state = State::ErrorActive;
+
+    const char* getStateAsString() const
+    {
+        switch (state)
+        {
+        case State::ErrorActive:  return "error_active";
+        case State::ErrorPassive: return "error_passive";
+        case State::BusOff:       return "bus_off";
+        default:
+        {
+            assert(false);
+            return "???";
+        }
+        }
+    }
 };
 
 /**

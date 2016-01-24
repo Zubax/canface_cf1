@@ -539,22 +539,37 @@ class CommandProcessor
 
     const char* cmdStat(int, char**)
     {
-        const auto s = can::getStatistics();
+        static constexpr auto FormatString = "%-22s: %s\n";
 
         // We can't use printf() for conversion because ChibiOS's printf() implementation does not support `long long`.
-#       define STAT_PRINT_ONE_KEY(x)    std::printf("%-21s: %s\n", STRINGIZE(x), os::uintToString(s. x).c_str());
+#       define STAT_PRINT_ONE_KEY(object, field) \
+            std::printf(FormatString, STRINGIZE(field), os::uintToString(object . field).c_str());
 
-        STAT_PRINT_ONE_KEY(errors)
-        STAT_PRINT_ONE_KEY(sw_rx_queue_overruns)
-        STAT_PRINT_ONE_KEY(hw_rx_queue_overruns)
-        STAT_PRINT_ONE_KEY(frames_tx)
-        STAT_PRINT_ONE_KEY(frames_rx)
-        STAT_PRINT_ONE_KEY(tx_queue_capacity)
-        STAT_PRINT_ONE_KEY(tx_queue_peak_usage)
-        STAT_PRINT_ONE_KEY(rx_queue_capacity)
-        STAT_PRINT_ONE_KEY(rx_queue_peak_usage)
-        STAT_PRINT_ONE_KEY(tx_mailbox_peak_usage)
-        STAT_PRINT_ONE_KEY(last_hw_error_code)
+        std::printf(FormatString, "open",  can::isStarted() ? "true" : "false");
+
+        {
+            const auto status = can::getStatus();
+
+            std::printf(FormatString, "state", status.getStateAsString());
+            STAT_PRINT_ONE_KEY(status, receive_error_counter)
+            STAT_PRINT_ONE_KEY(status, transmit_error_counter)
+        }
+
+        {
+            const auto statistics = can::getStatistics();
+
+            STAT_PRINT_ONE_KEY(statistics, errors)
+            STAT_PRINT_ONE_KEY(statistics, sw_rx_queue_overruns)
+            STAT_PRINT_ONE_KEY(statistics, hw_rx_queue_overruns)
+            STAT_PRINT_ONE_KEY(statistics, frames_tx)
+            STAT_PRINT_ONE_KEY(statistics, frames_rx)
+            STAT_PRINT_ONE_KEY(statistics, tx_queue_capacity)
+            STAT_PRINT_ONE_KEY(statistics, tx_queue_peak_usage)
+            STAT_PRINT_ONE_KEY(statistics, rx_queue_capacity)
+            STAT_PRINT_ONE_KEY(statistics, rx_queue_peak_usage)
+            STAT_PRINT_ONE_KEY(statistics, tx_mailbox_peak_usage)
+            STAT_PRINT_ONE_KEY(statistics, last_hw_error_code)
+        }
 
         return getASCIIStatusCode(true);
     }
