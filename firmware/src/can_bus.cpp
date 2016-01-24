@@ -757,6 +757,8 @@ inline void handleStatusChangeInterrupt(const ::systime_t timestamp)
     {
         CAN->TSR = CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;
 
+        statistics_.bus_off_events++;
+
         {
             os::CriticalSectionLocker cs_locker;
             state_->tx_event.signalI();

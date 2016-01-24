@@ -559,6 +559,7 @@ class CommandProcessor
             const auto statistics = can::getStatistics();
 
             STAT_PRINT_ONE_KEY(statistics, errors)
+            STAT_PRINT_ONE_KEY(statistics, bus_off_events)
             STAT_PRINT_ONE_KEY(statistics, sw_rx_queue_overruns)
             STAT_PRINT_ONE_KEY(statistics, hw_rx_queue_overruns)
             STAT_PRINT_ONE_KEY(statistics, frames_tx)

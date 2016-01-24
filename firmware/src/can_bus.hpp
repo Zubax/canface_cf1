@@ -90,6 +90,7 @@ struct RxFrame
 struct Statistics
 {
     std::uint64_t errors                  = 0;
+    std::uint64_t bus_off_events          = 0;
     std::uint64_t sw_rx_queue_overruns    = 0;
     std::uint64_t hw_rx_queue_overruns    = 0;
     std::uint64_t frames_tx               = 0;
