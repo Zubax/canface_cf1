@@ -522,6 +522,26 @@ class CommandProcessor
         return getASCIIStatusCode(true);
     }
 
+    const char* cmdStat(int, char**)
+    {
+        const auto s = can::getStatistics();
+
+        // We can't use printf() for conversion because ChibiOS's printf() implementation does not support `long long`.
+#       define STAT_PRINT_ONE_KEY(x)    std::printf("%-24s: %s\n", STRINGIZE(x), os::uintToString(s. x).c_str());
+
+        STAT_PRINT_ONE_KEY(errors)
+        STAT_PRINT_ONE_KEY(sw_rx_queue_overruns)
+        STAT_PRINT_ONE_KEY(hw_rx_queue_overruns)
+        STAT_PRINT_ONE_KEY(frames_tx)
+        STAT_PRINT_ONE_KEY(frames_rx)
+        STAT_PRINT_ONE_KEY(tx_queue_capacity)
+        STAT_PRINT_ONE_KEY(tx_queue_peak_usage)
+        STAT_PRINT_ONE_KEY(tx_peak_mailbox_index)
+        STAT_PRINT_ONE_KEY(last_hw_error_code)
+
+        return getASCIIStatusCode(true);
+    }
+
     static bool startsWith(const char* const str, const char* const prefix)
     {
         return std::strncmp(prefix, str, std::strlen(prefix)) == 0;
@@ -736,7 +756,7 @@ public:
             const auto stats = can::getStatistics();
 
             static std::uint64_t last_rx_overrun_cnt = 0;
-            const std::uint64_t rx_overrun_cnt = stats.hw_rx_overruns + stats.sw_rx_overruns;
+            const std::uint64_t rx_overrun_cnt = stats.hw_rx_queue_overruns + stats.sw_rx_queue_overruns;
 
             if (rx_overrun_cnt > last_rx_overrun_cnt)
             {
@@ -787,7 +807,7 @@ public:
         }
         else if (startsWith(cmd, "_stat"))
         {
-            // TODO: implement
+            return processComplexCommand(cmd, &CommandProcessor::cmdStat);
         }
         else if (startsWith(cmd, "_reboot"))
         {

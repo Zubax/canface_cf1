@@ -437,13 +437,17 @@ public:
     void signalI() { sem_.signalI(); }
 };
 
+
+/*
+ * Statistics are kept even after the interface is closed
+ */
+Statistics statistics_;
+
 /*
  * Driver state
  */
 struct DriverState
 {
-    Statistics stats;
-
     RxQueue rx_queue;
     TxQueue tx_queue;
     Event rx_event;
@@ -457,21 +461,34 @@ struct DriverState
         loopback(option_loopback)
     { }
 
+    ~DriverState()
+    {
+        // Making sure the latest statistics will be preserved after the state is destroyed.
+        updateStatistics();
+    }
+
     void pushRxFromISR(const RxFrame& rxf)
     {
         os::CriticalSectionLocker cs_locker;
 
         if (!rx_queue.push(rxf))
         {
-            stats.sw_rx_overruns++;
+            statistics_.sw_rx_queue_overruns++;
         }
         rx_event.signalI();
 
         if (!rxf.loopback && !rxf.failed)
         {
             had_activity = true;
-            stats.frames_rx++;
+            statistics_.frames_rx++;
         }
+    }
+
+    /// FIXME This is ugly but I don't have a better idea at the moment.
+    void updateStatistics() const
+    {
+        statistics_.tx_queue_capacity = tx_queue.getCapacity();
+        statistics_.tx_queue_peak_usage = tx_queue.getPeakUsage();
     }
 };
 
@@ -554,7 +571,7 @@ inline void loadTxMailboxCS(const Frame& frame)
         return;         // No transmission for you.
     }
 
-    state_->stats.peak_tx_mailbox_index = std::max(state_->stats.peak_tx_mailbox_index, txmailbox);    // Statistics
+    statistics_.tx_peak_mailbox_index = std::max(statistics_.tx_peak_mailbox_index, txmailbox); // Statistics
 
     /*
      * Setting up the mailbox
@@ -608,7 +625,7 @@ inline void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const boo
     if (txok)
     {
         state_->had_activity = true;
-        state_->stats.frames_tx++;
+        statistics_.frames_tx++;
     }
 
     /*
@@ -668,7 +685,7 @@ inline void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t t
      */
     if ((rfr_reg & CAN_RF0R_FOVR0) != 0)
     {
-        state_->stats.hw_rx_overruns++;
+        statistics_.hw_rx_queue_overruns++;
     }
 
     /*
@@ -761,8 +778,8 @@ inline void handleStatusChangeInterrupt(const ::systime_t timestamp)
     const std::uint8_t lec = std::uint8_t((CAN->ESR & CAN_ESR_LEC) >> 4);
     if (lec != 0)
     {
-        state_->stats.last_hw_error_code = lec;
-        state_->stats.errors++;
+        statistics_.last_hw_error_code = lec;
+        statistics_.errors++;
     }
 
     CAN->ESR = 0;
@@ -856,7 +873,7 @@ int start(std::uint32_t bitrate, unsigned options)
 //                  unsigned(timings.prescaler), unsigned(timings.sjw), unsigned(timings.bs1), unsigned(timings.bs2));
 
     /*
-     * Resetting driver state - CAN interrupts are disabled, so it's safe to modify it now
+     * Resetting driver state and statistics - CAN interrupts are disabled, so it's safe to modify it now
      */
     if (state_ != nullptr)
     {
@@ -866,6 +883,8 @@ int start(std::uint32_t bitrate, unsigned options)
 
     static std::aligned_storage_t<sizeof(DriverState), alignof(DriverState)> _state_storage;
     state_ = new (&_state_storage) DriverState((options & OptionLoopback) != 0);
+
+    statistics_ = Statistics();
 
     /*
      * Hardware initialization (the hardware has already confirmed initialization mode, see above)
@@ -1026,8 +1045,21 @@ int receive(RxFrame& out_frame, std::uint16_t timeout_ms)
 
 Statistics getStatistics()
 {
-    os::CriticalSectionLocker cs_locker;
-    return (state_ == nullptr) ? Statistics() : state_->stats;
+    Statistics val;
+
+    {
+        os::CriticalSectionLocker cs_locker;
+
+        // FIXME This is ugly but I don't have a better idea at the moment.
+        if (state_ != nullptr)
+        {
+            state_->updateStatistics();
+        }
+
+        val = statistics_;
+    }
+
+    return val;
 }
 
 Status getStatus()
