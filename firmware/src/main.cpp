@@ -903,8 +903,8 @@ int main()
                                reinterpret_cast<::BaseChannel*>(usb_serial);
         std::size_t nread = using_usb ? usb_serial->iqueue.q_counter : uart_port->iqueue.q_counter;
 
-        static std::uint8_t buf[64];
-        nread = chnReadTimeout(stdio_stream, buf, std::max(1U, std::min<unsigned>(sizeof(buf), nread)),
+        static std::uint8_t buf[128];
+        nread = chnReadTimeout(stdio_stream, buf, std::max<std::size_t>(1, std::min<std::size_t>(sizeof(buf), nread)),
                                MS2ST(ReadTimeoutMSec));
 
         if LIKELY(nread > 0)
