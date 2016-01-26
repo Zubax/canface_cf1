@@ -36,8 +36,8 @@ constexpr unsigned NumTxMailboxes = 3;
 
 class RxQueue
 {
-    static constexpr unsigned Capacity = 100;
     typedef std::uint8_t Size;
+    static constexpr Size Capacity = 255;
 
     RxFrame buf_[Capacity];
     Size in_ = 0;
