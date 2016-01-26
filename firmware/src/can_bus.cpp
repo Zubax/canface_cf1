@@ -765,16 +765,19 @@ inline void handleStatusChangeInterrupt(const ::systime_t timestamp)
     /*
      * Cancel all transmissions when we reach bus-off state
      */
-    if (CAN->ESR & CAN_ESR_BOFF)
+    if UNLIKELY(bool(CAN->ESR & CAN_ESR_BOFF))
     {
-        CAN->TSR = CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;
-
-        statistics_.bus_off_events++;
-
+        // Disabling the bus-off interrupt until the controller is recovered
+        if (bool(CAN->IER & CAN_IER_BOFIE))
         {
-            os::CriticalSectionLocker cs_locker;
-            state_->tx_event.signalI();
+            CAN->IER &= ~CAN_IER_BOFIE;
+            statistics_.bus_off_events++;
         }
+
+        bool tx_event_required = false;
+
+        // Requesting transmission abort for all mailboxes
+        CAN->TSR = CAN_TSR_ABRQ0 | CAN_TSR_ABRQ1 | CAN_TSR_ABRQ2;
 
         // Marking TX mailboxes empty
         for (unsigned i = 0; i < NumTxMailboxes; i++)
@@ -795,12 +798,16 @@ inline void handleStatusChangeInterrupt(const ::systime_t timestamp)
 
                     state_->pushRxFromISR(rxf);
                 }
+
+                tx_event_required = true;
             }
         }
 
         // Flushing the TX queue
         while (const auto tx = state_->tx_queue.peek())
         {
+            tx_event_required = true;
+
             // If loopback is enabled, reporting that the transmission has failed.
             if (state_->loopback)
             {
@@ -814,6 +821,21 @@ inline void handleStatusChangeInterrupt(const ::systime_t timestamp)
             }
 
             state_->tx_queue.pop();
+        }
+
+        // Signaling an event if needed
+        if (tx_event_required)
+        {
+            os::CriticalSectionLocker cs_locker;
+            state_->tx_event.signalI();
+        }
+    }
+    else
+    {
+        // Bus-off condition is removed, re-enabling the corresponding IRQ source. Details above.
+        if UNLIKELY(!bool(CAN->IER & CAN_IER_BOFIE))
+        {
+            CAN->IER |= CAN_IER_BOFIE;
         }
     }
 
@@ -963,7 +985,7 @@ int open(std::uint32_t bitrate, unsigned options)
                CAN_IER_FMPIE1 |         // RX FIFO 1 is not empty
                CAN_IER_ERRIE |          // General error IRQ
                CAN_IER_LECIE |          // Last error code change
-               CAN_IER_BOFIE;           // Bus-off reached
+               CAN_IER_BOFIE;           // Bus-off reached (this one is enabled/disabled dynamically, see SCE handler)
 
     CAN->MCR &= ~CAN_MCR_INRQ;          // Leave init mode
 
