@@ -11,6 +11,18 @@
 #include "can_bus.hpp"
 
 
+#ifndef CAN_IRQ_TRACE
+# define CAN_IRQ_TRACE  0
+#endif
+#if CAN_IRQ_TRACE
+# define CAN_IRQ_TRACE_BEGIN(pin)       palSetPad(GPIOA, GPIOA_PIN_##pin)
+# define CAN_IRQ_TRACE_END(pin)       palClearPad(GPIOA, GPIOA_PIN_##pin)
+#else
+# define CAN_IRQ_TRACE_BEGIN(pin)       ((void)0)
+# define CAN_IRQ_TRACE_END(pin)         ((void)0)
+#endif
+
+
 namespace can
 {
 namespace
@@ -872,6 +884,12 @@ int open(std::uint32_t bitrate, unsigned options)
         nvicEnableVector(CAN_RX0_IRQn, IRQPriority);
         nvicEnableVector(CAN_RX1_IRQn, IRQPriority);
         nvicEnableVector(CAN_SCE_IRQn, IRQPriority);
+
+#if CAN_IRQ_TRACE
+        palSetPadMode(GPIOA, GPIOA_PIN_4, PAL_MODE_OUTPUT_PUSHPULL);
+        palSetPadMode(GPIOA, GPIOA_PIN_5, PAL_MODE_OUTPUT_PUSHPULL);
+        palSetPadMode(GPIOA, GPIOA_PIN_6, PAL_MODE_OUTPUT_PUSHPULL);
+#endif
     }
 
     /*
@@ -1150,6 +1168,7 @@ using namespace can;
 CH_IRQ_HANDLER(STM32_CAN1_TX_HANDLER)
 {
     CH_IRQ_PROLOGUE();
+    CAN_IRQ_TRACE_BEGIN(4);
 
     const auto timestamp = chVTGetSystemTimeX();
     assert(state_ != nullptr);
@@ -1181,12 +1200,14 @@ CH_IRQ_HANDLER(STM32_CAN1_TX_HANDLER)
         }
     }
 
+    CAN_IRQ_TRACE_END(4);
     CH_IRQ_EPILOGUE();
 }
 
 CH_IRQ_HANDLER(STM32_CAN1_RX0_HANDLER)
 {
     CH_IRQ_PROLOGUE();
+    CAN_IRQ_TRACE_BEGIN(5);
 
     const auto timestamp = chVTGetSystemTimeX();
     assert(state_ != nullptr);
@@ -1196,12 +1217,14 @@ CH_IRQ_HANDLER(STM32_CAN1_RX0_HANDLER)
         handleRxInterrupt(0, timestamp);
     }
 
+    CAN_IRQ_TRACE_END(5);
     CH_IRQ_EPILOGUE();
 }
 
 CH_IRQ_HANDLER(STM32_CAN1_RX1_HANDLER)
 {
     CH_IRQ_PROLOGUE();
+    CAN_IRQ_TRACE_BEGIN(5);
 
     const auto timestamp = chVTGetSystemTimeX();
     assert(state_ != nullptr);
@@ -1211,17 +1234,20 @@ CH_IRQ_HANDLER(STM32_CAN1_RX1_HANDLER)
         handleRxInterrupt(1, timestamp);
     }
 
+    CAN_IRQ_TRACE_END(5);
     CH_IRQ_EPILOGUE();
 }
 
 CH_IRQ_HANDLER(STM32_CAN1_SCE_HANDLER)
 {
     CH_IRQ_PROLOGUE();
+    CAN_IRQ_TRACE_BEGIN(6);
 
     assert(state_ != nullptr);
 
     handleStatusChangeInterrupt(chVTGetSystemTimeX());
 
+    CAN_IRQ_TRACE_END(6);
     CH_IRQ_EPILOGUE();
 }
 
