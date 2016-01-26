@@ -736,7 +736,7 @@ public:
              * remain unimplemented until someone explicitly requested it.
              * If you REALLY need this feature, please contact us at http://productforums.zubax.com.
              */
-            return getASCIIStatusCode(false);
+            return getASCIIStatusCode(true);    // Returning success for compatibility reasons
         }
         case 'U':               // Set UART baud rate, see http://www.can232.com/docs/can232_v3.pdf
         {
