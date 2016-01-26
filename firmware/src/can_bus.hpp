@@ -73,7 +73,7 @@ struct Frame
  */
 struct RxFrame
 {
-    ::systime_t timestamp_systick = 0;
+    std::uint16_t timestamp_slcan = 0;  ///< Timestamp in SLCAN format (milliseconds in the range [0, 60000))
     Frame frame;
     std::uint8_t loopback : 1;
     std::uint8_t failed : 1;

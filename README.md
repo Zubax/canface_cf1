@@ -6,6 +6,13 @@ Add the following info:
 - Links to docs and product page
 - Building and flashing instructions
 
+## Firmware
+
+### Hardware timer usage
+
+* TIM2 (32-bit) - System tick timer (ChibiOS default, see `STM32_ST_TIM`)
+* TIM6 (16-bit) - CAN timestamping (SLCAN timestamping conventions - 0 to 60000 ms)
+
 ## License
 
 The firmware is licensed under the terms of GNU GPL v3.
