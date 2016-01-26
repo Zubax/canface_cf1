@@ -634,6 +634,26 @@ inline void loadTxMailboxCS(const Frame& frame)
     txi.pending = true;
 }
 
+/// This function is invoked at the end of every IRQ handler
+__attribute__((always_inline))
+inline void endOfInterruptHandlerHook()
+{
+    /*
+     * We count errors here, piggybacking on other IRQs instead of enabling interrupt generation on LEC change
+     * (see flag CAN_IER_LECIE). This is because in certain states the macrocell can generate much more LEC change
+     * interrupts than the MCU can handle (e.g. if the bus wires are shorted, the controller may trigger an
+     * IRQ every few microseconds), which essentially halts all other functions of the application and eventually
+     * can lead to a watchdog timeout.
+     * Since LEC may be changed multiple times between invocations of this function, we may fail to count some errors,
+     * but this is acceptable, and there is no better way anyway.
+     */
+    if UNLIKELY((CAN->ESR & CAN_ESR_LEC) != 0)
+    {
+        statistics_.errors++;
+        CAN->ESR = 0;                   // Reset error code in order to not count this error twice
+    }
+}
+
 /*
  * Interrupt handlers
  */
@@ -685,8 +705,12 @@ inline void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const boo
     /*
      * Reporting a TX event
      */
-    os::CriticalSectionLocker cs_locker;
-    state_->tx_event.signalI();
+    {
+        os::CriticalSectionLocker cs_locker;
+        state_->tx_event.signalI();
+    }
+
+    endOfInterruptHandlerHook();
 }
 
 inline void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t timestamp)
@@ -756,23 +780,21 @@ inline void handleRxInterrupt(const std::uint8_t fifo_index, const ::systime_t t
      * Store with timeout into the FIFO buffer and signal update event
      */
     state_->pushRxFromISR(rxf);
+
+    endOfInterruptHandlerHook();
 }
 
 inline void handleStatusChangeInterrupt(const ::systime_t timestamp)
 {
-    CAN->MSR = CAN_MSR_ERRI;        // Clear error
+    CAN->MSR = CAN_MSR_ERRI;        // Clear error interrupt flag
 
     /*
-     * Cancel all transmissions when we reach bus-off state
+     * Handle bus-off event.
+     * This event is edge-triggered, meaning that it will be generated only once per one bus-off occurence.
      */
     if UNLIKELY(bool(CAN->ESR & CAN_ESR_BOFF))
     {
-        // Disabling the bus-off interrupt until the controller is recovered
-        if (bool(CAN->IER & CAN_IER_BOFIE))
-        {
-            CAN->IER &= ~CAN_IER_BOFIE;
-            statistics_.bus_off_events++;
-        }
+        statistics_.bus_off_events++;
 
         bool tx_event_required = false;
 
@@ -830,23 +852,8 @@ inline void handleStatusChangeInterrupt(const ::systime_t timestamp)
             state_->tx_event.signalI();
         }
     }
-    else
-    {
-        // Bus-off condition is removed, re-enabling the corresponding IRQ source. Details above.
-        if UNLIKELY(!bool(CAN->IER & CAN_IER_BOFIE))
-        {
-            CAN->IER |= CAN_IER_BOFIE;
-        }
-    }
 
-    const std::uint8_t lec = std::uint8_t((CAN->ESR & CAN_ESR_LEC) >> 4);
-    if (lec != 0)
-    {
-        statistics_.last_hw_error_code = lec;
-        statistics_.errors++;
-    }
-
-    CAN->ESR = 0;
+    endOfInterruptHandlerHook();
 }
 
 } // namespace
@@ -984,8 +991,7 @@ int open(std::uint32_t bitrate, unsigned options)
                CAN_IER_FMPIE0 |         // RX FIFO 0 is not empty
                CAN_IER_FMPIE1 |         // RX FIFO 1 is not empty
                CAN_IER_ERRIE |          // General error IRQ
-               CAN_IER_LECIE |          // Last error code change
-               CAN_IER_BOFIE;           // Bus-off reached (this one is enabled/disabled dynamically, see SCE handler)
+               CAN_IER_BOFIE;           // Bus-off reached (seems to be edge-triggered)
 
     CAN->MCR &= ~CAN_MCR_INRQ;          // Leave init mode
 

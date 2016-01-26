@@ -100,7 +100,6 @@ struct Statistics
     std::uint16_t rx_queue_capacity       = 0;
     std::uint16_t rx_queue_peak_usage     = 0;
     std::uint8_t tx_mailbox_peak_usage    = 0;
-    std::uint8_t last_hw_error_code       = 0;
 };
 
 struct Status
