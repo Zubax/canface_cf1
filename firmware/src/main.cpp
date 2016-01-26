@@ -291,10 +291,12 @@ class RxThread : public chibios_rt::BaseStaticThread<512>
          */
         if LIKELY(param_cache.timestamping_on)
         {
-            *p++ = nibble2hex(f.timestamp_slcan >> 12);
-            *p++ = nibble2hex(f.timestamp_slcan >> 8);
-            *p++ = nibble2hex(f.timestamp_slcan >> 4);
-            *p++ = nibble2hex(f.timestamp_slcan >> 0);
+            // SLCAN format - [0, 60000) milliseconds
+            const auto slcan_timestamp = std::uint16_t(f.timestamp_usec / 1000U);
+            *p++ = nibble2hex(slcan_timestamp >> 12);
+            *p++ = nibble2hex(slcan_timestamp >> 8);
+            *p++ = nibble2hex(slcan_timestamp >> 4);
+            *p++ = nibble2hex(slcan_timestamp >> 0);
         }
 
         /*

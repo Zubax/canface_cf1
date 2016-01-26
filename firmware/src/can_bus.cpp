@@ -23,7 +23,7 @@
 #endif
 
 
-#define CAN_GPT         GPTD6
+#define CAN_GPT         GPTD5
 
 
 namespace can
@@ -33,7 +33,6 @@ namespace
 
 constexpr unsigned IRQPriority = CORTEX_MAX_KERNEL_PRIORITY;
 constexpr unsigned NumTxMailboxes = 3;
-
 
 class RxQueue
 {
@@ -661,7 +660,7 @@ inline void endOfInterruptHandlerHook()
  * Interrupt handlers
  */
 inline void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const bool txok,
-                                     const std::uint16_t timestamp_slcan)
+                                     const std::uint32_t timestamp_usec)
 {
     assert(mailbox_index < NumTxMailboxes);
 
@@ -686,7 +685,7 @@ inline void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const boo
             rxf.frame           = txi.frame;
             rxf.loopback        = true;
             rxf.failed          = !txok;
-            rxf.timestamp_slcan = timestamp_slcan;
+            rxf.timestamp_usec  = timestamp_usec;
 
             state_->pushRxFromISR(rxf);
         }
@@ -717,7 +716,7 @@ inline void handleTxMailboxInterrupt(const std::uint8_t mailbox_index, const boo
     endOfInterruptHandlerHook();
 }
 
-inline void handleRxInterrupt(const std::uint8_t fifo_index, const std::uint16_t timestamp_slcan)
+inline void handleRxInterrupt(const std::uint8_t fifo_index, const std::uint32_t timestamp_usec)
 {
     static constexpr unsigned CAN_RFR_FMP_MASK = 3;
 
@@ -742,7 +741,7 @@ inline void handleRxInterrupt(const std::uint8_t fifo_index, const std::uint16_t
      * Read the frame contents
      */
     RxFrame rxf;
-    rxf.timestamp_slcan = timestamp_slcan;
+    rxf.timestamp_usec = timestamp_usec;
 
     const auto& rf = CAN->sFIFOMailBox[fifo_index];
 
@@ -788,7 +787,7 @@ inline void handleRxInterrupt(const std::uint8_t fifo_index, const std::uint16_t
     endOfInterruptHandlerHook();
 }
 
-inline void handleStatusChangeInterrupt(const std::uint16_t timestamp_slcan)
+inline void handleStatusChangeInterrupt(const std::uint32_t timestamp_usec)
 {
     CAN->MSR = CAN_MSR_ERRI;        // Clear error interrupt flag
 
@@ -820,7 +819,7 @@ inline void handleStatusChangeInterrupt(const std::uint16_t timestamp_slcan)
                     rxf.frame           = tx.frame;
                     rxf.failed          = true;
                     rxf.loopback        = true;
-                    rxf.timestamp_slcan = timestamp_slcan;
+                    rxf.timestamp_usec  = timestamp_usec;
 
                     state_->pushRxFromISR(rxf);
                 }
@@ -841,7 +840,7 @@ inline void handleStatusChangeInterrupt(const std::uint16_t timestamp_slcan)
                 rxf.frame           = *tx;
                 rxf.failed          = true;
                 rxf.loopback        = true;
-                rxf.timestamp_slcan = timestamp_slcan;
+                rxf.timestamp_usec  = timestamp_usec;
 
                 state_->pushRxFromISR(rxf);
             }
@@ -858,6 +857,17 @@ inline void handleStatusChangeInterrupt(const std::uint16_t timestamp_slcan)
     }
 
     endOfInterruptHandlerHook();
+}
+
+/*
+ * Timestamping
+ */
+__attribute__((always_inline))
+inline std::uint32_t getTimestampUSec()
+{
+    const auto value = gptGetCounterX(&CAN_GPT);
+    assert(value < TimestampRolloverIntervalUSec);
+    return value;
 }
 
 } // namespace
@@ -914,13 +924,13 @@ int open(std::uint32_t bitrate, unsigned options)
          */
         static const GPTConfig gpt_cfg =
         {
-            1000,           // 1 kHz clock, 1 ms per tick
-            nullptr,        // Callback
-            0,              // CR2
-            0               // DIER
+            1000 * 1000,        // Clock rate [Hz]
+            nullptr,            // Callback
+            0,                  // CR2
+            0                   // DIER
         };
         gptStart(&CAN_GPT, &gpt_cfg);
-        gptStartContinuous(&CAN_GPT, 60000);    // 60000 ms is defined in the SLCAN "specification" (so to speak)
+        gptStartContinuous(&CAN_GPT, TimestampRolloverIntervalUSec);
 
         /*
          * CAN macrocell and NVIC initialization (requires a critical section).
@@ -1219,7 +1229,7 @@ CH_IRQ_HANDLER(STM32_CAN1_TX_HANDLER)
     CH_IRQ_PROLOGUE();
     CAN_IRQ_TRACE_BEGIN(4);
 
-    const auto timestamp = gptGetCounterX(&CAN_GPT);
+    const auto timestamp = getTimestampUSec();
     assert(state_ != nullptr);
 
     /*
@@ -1258,7 +1268,7 @@ CH_IRQ_HANDLER(STM32_CAN1_RX0_HANDLER)
     CH_IRQ_PROLOGUE();
     CAN_IRQ_TRACE_BEGIN(5);
 
-    const auto timestamp = gptGetCounterX(&CAN_GPT);
+    const auto timestamp = getTimestampUSec();
     assert(state_ != nullptr);
 
     while ((CAN->RF0R & CAN_RF0R_FMP0) != 0)
@@ -1275,7 +1285,7 @@ CH_IRQ_HANDLER(STM32_CAN1_RX1_HANDLER)
     CH_IRQ_PROLOGUE();
     CAN_IRQ_TRACE_BEGIN(5);
 
-    const auto timestamp = gptGetCounterX(&CAN_GPT);
+    const auto timestamp = getTimestampUSec();
     assert(state_ != nullptr);
 
     while ((CAN->RF1R & CAN_RF1R_FMP1) != 0)
@@ -1294,7 +1304,7 @@ CH_IRQ_HANDLER(STM32_CAN1_SCE_HANDLER)
 
     assert(state_ != nullptr);
 
-    handleStatusChangeInterrupt(gptGetCounterX(&CAN_GPT));
+    handleStatusChangeInterrupt(getTimestampUSec());
 
     CAN_IRQ_TRACE_END(6);
     CH_IRQ_EPILOGUE();

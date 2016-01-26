@@ -28,6 +28,19 @@ static const std::int16_t ErrBitRateNotDetected      = 1007; ///< Auto bit rate 
 static const std::int16_t ErrClosed                  = 1008; ///< The driver is not started
 
 /**
+ * SLCAN protocol requires the timestamp to be in the range from 0 to 60'000 milliseconds (not inclusive).
+ * We could start a 16-bit timer at 1 kHz and use it for timestamping, but at our clock rates we can't make a timer
+ * run slow enough. We can't slow down PCLK1 either, because the CAN macrocell requires at least 36 MHz clock
+ * for accurate bit timings. We could resort to slowing down PCLK2 and using a PCLK2-clocked timer, but sadly
+ * ChibiOS does not support PCLK2 timers, and also we have some other peripheral there like SPI which may benefit
+ * from higher clock rates.
+ * So the solution is to take a 32-bit timer and run it at a faster rate. This also forces a good idea of increasing
+ * the resolution of timestamps to 1 microsecond (while keeping the interval exactly 1 minute for compatibility
+ * reasons).
+ */
+static constexpr std::uint32_t TimestampRolloverIntervalUSec = 60 * 1000 * 1000;
+
+/**
  * Frame definition like in libuavcan
  */
 struct Frame
@@ -73,7 +86,7 @@ struct Frame
  */
 struct RxFrame
 {
-    std::uint16_t timestamp_slcan = 0;  ///< Timestamp in SLCAN format (milliseconds in the range [0, 60000))
+    std::uint32_t timestamp_usec = 0;   ///< Timestamp, see @ref TimestampRolloverIntervalUSec
     Frame frame;
     std::uint8_t loopback : 1;
     std::uint8_t failed : 1;
