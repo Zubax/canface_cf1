@@ -174,13 +174,11 @@ static const uint8_t usb_string1[] =
  */
 static const uint8_t usb_string2[] =
 {
-    USB_DESC_BYTE(36),                    // bLength.
+    USB_DESC_BYTE(24),                    // bLength.
     USB_DESC_BYTE(USB_DESCRIPTOR_STRING), // bDescriptorType.
     'Z', 0, 'u', 0, 'b', 0, 'a', 0, 'x', 0,
     ' ', 0,
-    'C', 0, 'A', 0, 'N', 0,
-    ' ', 0,
-    'A', 0, 'd', 0, 'a', 0, 'p', 0, 't', 0, 'e', 0, 'r', 0
+    'B', 0, 'a', 0, 'b', 0, 'e', 0, 'l', 0
 };
 
 /*

@@ -17,7 +17,7 @@
 # Author: Pavel Kirienko <pavel.kirienko@zubax.com>
 #
 
-PROJECT = com.zubax.can_adapter
+PROJECT = com.zubax.babel
 
 HW_VERSION = 1
 FW_VERSION_MAJOR = 1
@@ -36,7 +36,7 @@ UDEFS = -DFW_VERSION_MAJOR=$(FW_VERSION_MAJOR)           \
         -DFW_VERSION_MINOR=$(FW_VERSION_MINOR)           \
         -DHW_VERSION=$(HW_VERSION)                       \
         -DPRODUCT_ID_STRING=\"$(PROJECT)\"               \
-        -DPRODUCT_NAME_STRING=\"Zubax\ CAN\ Adapter\"
+        -DPRODUCT_NAME_STRING=\"Zubax\ Babel\"
 
 #
 # Git commit hash
