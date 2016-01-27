@@ -88,13 +88,8 @@ struct RxFrame
 {
     std::uint32_t timestamp_usec = 0;   ///< Timestamp, see @ref TimestampRolloverIntervalUSec
     Frame frame;
-    std::uint8_t loopback : 1;
-    std::uint8_t failed : 1;
-
-    RxFrame() :
-        loopback(false),
-        failed(false)
-    { }
+    bool loopback = false;
+    bool failed   = false;
 };
 
 /**
