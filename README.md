@@ -13,6 +13,11 @@ Add the following info:
 * TIM2 (32-bit) - System tick timer (ChibiOS default, see `STM32_ST_TIM`)
 * TIM5 (32-bit) - CAN timestamping
 
+## Relevant information
+
+Article on passive delay compensation algorithm - relevant for CAN frame timestamp recovery on the host side:
+[A Passive Solution to the Sensor Synchronization Problem, by Edwin Olson](https://april.eecs.umich.edu/pdfs/olson2010.pdf).
+
 ## License
 
 The firmware is licensed under the terms of GNU GPL v3.
