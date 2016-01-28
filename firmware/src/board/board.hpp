@@ -41,6 +41,8 @@ void setTrafficLED(bool state);
 void enableCANPower(bool state);
 void enableCANTerminator(bool state);
 
+float getBusVoltage();
+
 typedef std::array<std::uint8_t, 16> UniqueID;
 UniqueID readUniqueID();
 
