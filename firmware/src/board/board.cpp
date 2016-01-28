@@ -57,7 +57,35 @@ namespace
 constexpr float ADCVref = 3.3F;
 constexpr unsigned ADCResolution = 12;
 
-::adcsample_t adc_samples[1];
+
+void initADC()
+{
+    os::CriticalSectionLocker cs_locker;
+
+    RCC->APB2ENR  |=  RCC_APB2ENR_ADC1EN;
+    RCC->APB2RSTR |=  RCC_APB2RSTR_ADC1RST;
+    RCC->APB2RSTR &= ~RCC_APB2RSTR_ADC1RST;
+
+    // RSTCAL
+    ASSERT_ALWAYS(!(ADC1->CR2 & ADC_CR2_RSTCAL));
+    ADC1->CR2 = ADC_CR2_ADON | ADC_CR2_RSTCAL;
+    while (ADC1->CR2 & ADC_CR2_RSTCAL) { }
+
+    // CAL
+    ASSERT_ALWAYS(!(ADC1->CR2 & ADC_CR2_CAL));
+    ADC1->CR2 = ADC_CR2_ADON | ADC_CR2_CAL;
+    while (ADC1->CR2 & ADC_CR2_CAL) { }
+
+    // SQR are inited correctly by default
+
+    // Channel 0 max sample time (239.5 cycles)
+    ADC1->SMPR2 = ADC_SMPR2_SMP0_0 | ADC_SMPR2_SMP0_1 | ADC_SMPR2_SMP0_2;
+
+    // Start in continuous scan mode (free-running)
+    ADC1->CR1 = ADC_CR1_SCAN;
+    ADC1->CR2 = ADC_CR2_ADON | ADC_CR2_CONT | ADC_CR2_EXTTRIG |
+                ADC_CR2_EXTSEL_0 | ADC_CR2_EXTSEL_1 | ADC_CR2_EXTSEL_2 | ADC_CR2_SWSTART;
+}
 
 }
 
@@ -88,34 +116,7 @@ os::watchdog::Timer init(unsigned watchdog_timeout_msec, os::config::Param<unsig
     /*
      * ADC
      */
-    adcStart(&ADCD1, nullptr);
-    adcSTM32Calibrate(&ADCD1);
-
-    static const ADCConversionGroup adc_conversion_group =
-    {
-        true,                           // circular
-        1,                              // num_channels
-        nullptr,                        // end_cb
-        nullptr,                        // error_cb
-        {
-            {
-                0,                      // CR1
-                ADC_CR2_SWSTART,        // CR2
-                0,                      // LTR
-                0,                      // HTR
-                {                       // SMPR[2]
-                    0,
-                    ADC_SMPR2_SMP_AN0(ADC_SAMPLE_239P5)
-                },
-                {                       // SQR[3]
-                    0,
-                    0,
-                    ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0)
-                }
-            }
-        }
-    };
-    adcStartConversion(&ADCD1, &adc_conversion_group, adc_samples, sizeof(adc_samples) / sizeof(adc_samples[0]));
+    initADC();
 
     /*
      * Serial port
@@ -191,7 +192,7 @@ float getBusVoltage()
 {
     static constexpr float DivisionRatio = 2;
     // The values are arranged with numerical stability in mind
-    return float(adc_samples[0]) * DivisionRatio * ADCVref / float((1U << ADCResolution) - 1U);
+    return float(ADC1->DR) * DivisionRatio * ADCVref / float((1U << ADCResolution) - 1U);
 }
 
 UniqueID readUniqueID()

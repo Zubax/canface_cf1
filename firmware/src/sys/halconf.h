@@ -22,7 +22,7 @@
 #include "mcuconf.h"
 
 #define HAL_USE_PAL                 TRUE
-#define HAL_USE_ADC                 TRUE
+#define HAL_USE_ADC                 FALSE
 #define HAL_USE_CAN                 FALSE
 #define HAL_USE_DAC                 FALSE
 #define HAL_USE_EXT                 FALSE
