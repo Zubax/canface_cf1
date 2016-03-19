@@ -180,7 +180,8 @@ void setTrafficLED(bool state)
 
 void enableCANPower(bool state)
 {
-    palWritePad(GPIOB, GPIOB_CAN_POWER_DIS, !state);
+    palWritePad(GPIOA, GPIOA_CAN_POWER_DIS, !state);
+    palWritePad(GPIOB, GPIOB_LED_CAN_POWER_DIS, !state);
 }
 
 void enableCANTerminator(bool state)
