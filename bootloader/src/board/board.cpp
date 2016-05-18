@@ -122,17 +122,15 @@ bool tryReadDeviceSignature(DeviceSignature& out_sign)
 {
     std::memcpy(out_sign.data(), &DeviceSignatureStorage[0], std::tuple_size<DeviceSignature>::value);
 
-    bool valid = false;
     for (auto x : out_sign)
     {
         if (x != 0xFF && x != 0x00)          // All 0xFF/0x00 is not a valid signature, it's empty storage
         {
-            valid = true;
-            break;
+            return true;
         }
     }
 
-    return valid;
+    return true;
 }
 
 HardwareVersion detectHardwareVersion()

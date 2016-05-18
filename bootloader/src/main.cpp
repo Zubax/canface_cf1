@@ -24,10 +24,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <zubax_chibios/os.hpp>
-#include <zubax_chibios/util/base64.hpp>
 
 #include "board/board.hpp"
 #include "usb_cdc.hpp"
+#include "cli.hpp"
 
 
 namespace app
@@ -36,6 +36,8 @@ namespace
 {
 
 constexpr unsigned WatchdogTimeoutMSec = 1500;
+constexpr unsigned ApplicationBootDelayMSec = 4000;
+constexpr unsigned WatchdogTimeoutWhenBootingApplicationMSec = 10000;
 
 
 auto init()
@@ -57,6 +59,11 @@ auto init()
     watchdog.reset();
     usb_cdc::init(sn);                  // Must not exceed watchdog timeout
     watchdog.reset();
+
+    /*
+     * CLI initialization
+     */
+    cli::init();
 
     return watchdog;
 }

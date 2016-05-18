@@ -39,7 +39,7 @@ UDEFS = -DBL_VERSION_MAJOR=$(BL_VERSION_MAJOR)           \
         -DHW_VERSION=$(HW_VERSION)                       \
         -DAPPLICATION_OFFSET=$(APPLICATION_OFFSET)       \
         -DPRODUCT_ID_STRING=\"$(PROJECT)\"               \
-        -DPRODUCT_NAME_STRING=\"Zubax\ Babel\ Bootloader\"
+        -DPRODUCT_NAME_STRING=\"Zubax\ Babel\"
 
 #
 # Git commit hash
