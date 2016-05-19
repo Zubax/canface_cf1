@@ -19,9 +19,12 @@
 
 #pragma once
 
+#include "bootloader.hpp"
+
+
 namespace cli
 {
 
-void init();
+void init(bootloader::Bootloader& bl);
 
 }

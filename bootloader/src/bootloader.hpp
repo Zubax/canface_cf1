@@ -22,6 +22,9 @@
 #include <zubax_chibios/os.hpp>
 #include <cstdint>
 #include <utility>
+#include <array>
+#include <cassert>
+
 
 namespace bootloader
 {
@@ -84,33 +87,87 @@ public:
 };
 
 /**
- * Must be called first.
- * Time since boot will be measured starting from the moment when this function was invoked.
+ * Inherit this class to implement firmware loading protocol, from remote to the local storage.
  */
-void init(IAppStorageBackend* backend, unsigned boot_delay_msec);
-
-State getState();
-
-/**
- * Returns info about the application, if any.
- * @return First component is the application, second component is the status:
- *         true means that the info is valid, false means that there is no application to work with.
- */
-std::pair<AppInfo, bool> getAppInfo();
+class IDownloadBehavior
+{
+public:
+    virtual ~IDownloadBehavior() { }
+};
 
 /**
- * Switches the state to @ref BootCancelled, if allowed.
+ * Main bootloader controller.
  */
-void cancelBoot();
+class Bootloader
+{
+    State state_;
+    IAppStorageBackend& backend_;
 
-/**
- * Switches the state to @ref ReadyToBoot, if allowed.
- */
-void requestBoot();
+    const unsigned boot_delay_msec_;
+    ::systime_t boot_delay_started_at_st_;
 
-/**
- * Erases the application and loads a new one from the specified channel using YMODEM protocol.
- */
-void upgradeAppViaYModem(::BaseChannel* channel);
+    chibios_rt::Mutex mutex_;
+
+    /**
+     * Refer to the Brickproof Bootloader specs.
+     */
+    struct __attribute__((packed)) AppDescriptor
+    {
+        std::array<std::uint8_t, 8> signature;
+        AppInfo app_info;
+        std::array<std::uint8_t, 6> reserved;
+
+        static constexpr std::array<std::uint8_t, 8> getSignatureValue()
+        {
+            return {'A','P','D','e','s','c','0','0'};
+        }
+
+        bool isValid() const
+        {
+            const auto sgn = getSignatureValue();
+
+            return
+                std::equal(std::begin(signature), std::end(signature), std::begin(sgn)) &&
+                (app_info.image_size > 0) &&
+                (app_info.image_size < 0xFFFFFFFFU);
+        }
+    };
+    static_assert(sizeof(AppDescriptor) == 32, "Invalid packing");
+
+    std::pair<AppDescriptor, bool> locateAppDescriptor();
+
+public:
+    /**
+     * Time since boot will be measured starting from the moment when the object was constructed.
+     */
+    Bootloader(IAppStorageBackend& backend, unsigned boot_delay_msec);
+
+    /**
+     * @ref State.
+     */
+    State getState();
+
+    /**
+     * Returns info about the application, if any.
+     * @return First component is the application, second component is the status:
+     *         true means that the info is valid, false means that there is no application to work with.
+     */
+    std::pair<AppInfo, bool> getAppInfo();
+
+    /**
+     * Switches the state to @ref BootCancelled, if allowed.
+     */
+    void cancelBoot();
+
+    /**
+     * Switches the state to @ref ReadyToBoot, if allowed.
+     */
+    void requestBoot();
+
+    /**
+     * Erases the application and loads a new one from the specified channel using YMODEM protocol.
+     */
+    void upgradeApp(IDownloadBehavior& downloader);
+};
 
 }

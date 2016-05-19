@@ -41,35 +41,6 @@ constexpr unsigned WatchdogTimeoutMSec = 1500;
 constexpr unsigned ApplicationBootDelayMSec = 4000;
 constexpr unsigned WatchdogTimeoutWhenBootingApplicationMSec = 10000;
 
-
-auto init()
-{
-    /*
-     * Basic initialization
-     */
-    auto watchdog = board::init(WatchdogTimeoutMSec);
-
-    /*
-     * USB initialization
-     */
-    const auto uid = board::readUniqueID();
-
-    usb_cdc::DeviceSerialNumber sn;
-    std::fill(sn.begin(), sn.end(), 0);
-    std::copy(uid.begin(), uid.end(), sn.begin());
-
-    watchdog.reset();
-    usb_cdc::init(sn);                  // Must not exceed watchdog timeout
-    watchdog.reset();
-
-    /*
-     * CLI initialization
-     */
-    cli::init();
-
-    return watchdog;
-}
-
 /**
  * This class contains logic and hardcoded values that are SPECIFIC FOR THIS PARTICULAR MCU AND APPLICATION.
  */
@@ -144,18 +115,33 @@ public:
 
 int main()
 {
+    auto watchdog = board::init(app::WatchdogTimeoutMSec);
+
+    chibios_rt::BaseThread::setPriority(LOWPRIO);
+
     /*
-     * Initializing
+     * USB initialization
      */
-    auto watchdog = app::init();
+    const auto uid = board::readUniqueID();
+
+    usb_cdc::DeviceSerialNumber sn;
+    std::fill(sn.begin(), sn.end(), 0);
+    std::copy(uid.begin(), uid.end(), sn.begin());
+
+    watchdog.reset();
+    usb_cdc::init(sn);                  // Must not exceed watchdog timeout
+    watchdog.reset();
 
     board::setStatusLED(true);
 
-    chibios_rt::BaseThread::setPriority(LOWPRIO + 10);
-
+    /*
+     * Bootloader logic initialization
+     */
     app::AppStorageBackend backend;
 
-    bootloader::init(&backend, app::ApplicationBootDelayMSec);
+    bootloader::Bootloader bl(backend, app::ApplicationBootDelayMSec);
+
+    cli::init(bl);
 
     /*
      * Main loop
@@ -163,6 +149,7 @@ int main()
     while (true)
     {
         watchdog.reset();
+        (void)bl.getState();
         ::sleep(1);
     }
 }

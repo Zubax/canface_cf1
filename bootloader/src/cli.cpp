@@ -33,6 +33,9 @@ namespace cli
 namespace
 {
 
+static bootloader::Bootloader* g_bootloader_ = nullptr;
+
+
 class RebootCommand : public shell::ICommandHandler
 {
     const char* getName() const override { return "reboot"; }
@@ -72,12 +75,19 @@ class ZubaxIDCommand : public shell::ICommandHandler
             ios.print("hw_signature : '%s'\n", os::base64::encode(signature, base64_buf));
         }
 
-        const auto appinfo = bootloader::getAppInfo();
-        if (appinfo.second)
+        if (g_bootloader_ != nullptr)
         {
-            const auto inf = appinfo.first;
-            ios.print("fw_version   : '%u.%u'\n", inf.major_version, inf.minor_version);
-            ios.print("fw_vcs_commit: %u\n", inf.vcs_commit);
+            const auto appinfo = g_bootloader_->getAppInfo();
+            if (appinfo.second)
+            {
+                const auto inf = appinfo.first;
+                ios.print("fw_version   : '%u.%u'\n", inf.major_version, inf.minor_version);
+                ios.print("fw_vcs_commit: %u\n", inf.vcs_commit);
+            }
+        }
+        else
+        {
+            assert(false);
         }
     }
 } static cmd_zubax_id;
@@ -122,8 +132,9 @@ public:
 
 } // namespace
 
-void init()
+void init(bootloader::Bootloader& bl)
 {
+    g_bootloader_ = &bl;
     cli_thread.start(LOWPRIO + 1);
 }
 

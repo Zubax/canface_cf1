@@ -49,7 +49,7 @@ UDEFS += -DGIT_HASH=0x$(GIT_HASH)
 # ChibiOS
 #
 
-BOOTLOADER_SIZE = 32768  # TODO: Will be reduced to 24k when the bootloader is finished
+BOOTLOADER_SIZE = 32768
 
 DDEFS += -DCORTEX_VTOR_INIT=$(BOOTLOADER_SIZE)
 

@@ -18,38 +18,10 @@
  */
 
 #include "bootloader.hpp"
-#include <array>
-#include <cassert>
 
 
 namespace bootloader
 {
-/**
- * Refer to the Brickproof Bootloader specs.
- */
-struct __attribute__((packed)) AppDescriptor
-{
-    std::array<std::uint8_t, 8> signature;
-    AppInfo app_info;
-    std::array<std::uint8_t, 6> reserved;
-
-    static constexpr std::array<std::uint8_t, 8> getSignatureValue()
-    {
-        return {'A','P','D','e','s','c','0','0'};
-    }
-
-    bool isValid() const
-    {
-        const auto sgn = getSignatureValue();
-
-        return
-            std::equal(std::begin(signature), std::end(signature), std::begin(sgn)) &&
-            (app_info.image_size > 0) &&
-            (app_info.image_size < 0xFFFFFFFFU);
-    }
-};
-static_assert(sizeof(AppDescriptor) == 32, "Invalid packing");
-
 /**
  * This is used to verify integrity of the application.
  * CRC-64-WE
@@ -90,28 +62,11 @@ public:
     std::uint64_t get() const { return crc_ ^ 0xFFFFFFFFFFFFFFFFULL; }
 };
 
-
-namespace
+/*
+ * Bootloader
+ */
+std::pair<Bootloader::AppDescriptor, bool> Bootloader::locateAppDescriptor()
 {
-
-State g_state = State::NoAppToBoot;
-
-IAppStorageBackend* g_backend = nullptr;
-
-unsigned g_boot_delay_msec = 0;
-
-::systime_t g_boot_delay_started_at_st = 0;
-
-chibios_rt::Mutex g_mutex;
-
-std::pair<AppDescriptor, bool> locateAppDescriptor()
-{
-    if (g_backend == nullptr)
-    {
-        assert(false);
-        return {AppDescriptor(), false};
-    }
-
     constexpr auto Step = 8;
 
     for (std::size_t offset = 0;; offset += Step)
@@ -119,7 +74,7 @@ std::pair<AppDescriptor, bool> locateAppDescriptor()
         // Reading the storage in 8 bytes increments until we've found the signature
         {
             std::uint8_t signature[Step] = {};
-            int res = g_backend->read(offset, signature, sizeof(signature));
+            int res = backend_.read(offset, signature, sizeof(signature));
             if (res != sizeof(signature))
             {
                 break;
@@ -134,7 +89,7 @@ std::pair<AppDescriptor, bool> locateAppDescriptor()
         // Reading the entire descriptor
         AppDescriptor desc;
         {
-            int res = g_backend->read(offset, &desc, sizeof(desc));
+            int res = backend_.read(offset, &desc, sizeof(desc));
             if (res != sizeof(desc))
             {
                 break;
@@ -158,7 +113,7 @@ std::pair<AppDescriptor, bool> locateAppDescriptor()
                 std::uint32_t word = 0;
                 if ((i != crc_offset_in_words) && (i != (crc_offset_in_words + 1)))
                 {
-                    int res = g_backend->read(i * WordSize, &word, WordSize);
+                    int res = backend_.read(i * WordSize, &word, WordSize);
                     if (res != WordSize)
                     {
                         continue;
@@ -185,16 +140,12 @@ std::pair<AppDescriptor, bool> locateAppDescriptor()
     return {AppDescriptor(), false};
 }
 
-} // namespace
-
-void init(IAppStorageBackend* backend, unsigned boot_delay_msec)
+Bootloader::Bootloader(IAppStorageBackend& backend, unsigned boot_delay_msec) :
+    backend_(backend),
+    boot_delay_msec_(boot_delay_msec),
+    boot_delay_started_at_st_(chVTGetSystemTime())
 {
-    os::MutexLocker mlock(g_mutex);
-
-    assert(g_backend == nullptr);
-    g_backend = backend;
-    g_boot_delay_msec = boot_delay_msec;
-    g_boot_delay_started_at_st = chVTGetSystemTime();
+    os::MutexLocker mlock(mutex_);
 
     /*
      * Inspecting the application storage looking for the descriptor
@@ -207,46 +158,46 @@ void init(IAppStorageBackend* backend, unsigned boot_delay_msec)
                   appdesc_result.first.app_info.minor_version,
                   unsigned(appdesc_result.first.app_info.vcs_commit),
                   unsigned(appdesc_result.first.app_info.image_size));
-        g_state = State::BootDelay;
+        state_ = State::BootDelay;
     }
     else
     {
         DEBUG_LOG("App not found\n");
-        g_state = State::NoAppToBoot;
+        state_ = State::NoAppToBoot;
     }
 }
 
-State getState()
+State Bootloader::getState()
 {
-    os::MutexLocker mlock(g_mutex);
+    os::MutexLocker mlock(mutex_);
 
-    if ((g_state == State::BootDelay) &&
-        (chVTTimeElapsedSinceX(g_boot_delay_started_at_st) >= MS2ST(g_boot_delay_msec)))
+    if ((state_ == State::BootDelay) &&
+        (chVTTimeElapsedSinceX(boot_delay_started_at_st_) >= MS2ST(boot_delay_msec_)))
     {
         DEBUG_LOG("Boot delay expired\n");
-        g_state = State::ReadyToBoot;
+        state_ = State::ReadyToBoot;
     }
 
-    return g_state;
+    return state_;
 }
 
-std::pair<AppInfo, bool> getAppInfo()
+std::pair<AppInfo, bool> Bootloader::getAppInfo()
 {
-    os::MutexLocker mlock(g_mutex);
+    os::MutexLocker mlock(mutex_);
     const auto res = locateAppDescriptor();
     return {res.first.app_info, res.second};
 }
 
-void cancelBoot()
+void Bootloader::cancelBoot()
 {
-    os::MutexLocker mlock(g_mutex);
+    os::MutexLocker mlock(mutex_);
 
-    switch (g_state)
+    switch (state_)
     {
         case State::BootDelay:
         case State::ReadyToBoot:
         {
-            g_state = State::BootCancelled;
+            state_ = State::BootCancelled;
             DEBUG_LOG("Boot cancelled\n");
             break;
         }
@@ -259,16 +210,16 @@ void cancelBoot()
     }
 }
 
-void requestBoot()
+void Bootloader::requestBoot()
 {
-    os::MutexLocker mlock(g_mutex);
+    os::MutexLocker mlock(mutex_);
 
-    switch (g_state)
+    switch (state_)
     {
         case State::BootDelay:
         case State::BootCancelled:
         {
-            g_state = State::ReadyToBoot;
+            state_ = State::ReadyToBoot;
             DEBUG_LOG("Boot requested\n");
             break;
         }
@@ -281,11 +232,10 @@ void requestBoot()
     }
 }
 
-void upgradeAppViaYModem(::BaseChannel* channel)
+void Bootloader::upgradeApp(IDownloadBehavior& downloader)
 {
-    os::MutexLocker mlock(g_mutex);
-
-    (void)channel;
+    os::MutexLocker mlock(mutex_);
+    (void)downloader;
 }
 
 }

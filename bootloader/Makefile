@@ -23,7 +23,7 @@ HW_VERSION = 1
 BL_VERSION_MAJOR = 1
 BL_VERSION_MINOR = 0
 
-APPLICATION_OFFSET = 32768  # TODO: Will be reduced to 24k when the bootloader is finished
+APPLICATION_OFFSET = 32768
 
 #
 # Application
