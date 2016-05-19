@@ -24,10 +24,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <zubax_chibios/os.hpp>
+#include <zubax_chibios/platform/stm32/flash_writer.hpp>
 
 #include "board/board.hpp"
 #include "usb_cdc.hpp"
 #include "cli.hpp"
+#include "bootloader.hpp"
 
 
 namespace app
@@ -68,6 +70,75 @@ auto init()
     return watchdog;
 }
 
+/**
+ * This class contains logic and hardcoded values that are SPECIFIC FOR THIS PARTICULAR MCU AND APPLICATION.
+ */
+class AppStorageBackend : public bootloader::IAppStorageBackend
+{
+    static constexpr unsigned FlashPageSize = 2048;
+    static constexpr unsigned ApplicationAddress = FLASH_BASE + APPLICATION_OFFSET;
+
+    static unsigned getFlashSize()
+    {
+        return 1024 * *reinterpret_cast<std::uint16_t*>(0x1FFFF7CC);
+    }
+
+    static bool correctOffsetAndSize(std::size_t& offset, std::size_t& size)
+    {
+        const auto flash_end = FLASH_BASE + getFlashSize();
+        offset += ApplicationAddress;
+        if (offset >= flash_end)
+        {
+            return false;
+        }
+        if ((offset + size) >= flash_end)
+        {
+            size = flash_end - offset;
+        }
+        return true;
+    }
+
+public:
+    int beginUpgrade()   override { return 0; }
+    int endUpgrade(bool) override { return 0; }
+
+    int write(std::size_t offset, const void* data, std::size_t size) override
+    {
+        if (!correctOffsetAndSize(offset, size))
+        {
+            return 0;
+        }
+        os::stm32::FlashWriter writer;
+
+        // Blank check byte-by-byte, erase page only if needed
+        for (std::size_t blank_check_pos = offset; blank_check_pos < (offset + size); blank_check_pos++)
+        {
+            if (UNLIKELY(*reinterpret_cast<const std::uint8_t*>(blank_check_pos) != 0xFF))
+            {
+                DEBUG_LOG("Erasing page at %x\n", blank_check_pos);
+                const bool ok = writer.erasePageAt(blank_check_pos);
+                if (!ok)
+                {
+                    return -1;
+                }
+            }
+        }
+
+        // Write
+        return writer.write(reinterpret_cast<const void*>(offset), data, size) ? size : -1;
+    }
+
+    int read(std::size_t offset, void* data, std::size_t size) override
+    {
+        if (!correctOffsetAndSize(offset, size))
+        {
+            return 0;
+        }
+        std::memmove(data, reinterpret_cast<const void*>(offset), size);
+        return size;
+    }
+};
+
 }
 }
 
@@ -81,6 +152,28 @@ int main()
     board::setStatusLED(true);
 
     chibios_rt::BaseThread::setPriority(LOWPRIO + 10);
+
+    app::AppStorageBackend backend;
+
+    bootloader::init(&backend, app::ApplicationBootDelayMSec);
+
+    unsigned val = 0;
+    DEBUG_LOG("read() %d\n", backend.read(0x1000, &val, 4));
+    DEBUG_LOG("val = %x\n", val);
+
+    val = 0x12345678;
+    DEBUG_LOG("write() %d\n", backend.write(0x1000, &val, 4));
+    val = 0;
+
+    DEBUG_LOG("read() %d\n", backend.read(0x1000, &val, 4));
+    DEBUG_LOG("val = %x\n", val);
+
+    val = 0x87654321;
+    DEBUG_LOG("write() %d\n", backend.write(0x1000, &val, 4));
+    val = 0;
+
+    DEBUG_LOG("read() %d\n", backend.read(0x1000, &val, 4));
+    DEBUG_LOG("val = %x\n", val);
 
     /*
      * Main loop

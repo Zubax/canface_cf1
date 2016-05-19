@@ -19,6 +19,7 @@
 
 #include "usb_cdc.hpp"
 #include "shell.hpp"
+#include "bootloader.hpp"
 #include <board/board.hpp>
 #include <unistd.h>
 #include <cstdio>
@@ -71,7 +72,13 @@ class ZubaxIDCommand : public shell::ICommandHandler
             ios.print("hw_signature : '%s'\n", os::base64::encode(signature, base64_buf));
         }
 
-        // TODO: Print firmware version from the descriptor
+        const auto appinfo = bootloader::getAppInfo();
+        if (appinfo.second)
+        {
+            const auto inf = appinfo.first;
+            ios.print("fw_version   : '%u.%u'\n", inf.major_version, inf.minor_version);
+            ios.print("fw_vcs_commit: %u\n", inf.vcs_commit);
+        }
     }
 } static cmd_zubax_id;
 
