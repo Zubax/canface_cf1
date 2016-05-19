@@ -157,24 +157,6 @@ int main()
 
     bootloader::init(&backend, app::ApplicationBootDelayMSec);
 
-    unsigned val = 0;
-    DEBUG_LOG("read() %d\n", backend.read(0x1000, &val, 4));
-    DEBUG_LOG("val = %x\n", val);
-
-    val = 0x12345678;
-    DEBUG_LOG("write() %d\n", backend.write(0x1000, &val, 4));
-    val = 0;
-
-    DEBUG_LOG("read() %d\n", backend.read(0x1000, &val, 4));
-    DEBUG_LOG("val = %x\n", val);
-
-    val = 0x87654321;
-    DEBUG_LOG("write() %d\n", backend.write(0x1000, &val, 4));
-    val = 0;
-
-    DEBUG_LOG("read() %d\n", backend.read(0x1000, &val, 4));
-    DEBUG_LOG("val = %x\n", val);
-
     /*
      * Main loop
      */

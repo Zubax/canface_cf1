@@ -72,12 +72,6 @@ os::watchdog::Timer init(unsigned watchdog_timeout_msec)
      */
     sdStart(&STDOUT_SD, nullptr);
 
-    /*
-     * Prompt
-     */
-    DEBUG_LOG(PRODUCT_NAME_STRING " %d.%d.%08x / %s\n",
-              BL_VERSION_MAJOR, BL_VERSION_MINOR, GIT_HASH,
-              watchdogTriggeredLastReset() ? "WDTRESET" : "OK");
     return wdt;
 }
 

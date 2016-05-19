@@ -19,6 +19,7 @@
 
 #include "bootloader.hpp"
 #include <array>
+#include <cassert>
 
 
 namespace bootloader
@@ -48,6 +49,47 @@ struct __attribute__((packed)) AppDescriptor
     }
 };
 static_assert(sizeof(AppDescriptor) == 32, "Invalid packing");
+
+/**
+ * This is used to verify integrity of the application.
+ * CRC-64-WE
+ * Description: http://reveng.sourceforge.net/crc-catalogue/17plus.htm#crc.cat-bits.64
+ * Initial value: 0xFFFFFFFFFFFFFFFF
+ * Poly: 0x42F0E1EBA9EA3693
+ * Reverse: no
+ * Output xor: 0xFFFFFFFFFFFFFFFF
+ * Check: 0x62EC59E3F1A4F00A
+ */
+class CRC64WE
+{
+    std::uint64_t crc_;
+
+public:
+    CRC64WE() : crc_(0xFFFFFFFFFFFFFFFFULL) { }
+
+    void add(std::uint8_t byte)
+    {
+        static constexpr std::uint64_t Poly = 0x42F0E1EBA9EA3693;
+        crc_ ^= std::uint64_t(byte) << 56;
+        for (int i = 0; i < 8; i++)
+        {
+            crc_ = (crc_ & (std::uint64_t(1) << 63)) ? (crc_ << 1) ^ Poly : crc_ << 1;
+        }
+    }
+
+    void add(const void* data, unsigned len)
+    {
+        auto bytes = static_cast<const std::uint8_t*>(data);
+        assert(bytes != nullptr);
+        while (len --> 0)
+        {
+            add(*bytes++);
+        }
+    }
+
+    std::uint64_t get() const { return crc_ ^ 0xFFFFFFFFFFFFFFFFULL; }
+};
+
 
 namespace
 {
@@ -103,10 +145,40 @@ std::pair<AppDescriptor, bool> locateAppDescriptor()
             }
         }
 
-        // TODO: Check firmware CRC
+        // Checking firmware CRC
+        {
+            constexpr auto WordSize = 4;
+            const auto crc_offset_in_words = (offset + offsetof(AppDescriptor, app_info.image_crc)) / WordSize;
+            const auto image_size_in_words = desc.app_info.image_size / WordSize;
+
+            CRC64WE crc;
+
+            for (unsigned i = 0; i < image_size_in_words; i++)
+            {
+                std::uint32_t word = 0;
+                if ((i != crc_offset_in_words) && (i != (crc_offset_in_words + 1)))
+                {
+                    int res = g_backend->read(i * WordSize, &word, WordSize);
+                    if (res != WordSize)
+                    {
+                        continue;
+                    }
+                }
+
+                crc.add(&word, WordSize);
+            }
+
+            if (crc.get() != desc.app_info.image_crc)
+            {
+                DEBUG_LOG("App descriptor found, but CRC is invalid (%s != %s)\n",
+                          os::uintToString(crc.get()).c_str(),
+                          os::uintToString(desc.app_info.image_crc).c_str());
+                continue;       // Look further...
+            }
+        }
 
         // Returning if the descriptor is correct
-        DEBUG_LOG("App descriptor located at offset %x", unsigned(offset));
+        DEBUG_LOG("App descriptor located at offset %x\n", unsigned(offset));
         return {desc, true};
     }
 
@@ -130,10 +202,16 @@ void init(IAppStorageBackend* backend, unsigned boot_delay_msec)
     const auto appdesc_result = locateAppDescriptor();
     if (appdesc_result.second)
     {
+        DEBUG_LOG("App found; version %d.%d.%x, %d bytes\n",
+                  appdesc_result.first.app_info.major_version,
+                  appdesc_result.first.app_info.minor_version,
+                  unsigned(appdesc_result.first.app_info.vcs_commit),
+                  unsigned(appdesc_result.first.app_info.image_size));
         g_state = State::BootDelay;
     }
     else
     {
+        DEBUG_LOG("App not found\n");
         g_state = State::NoAppToBoot;
     }
 }

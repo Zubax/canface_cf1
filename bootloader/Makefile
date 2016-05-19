@@ -23,7 +23,7 @@ HW_VERSION = 1
 BL_VERSION_MAJOR = 1
 BL_VERSION_MINOR = 0
 
-APPLICATION_OFFSET = 24576
+APPLICATION_OFFSET = 32768  # TODO: Will be reduced to 24k when the bootloader is finished
 
 #
 # Application
@@ -54,11 +54,16 @@ UDEFS += -DGIT_HASH=0x$(GIT_HASH)
 
 USE_LTO := yes
 
+UDEFS += -DWATCHDOG_RETAIN_RESET_CAUSE_CODE=1
+
 SERIAL_CLI_PORT_NUMBER = 1
 
 RELEASE_OPT = -Os -fomit-frame-pointer
 DEBUG_OPT = -Os -g3 -DDISABLE_WATCHDOG=1
 
 LDSCRIPT = ld.ld
+
+CWARN += -Wshadow -Wpointer-arith -Wno-packed -Wno-attributes -Wno-error=undef -Wno-error=shadow
+CPPWARN += $(CWARN)
 
 include zubax_chibios/rules_stm32f37x.mk

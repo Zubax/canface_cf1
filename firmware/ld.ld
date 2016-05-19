@@ -26,7 +26,7 @@ __process_stack_size__  = 0x0400;
 
 MEMORY
 {
-    flash : org = 0x08000000, len = 128k
+    flash : org = 0x08008000, len = 94k /* The last sector is reserved for configuration */
     ram   : org = 0x20000000, len = 24k
 }
 
@@ -37,6 +37,8 @@ __ram_end__            = __ram_start__ + __ram_size__;
 
 ENTRY(Reset_Handler)
 
+PROVIDE(DeviceSignatureStorage = ORIGIN(flash) - 256);
+
 SECTIONS
 {
     . = 0;
@@ -45,6 +47,9 @@ SECTIONS
     startup : ALIGN(16) SUBALIGN(16)
     {
         KEEP(*(.vectors))
+        . = ALIGN(8);
+        KEEP(*(.app_descriptor));
+        . = ALIGN(8);
     } > flash
 
     constructors : ALIGN(4) SUBALIGN(4)
@@ -61,6 +66,29 @@ SECTIONS
         KEEP(*(.fini_array))
         KEEP(*(SORT(.fini_array.*)))
         PROVIDE(__fini_array_end = .);
+    } > flash
+
+    /*
+     * This padding section must be inserted before every section with greater alignment.
+     */
+    .padding1 :
+    {
+        /*
+         * Filling is important: if it is not specified, gaps between aligned sections will be filled with zero when
+         * exporting binaries, and will be skipped (i.e. set to 0xFF) when flashing .elf directly during debugging.
+         * The discrepancy causes the firmware CRC to mismatch, preventing the bootloader from running it.
+         * Assigning a well-defined fill byte eliminates the discrepancy (binary files will also contain 0xFF),
+         * allowing to flash the firmware directly with an SWD debugger during development.
+         * See http://www.math.utah.edu/docs/info/ld_3.html
+         */
+        FILL(0xFF);     /* Specifies the fill pattern, can be arbitrary */
+        . = ALIGN(16);  /* Alignment itself */
+        /* Now, we need some dummy data here, otherwise the alignment above will be ignored. */
+        /* We need exactly the same number of bytes in order to retain the alignment. */
+        BYTE(0xFF); BYTE(0xFF); BYTE(0xFF); BYTE(0xFF);
+        BYTE(0xFF); BYTE(0xFF); BYTE(0xFF); BYTE(0xFF);
+        BYTE(0xFF); BYTE(0xFF); BYTE(0xFF); BYTE(0xFF);
+        BYTE(0xFF); BYTE(0xFF); BYTE(0xFF); BYTE(0xFF);
     } > flash
 
     .text : ALIGN(16) SUBALIGN(16)
