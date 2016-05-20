@@ -29,7 +29,7 @@
 #include "board/board.hpp"
 #include "usb_cdc.hpp"
 #include "cli.hpp"
-#include "bootloader.hpp"
+#include "bootloader/bootloader.hpp"
 
 
 namespace app

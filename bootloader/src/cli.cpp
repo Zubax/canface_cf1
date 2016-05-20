@@ -18,7 +18,7 @@
  */
 
 #include "usb_cdc.hpp"
-#include "bootloader.hpp"
+#include "cli.hpp"
 #include <board/board.hpp>
 #include <unistd.h>
 #include <cstdio>

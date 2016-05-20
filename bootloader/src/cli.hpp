@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bootloader.hpp"
+#include "bootloader/bootloader.hpp"
 
 
 namespace cli
