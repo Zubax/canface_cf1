@@ -140,16 +140,8 @@ std::pair<Bootloader::AppDescriptor, bool> Bootloader::locateAppDescriptor()
     return {AppDescriptor(), false};
 }
 
-Bootloader::Bootloader(IAppStorageBackend& backend, unsigned boot_delay_msec) :
-    backend_(backend),
-    boot_delay_msec_(boot_delay_msec),
-    boot_delay_started_at_st_(chVTGetSystemTime())
+void Bootloader::verifyAppAndUpdateState()
 {
-    os::MutexLocker mlock(mutex_);
-
-    /*
-     * Inspecting the application storage looking for the descriptor
-     */
     const auto appdesc_result = locateAppDescriptor();
     if (appdesc_result.second)
     {
@@ -159,6 +151,7 @@ Bootloader::Bootloader(IAppStorageBackend& backend, unsigned boot_delay_msec) :
                   unsigned(appdesc_result.first.app_info.vcs_commit),
                   unsigned(appdesc_result.first.app_info.image_size));
         state_ = State::BootDelay;
+        boot_delay_started_at_st_ = chVTGetSystemTime();
     }
     else
     {
@@ -167,12 +160,19 @@ Bootloader::Bootloader(IAppStorageBackend& backend, unsigned boot_delay_msec) :
     }
 }
 
+Bootloader::Bootloader(IAppStorageBackend& backend, unsigned boot_delay_msec) :
+    backend_(backend),
+    boot_delay_msec_(boot_delay_msec)
+{
+    os::MutexLocker mlock(mutex_);
+    verifyAppAndUpdateState();
+}
+
 State Bootloader::getState()
 {
     os::MutexLocker mlock(mutex_);
 
-    if ((state_ == State::BootDelay) &&
-        (chVTTimeElapsedSinceX(boot_delay_started_at_st_) >= MS2ST(boot_delay_msec_)))
+    if ((state_ == State::BootDelay) && (chVTTimeElapsedSinceX(boot_delay_started_at_st_) >= MS2ST(boot_delay_msec_)))
     {
         DEBUG_LOG("Boot delay expired\n");
         state_ = State::ReadyToBoot;
@@ -232,10 +232,100 @@ void Bootloader::requestBoot()
     }
 }
 
-void Bootloader::upgradeApp(IDownloadBehavior& downloader)
+int Bootloader::upgradeApp(IDownloader& downloader)
 {
+    /*
+     * Preparation stage.
+     * Note that access to the backend and all members is always protected with the mutex, this is important.
+     */
+    {
+        os::MutexLocker mlock(mutex_);
+
+        switch (state_)
+        {
+            case State::BootDelay:
+            case State::BootCancelled:
+            case State::NoAppToBoot:
+            {
+                state_ = State::AppUpgradeInProgress;
+                break;
+            }
+            case State::ReadyToBoot:
+            case State::AppUpgradeInProgress:
+            {
+                return -1;
+            }
+        }
+
+        int res = backend_.beginUpgrade();
+        if (res < 0)
+        {
+            return res;
+        }
+    }
+
+    DEBUG_LOG("Starting app upgrade...\n");
+
+    /*
+     * Downloading stage.
+     * New application is downloaded into the storage backend via the Sink proxy class.
+     * Every write() is mutex-protected.
+     */
+    class Sink : public IDownloadStreamSink
+    {
+        std::size_t offset_ = 0;
+        IAppStorageBackend& backend_;
+        chibios_rt::Mutex& mutex_;
+
+        int handleNextDataChunk(const void* data, std::size_t size) override
+        {
+            os::MutexLocker mlock(mutex_);
+            int res = backend_.write(offset_, data, size);
+            offset_ += size;
+            return res;
+        }
+
+    public:
+        Sink(IAppStorageBackend& back, chibios_rt::Mutex& mutex) :
+            backend_(back),
+            mutex_(mutex)
+        { }
+    } sink(backend_, mutex_);
+
+    int res = downloader.download(sink);
+    DEBUG_LOG("App download finished with status %d\n", res);
+
+    /*
+     * Finalization stage.
+     * Checking if the downloader has succeeded, checking if the backend is able to finalize successfully.
+     * Notice the mutex.
+     */
     os::MutexLocker mlock(mutex_);
-    (void)downloader;
+
+    assert(state_ == State::AppUpgradeInProgress);
+    state_ = State::NoAppToBoot;                // Default state until proven otherwise
+
+    if (res < 0)                                // Download failed
+    {
+        (void)backend_.endUpgrade(false);       // Making sure the backend is finalized; error is irrelevant
+        return res;
+    }
+
+    res = backend_.endUpgrade(true);
+    if (res < 0)                                // Finalization failed
+    {
+        DEBUG_LOG("App storage backend finalization failed (%d)\n", res);
+        return res;
+    }
+
+    /*
+     * Everything went well, checking if the application is valid and updating the state accordingly.
+     * This method will report success even if the application image it just downloaded is not valid,
+     * since that would be out of the scope of its responsibility.
+     */
+    verifyAppAndUpdateState();
+
+    return 0;
 }
 
 }

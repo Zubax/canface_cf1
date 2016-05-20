@@ -87,12 +87,34 @@ public:
 };
 
 /**
- * Inherit this class to implement firmware loading protocol, from remote to the local storage.
+ * This interface proxies data received by the downloader into the bootloader.
  */
-class IDownloadBehavior
+class IDownloadStreamSink
 {
 public:
-    virtual ~IDownloadBehavior() { }
+    virtual ~IDownloadStreamSink() { }
+
+    /**
+     * @return Negative on error, non-negative on success.
+     */
+    virtual int handleNextDataChunk(const void* data, std::size_t size) = 0;
+};
+
+/**
+ * Inherit this class to implement firmware loading protocol, from remote to the local storage.
+ */
+class IDownloader
+{
+public:
+    virtual ~IDownloader() { }
+
+    /**
+     * Performs the download operation synchronously.
+     * Every received data chunk is fed into the sink using the corresponding method (refer to the interface
+     * definition). If the sink returns error, downloading will be aborted.
+     * @return Negative on error, 0 on success.
+     */
+    virtual int download(IDownloadStreamSink& sink) = 0;
 };
 
 /**
@@ -125,16 +147,15 @@ class Bootloader
         bool isValid() const
         {
             const auto sgn = getSignatureValue();
-
-            return
-                std::equal(std::begin(signature), std::end(signature), std::begin(sgn)) &&
-                (app_info.image_size > 0) &&
-                (app_info.image_size < 0xFFFFFFFFU);
+            return std::equal(std::begin(signature), std::end(signature), std::begin(sgn)) &&
+                   (app_info.image_size > 0) && (app_info.image_size < 0xFFFFFFFFU);
         }
     };
     static_assert(sizeof(AppDescriptor) == 32, "Invalid packing");
 
     std::pair<AppDescriptor, bool> locateAppDescriptor();
+
+    void verifyAppAndUpdateState();
 
 public:
     /**
@@ -165,9 +186,9 @@ public:
     void requestBoot();
 
     /**
-     * Erases the application and loads a new one from the specified channel using YMODEM protocol.
+     * Template method that implements all of the high-level steps of the application update procedure.
      */
-    void upgradeApp(IDownloadBehavior& downloader);
+    int upgradeApp(IDownloader& downloader);
 };
 
 }
