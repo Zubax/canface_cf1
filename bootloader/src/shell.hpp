@@ -55,12 +55,12 @@ class BaseChannelWrapper
 public:
     static constexpr unsigned DefaultWriteCharacterTimeoutMSec = 2;
 
-    BaseChannelWrapper(BaseChannel* ch) :
-        channel_(ch)
+    BaseChannelWrapper(BaseChannel* chan) :
+        channel_(chan)
     { }
 
     BaseChannel* getChannel()  const { return channel_; }
-    void setChannel(BaseChannel* ch) { channel_ = ch; }
+    void setChannel(BaseChannel* chan) { channel_ = chan; }
 
     template <unsigned BufferSize = 200, unsigned CharacterTimeoutMSec = DefaultWriteCharacterTimeoutMSec>
     std::size_t vprint(const char* format, va_list vl)
@@ -92,9 +92,9 @@ public:
         return chnGetTimeout(channel_, MS2ST(timeout_msec));
     }
 
-    int putChar(char ch, unsigned timeout_msec = DefaultWriteCharacterTimeoutMSec)
+    int putChar(char chr, unsigned timeout_msec = DefaultWriteCharacterTimeoutMSec)
     {
-        return chnPutTimeout(channel_, ch, MS2ST(timeout_msec));
+        return chnPutTimeout(channel_, chr, MS2ST(timeout_msec));
     }
 
     // More methods may be added in the future
@@ -209,11 +209,11 @@ class Shell
 
     impl_::HelpCommandHandler help_command_handler_;
 
-    void echo(BaseChannelWrapper& ios, char ch) const
+    void echo(BaseChannelWrapper& ios, char chr) const
     {
         if (mode_ != Mode::Silent)
         {
-            (void)ios.putChar(ch);
+            (void)ios.putChar(chr);
         }
     }
 
@@ -278,13 +278,13 @@ public:
     Mode getMode()    const { return mode_; }
     void setMode(Mode mode) { mode_ = mode; }
 
-    bool addCommandHandler(ICommandHandler* ch)
+    bool addCommandHandler(ICommandHandler* chr)
     {
         for (auto& x : command_handlers_)
         {
             if (x == nullptr)
             {
-                x = ch;
+                x = chr;
                 return true;
             }
         }
@@ -310,14 +310,14 @@ public:
             // Reading new character
             const auto elapsed = chVTTimeElapsedSinceX(started_at_st);
             const auto read_timeout_st = (run_duration_st > elapsed) ? (run_duration_st - elapsed) : 1;
-            const auto ch = ios.getChar(std::max(1U, unsigned(ST2MS(read_timeout_st))));
-            if (ch < 0)
+            const auto chr = ios.getChar(std::max(1U, unsigned(ST2MS(read_timeout_st))));
+            if (chr < 0)
             {
                 continue;
             }
 
             // Processing the character
-            if (ch == '\r')                             // End of command
+            if (chr == '\r')                            // End of command
             {
                 echo(ios, '\r');
                 echo(ios, '\n');
@@ -328,7 +328,7 @@ public:
                 }
                 reset();
             }
-            else if (ch == 8 || ch == 127)              // DEL or BS (backspace)
+            else if (chr == 8 || chr == 127)            // DEL or BS (backspace)
             {
                 if (pos_ > 0)
                 {
@@ -338,12 +338,12 @@ public:
                     pos_ -= 1;
                 }
             }
-            else if (ch >= 32)                          // Normal printable ASCII character and everything above ASCII
+            else if (chr >= 32)                         // Normal printable ASCII character and everything above ASCII
             {
                 if (pos_ < MaxLineLength)
                 {
-                    echo(ios, ch);
-                    line_buffer_[pos_++] = char(ch);
+                    echo(ios, chr);
+                    line_buffer_[pos_++] = char(chr);
                 }
             }
             else                                        // This also includes Ctrl+C, Ctrl+D, and LF
