@@ -18,13 +18,13 @@
  */
 
 #include "usb_cdc.hpp"
-#include "shell.hpp"
 #include "bootloader.hpp"
 #include <board/board.hpp>
 #include <unistd.h>
 #include <cstdio>
 #include <zubax_chibios/os.hpp>
 #include <zubax_chibios/util/base64.hpp>
+#include <zubax_chibios/util/shell.hpp>
 #include <ch.hpp>
 #include <hal.h>
 
@@ -36,11 +36,11 @@ namespace
 static bootloader::Bootloader* g_bootloader_ = nullptr;
 
 
-class RebootCommand : public shell::ICommandHandler
+class RebootCommand : public os::shell::ICommandHandler
 {
     const char* getName() const override { return "reboot"; }
 
-    void execute(shell::BaseChannelWrapper&, int, char**) override
+    void execute(os::shell::BaseChannelWrapper&, int, char**) override
     {
         ::usleep(10000);
         board::restart();
@@ -48,11 +48,11 @@ class RebootCommand : public shell::ICommandHandler
 } static cmd_reboot;
 
 
-class ZubaxIDCommand : public shell::ICommandHandler
+class ZubaxIDCommand : public os::shell::ICommandHandler
 {
     const char* getName() const override { return "zubax_id"; }
 
-    void execute(shell::BaseChannelWrapper& ios, int, char**) override
+    void execute(os::shell::BaseChannelWrapper& ios, int, char**) override
     {
         ios.print("product_id   : '%s'\n", PRODUCT_ID_STRING);
         ios.print("product_name : '%s'\n", PRODUCT_NAME_STRING);
@@ -95,7 +95,7 @@ class ZubaxIDCommand : public shell::ICommandHandler
 
 class CLIThread : public chibios_rt::BaseStaticThread<1024>
 {
-    shell::Shell<> shell_;
+    os::shell::Shell<> shell_;
 
     void main() override
     {
@@ -116,14 +116,14 @@ class CLIThread : public chibios_rt::BaseStaticThread<1024>
                 shell_.reset();
             }
 
-            shell::BaseChannelWrapper wrapper(os::getStdIOStream());
+            os::shell::BaseChannelWrapper wrapper(os::getStdIOStream());
             shell_.runFor(wrapper, 100);
         }
     }
 
 public:
     CLIThread() :
-        shell_(shell::Mode::Silent)
+        shell_(os::shell::Mode::Silent)
     {
         shell_.addCommandHandler(&cmd_reboot);
         shell_.addCommandHandler(&cmd_zubax_id);
