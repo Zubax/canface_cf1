@@ -103,30 +103,16 @@ class StateCommand : public os::shell::ICommandHandler
 } static cmd_state;
 
 
-class CancelBootCommand : public os::shell::ICommandHandler
+class WaitCommand : public os::shell::ICommandHandler
 {
-    const char* getName() const override { return "cancel_boot"; }
+    const char* getName() const override { return "wait"; }
 
-    void execute(os::shell::BaseChannelWrapper& ios, int, char**) override
+    void execute(os::shell::BaseChannelWrapper&, int, char**) override
     {
         assert(g_bootloader_ != nullptr);
         g_bootloader_->cancelBoot();
-        printBootloaderState(ios);
     }
-} static cmd_cancel_boot;
-
-
-class RequestBootCommand : public os::shell::ICommandHandler
-{
-    const char* getName() const override { return "request_boot"; }
-
-    void execute(os::shell::BaseChannelWrapper& ios, int, char**) override
-    {
-        assert(g_bootloader_ != nullptr);
-        g_bootloader_->requestBoot();
-        printBootloaderState(ios);
-    }
-} static cmd_request_boot;
+} static cmd_wait;
 
 
 class DownloadCommand : public os::shell::ICommandHandler
@@ -183,8 +169,7 @@ public:
         shell_.addCommandHandler(&cmd_reboot);
         shell_.addCommandHandler(&cmd_zubax_id);
         shell_.addCommandHandler(&cmd_state);
-        shell_.addCommandHandler(&cmd_cancel_boot);
-        shell_.addCommandHandler(&cmd_request_boot);
+        shell_.addCommandHandler(&cmd_wait);
         shell_.addCommandHandler(&cmd_download);
     }
 } cli_thread;
