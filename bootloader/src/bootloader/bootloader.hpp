@@ -29,16 +29,23 @@
 namespace bootloader
 {
 /**
+ * Error codes.
+ * These are returned from functions in negated form, i.e. -10000 means error code 10000.
+ */
+static constexpr std::int16_t ErrOK                     = 0;
+static constexpr std::int16_t ErrInvalidState           = 10001;
+
+/**
  * Bootloader states. Some of the states are designed as commands to the outer logic, e.g. @ref ReadyToBoot
  * means that the application should be started.
  */
 enum class State
 {
-    NoAppToBoot,
-    BootDelay,
-    BootCancelled,
-    AppUpgradeInProgress,
-    ReadyToBoot,
+    NoAppToBoot,         //!< NoAppToBoot
+    BootDelay,           //!< BootDelay
+    BootCancelled,       //!< BootCancelled
+    AppUpgradeInProgress,//!< AppUpgradeInProgress
+    ReadyToBoot,         //!< ReadyToBoot
 };
 
 static inline const char* stateToString(State state)

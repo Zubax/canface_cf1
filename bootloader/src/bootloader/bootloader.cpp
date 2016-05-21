@@ -254,7 +254,7 @@ int Bootloader::upgradeApp(IDownloader& downloader)
         case State::ReadyToBoot:
         case State::AppUpgradeInProgress:
         {
-            return -1;
+            return -ErrInvalidState;
         }
         }
 
@@ -326,7 +326,7 @@ int Bootloader::upgradeApp(IDownloader& downloader)
      */
     verifyAppAndUpdateState();
 
-    return 0;
+    return ErrOK;
 }
 
 }

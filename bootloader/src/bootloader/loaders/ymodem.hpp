@@ -31,6 +31,16 @@ namespace bootloader
 namespace ymodem_loader
 {
 /**
+ * Error codes specific to this module.
+ */
+static constexpr std::int16_t ErrOK                             = 0;
+static constexpr std::int16_t ErrChannelWriteTimedOut           = 20001;
+static constexpr std::int16_t ErrRetriesExhausted               = 20002;
+static constexpr std::int16_t ErrProtocolError                  = 20003;
+static constexpr std::int16_t ErrTransferCancelledByRemote      = 20004;
+static constexpr std::int16_t ErrRemoteRefusedToProvideFile     = 20005;
+
+/**
  * Downloads data using YMODEM or XMODEM protocol over the specified ChibiOS channel
  * (e.g. serial port, USB CDC ACM, TCP, ...).
  *
@@ -53,14 +63,16 @@ class YModemReceiver : public IDownloader
     static constexpr unsigned SendTimeoutMSec = 1000;
 
     static constexpr unsigned InitialTimeoutMSec      = 60000;
-    static constexpr unsigned NextBlockTimeoutMSec    = 10000;
+    static constexpr unsigned NextBlockTimeoutMSec    = 5000;
     static constexpr unsigned BlockPayloadTimeoutMSec = 1000;
+
+    static constexpr unsigned MaxRetries = 3;
 
     ::BaseChannel* const channel_;
 
     std::uint8_t buffer_[WorstCaseBlockSizeWithCRC];
 
-    static int ioResultToErrorCode(int res);
+    static int sendResultToErrorCode(int res);
 
     static std::uint8_t computeChecksum(const void* data, unsigned size);
 

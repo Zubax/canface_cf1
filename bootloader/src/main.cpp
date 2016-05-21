@@ -70,6 +70,9 @@ class AppStorageBackend : public bootloader::IAppStorageBackend
     }
 
 public:
+    static constexpr std::int16_t ErrEraseFailed = 9001;
+    static constexpr std::int16_t ErrWriteFailed = 9002;
+
     int beginUpgrade()   override { return 0; }
     int endUpgrade(bool) override { return 0; }
 
@@ -90,13 +93,13 @@ public:
                 const bool ok = writer.erasePageAt(blank_check_pos);
                 if (!ok)
                 {
-                    return -1;
+                    return -ErrEraseFailed;
                 }
             }
         }
 
         // Write
-        return writer.write(reinterpret_cast<const void*>(offset), data, size) ? size : -1;
+        return writer.write(reinterpret_cast<const void*>(offset), data, size) ? size : -ErrWriteFailed;
     }
 
     int read(std::size_t offset, void* data, std::size_t size) override

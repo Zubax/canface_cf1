@@ -48,11 +48,11 @@ struct ControlCharacters
 
 }
 
-int YModemReceiver::ioResultToErrorCode(int res)
+int YModemReceiver::sendResultToErrorCode(int res)
 {
     if (res >= 0)
     {
-        return -1;              // TODO: error code
+        return -ErrChannelWriteTimedOut;
     }
     return res;
 }
@@ -289,8 +289,8 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
         // Abort if we couldn't get it going in InitialTimeoutMSec
         if (chVTTimeElapsedSinceX(started_at_st) > MS2ST(InitialTimeoutMSec))
         {
-            abort();                            // Just in case, why not
-            return -1;                          // TODO error codes
+            abort();
+            return -ErrRetriesExhausted;
         }
 
         // Requesting transmission in checksum mode
@@ -298,7 +298,7 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
         if (res != 1)
         {
             abort();
-            return ioResultToErrorCode(res);
+            return sendResultToErrorCode(res);
         }
 
         // Receiving the block
@@ -309,15 +309,15 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
             ;
         }
         else if (block_rx_res.first == BlockReceptionResult::Timeout ||
-                 block_rx_res.first == BlockReceptionResult::ProtocolError)
+                 block_rx_res.first == BlockReceptionResult::ProtocolError ||
+                 block_rx_res.first == BlockReceptionResult::EndOfTransmission)
         {
-            continue;
+            continue;   // EOT cannot be sent in response to the first block, it's an error; trying again...
         }
-        else if (block_rx_res.first == BlockReceptionResult::EndOfTransmission ||
-                 block_rx_res.first == BlockReceptionResult::TransmissionCancelled)
+        else if (block_rx_res.first == BlockReceptionResult::TransmissionCancelled)
         {
-            abort();                            // We got EOT or CAN in response to NAK, go figure
-            return -1;                          // TODO error codes
+            abort();
+            return -ErrTransferCancelledByRemote;
         }
         else
         {
@@ -342,14 +342,14 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
                 // Invalid zero block, that's a fatal error, it's checksum protected after all
                 // Retrying here would make no sense, it's not a line hit, it's badly formed packet!
                 abort();
-                return -1;              // TODO error codes
+                return -ErrProtocolError;
             }
             if (is_null_block)
             {
                 // Null block means that the sender is refusing to transmit the file
                 // No point retrying too, the sender isn't going to change their mind
                 abort();
-                return -1;              // TODO error codes
+                return -ErrRemoteRefusedToProvideFile;
             }
             file_size_known = remaining_file_size > 0;
 
@@ -358,7 +358,7 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
             if (res != 1)
             {
                 abort();
-                return ioResultToErrorCode(res);
+                return sendResultToErrorCode(res);
             }
         }
         else if (expected_sequence_id == 1)
@@ -377,7 +377,7 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
         else                            // Invalid sequence number
         {
             abort();
-            return -1;                  // TODO error codes
+            return -ErrProtocolError;
         }
 
         // Done!
@@ -391,14 +391,23 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
      * Receiving the file
      */
     bool ack = mode == Mode::XModem;    // YMODEM requires another NAK after the zero block
+    unsigned remaining_retries = MaxRetries;
     for (;;)
     {
+        // Limiting retries
+        if (remaining_retries <= 0)
+        {
+            abort();
+            return -ErrRetriesExhausted;
+        }
+        remaining_retries--;
+
         // Confirming or re-requesting
         int res = send(ack ? ControlCharacters::ACK : ControlCharacters::NAK);
         if (res != 1)
         {
             abort();
-            return ioResultToErrorCode(res);
+            return sendResultToErrorCode(res);
         }
         ack = false;
 
@@ -422,7 +431,7 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
                 // The sender said that we're done, liar!
                 DEBUG_LOG("YMODEM ended %u bytes early\n", unsigned(remaining_file_size));
                 abort();
-                return -1;                          // TODO error codes
+                return -ErrProtocolError;
             }
             // Done, exiting and sending the final ACK
             DEBUG_LOG("YMODEM end OK\n");
@@ -432,7 +441,7 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
         {
             DEBUG_LOG("YMODEM cancelled\n");
             abort();
-            return -1;                          // TODO error codes
+            return -ErrTransferCancelledByRemote;
         }
         else
         {
@@ -440,6 +449,7 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
             abort();
             return block_rx_res.second;
         }
+        remaining_retries = MaxRetries;                         // Reset retries on successful reception
 
         // Processing the block
         if ((sequence_id + 1) == expected_sequence_id)          // Duplicate block, acknowledge silently
@@ -452,7 +462,7 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
         {
             DEBUG_LOG("YMODEM wrong sequence ID\n");
             abort();
-            return -1;          // TODO error code
+            return -ErrProtocolError;
         }
         expected_sequence_id += 1;
 
@@ -463,7 +473,7 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
             {
                 DEBUG_LOG("YMODEM transmission past the end of file\n");
                 abort();
-                return -1;              // TODO error codes
+                return -ErrProtocolError;
             }
             if (size > remaining_file_size)
             {
@@ -498,7 +508,7 @@ int YModemReceiver::download(IDownloadStreamSink& sink)
         abort();
     }
 
-    return 0;
+    return ErrOK;
 }
 
 }
