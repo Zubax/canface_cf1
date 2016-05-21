@@ -19,6 +19,7 @@
 
 #include "usb_cdc.hpp"
 #include "cli.hpp"
+#include "bootloader/loaders/ymodem.hpp"
 #include <board/board.hpp>
 #include <unistd.h>
 #include <cstdio>
@@ -34,6 +35,14 @@ namespace
 {
 
 static bootloader::Bootloader* g_bootloader_ = nullptr;
+
+
+static void printBootloaderState(os::shell::BaseChannelWrapper& ios)
+{
+    assert(g_bootloader_ != nullptr);
+    const auto st = g_bootloader_->getState();
+    ios.print("%s (%d)\n", bootloader::stateToString(st), st);
+}
 
 
 class RebootCommand : public os::shell::ICommandHandler
@@ -75,25 +84,71 @@ class ZubaxIDCommand : public os::shell::ICommandHandler
             ios.print("hw_signature : '%s'\n", os::base64::encode(signature, base64_buf));
         }
 
-        if (g_bootloader_ != nullptr)
+        assert(g_bootloader_ != nullptr);
+        const auto appinfo = g_bootloader_->getAppInfo();
+        if (appinfo.second)
         {
-            const auto appinfo = g_bootloader_->getAppInfo();
-            if (appinfo.second)
-            {
-                const auto inf = appinfo.first;
-                ios.print("fw_version   : '%u.%u'\n", inf.major_version, inf.minor_version);
-                ios.print("fw_vcs_commit: %u\n", inf.vcs_commit);
-            }
-        }
-        else
-        {
-            assert(false);
+            const auto inf = appinfo.first;
+            ios.print("fw_version   : '%u.%u'\n", inf.major_version, inf.minor_version);
+            ios.print("fw_vcs_commit: %u\n", inf.vcs_commit);
         }
     }
 } static cmd_zubax_id;
 
 
-class CLIThread : public chibios_rt::BaseStaticThread<1024>
+class StateCommand : public os::shell::ICommandHandler
+{
+    const char* getName() const override { return "state"; }
+    void execute(os::shell::BaseChannelWrapper& ios, int, char**) override { printBootloaderState(ios); }
+} static cmd_state;
+
+
+class CancelBootCommand : public os::shell::ICommandHandler
+{
+    const char* getName() const override { return "cancel_boot"; }
+
+    void execute(os::shell::BaseChannelWrapper& ios, int, char**) override
+    {
+        assert(g_bootloader_ != nullptr);
+        g_bootloader_->cancelBoot();
+        printBootloaderState(ios);
+    }
+} static cmd_cancel_boot;
+
+
+class RequestBootCommand : public os::shell::ICommandHandler
+{
+    const char* getName() const override { return "request_boot"; }
+
+    void execute(os::shell::BaseChannelWrapper& ios, int, char**) override
+    {
+        assert(g_bootloader_ != nullptr);
+        g_bootloader_->requestBoot();
+        printBootloaderState(ios);
+    }
+} static cmd_request_boot;
+
+
+class DownloadCommand : public os::shell::ICommandHandler
+{
+    const char* getName() const override { return "download"; }
+
+    void execute(os::shell::BaseChannelWrapper& ios, int, char**) override
+    {
+        assert(g_bootloader_ != nullptr);
+
+        bootloader::ymodem_loader::YModemReceiver loader(ios.getChannel());     // TODO pushing stack really hard
+
+        int res = g_bootloader_->upgradeApp(loader);
+        if (res < 0)
+        {
+            ios.print("ERROR %d\n", res);
+        }
+    }
+} static cmd_download;
+
+
+class CLIThread : public chibios_rt::BaseStaticThread<2048>
 {
     os::shell::Shell<> shell_;
 
@@ -127,6 +182,10 @@ public:
     {
         shell_.addCommandHandler(&cmd_reboot);
         shell_.addCommandHandler(&cmd_zubax_id);
+        shell_.addCommandHandler(&cmd_state);
+        shell_.addCommandHandler(&cmd_cancel_boot);
+        shell_.addCommandHandler(&cmd_request_boot);
+        shell_.addCommandHandler(&cmd_download);
     }
 } cli_thread;
 

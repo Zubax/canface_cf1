@@ -18,6 +18,7 @@
  */
 
 #include "bootloader.hpp"
+#include <ch.hpp>
 
 
 namespace bootloader
@@ -194,19 +195,19 @@ void Bootloader::cancelBoot()
 
     switch (state_)
     {
-        case State::BootDelay:
-        case State::ReadyToBoot:
-        {
-            state_ = State::BootCancelled;
-            DEBUG_LOG("Boot cancelled\n");
-            break;
-        }
-        case State::NoAppToBoot:
-        case State::BootCancelled:
-        case State::AppUpgradeInProgress:
-        {
-            break;
-        }
+    case State::BootDelay:
+    case State::ReadyToBoot:
+    {
+        state_ = State::BootCancelled;
+        DEBUG_LOG("Boot cancelled\n");
+        break;
+    }
+    case State::NoAppToBoot:
+    case State::BootCancelled:
+    case State::AppUpgradeInProgress:
+    {
+        break;
+    }
     }
 }
 
@@ -216,19 +217,19 @@ void Bootloader::requestBoot()
 
     switch (state_)
     {
-        case State::BootDelay:
-        case State::BootCancelled:
-        {
-            state_ = State::ReadyToBoot;
-            DEBUG_LOG("Boot requested\n");
-            break;
-        }
-        case State::NoAppToBoot:
-        case State::AppUpgradeInProgress:
-        case State::ReadyToBoot:
-        {
-            break;
-        }
+    case State::BootDelay:
+    case State::BootCancelled:
+    {
+        state_ = State::ReadyToBoot;
+        DEBUG_LOG("Boot requested\n");
+        break;
+    }
+    case State::NoAppToBoot:
+    case State::AppUpgradeInProgress:
+    case State::ReadyToBoot:
+    {
+        break;
+    }
     }
 }
 
@@ -243,18 +244,18 @@ int Bootloader::upgradeApp(IDownloader& downloader)
 
         switch (state_)
         {
-            case State::BootDelay:
-            case State::BootCancelled:
-            case State::NoAppToBoot:
-            {
-                state_ = State::AppUpgradeInProgress;
-                break;
-            }
-            case State::ReadyToBoot:
-            case State::AppUpgradeInProgress:
-            {
-                return -1;
-            }
+        case State::BootDelay:
+        case State::BootCancelled:
+        case State::NoAppToBoot:
+        {
+            state_ = State::AppUpgradeInProgress;
+            break;
+        }
+        case State::ReadyToBoot:
+        case State::AppUpgradeInProgress:
+        {
+            return -1;
+        }
         }
 
         int res = backend_.beginUpgrade();

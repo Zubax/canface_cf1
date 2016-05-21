@@ -41,6 +41,19 @@ enum class State
     ReadyToBoot,
 };
 
+static inline const char* stateToString(State state)
+{
+    switch (state)
+    {
+    case State::NoAppToBoot:            return "NoAppToBoot";
+    case State::BootDelay:              return "BootDelay";
+    case State::BootCancelled:          return "BootCancelled";
+    case State::AppUpgradeInProgress:   return "AppUpgradeInProgress";
+    case State::ReadyToBoot:            return "ReadyToBoot";
+    default: return "INVALID_STATE";
+    }
+}
+
 /**
  * These fields are defined by the Brickproof Bootloader specification.
  */
