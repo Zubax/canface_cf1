@@ -146,10 +146,18 @@ int main()
     /*
      * Main loop
      */
-    while (true)
+    while (!os::isRebootRequested())
     {
         watchdog.reset();
         (void)bl.getState();
         ::sleep(1);
+    }
+
+    watchdog.reset();
+
+    if (os::isRebootRequested())
+    {
+        ::sleep(1);             // Providing some time for other components to react
+        board::restart();
     }
 }

@@ -51,8 +51,7 @@ class RebootCommand : public os::shell::ICommandHandler
 
     void execute(os::shell::BaseChannelWrapper&, int, char**) override
     {
-        ::usleep(10000);
-        board::restart();
+        os::requestReboot();
     }
 } static cmd_reboot;
 
@@ -140,11 +139,11 @@ class CLIThread : public chibios_rt::BaseStaticThread<2048>
 
     void main() override
     {
-        for (;;)
-        {
-            const auto usb_port = usb_cdc::getSerialUSBDriver();
-            const auto uart_port = &STDOUT_SD;
+        const auto usb_port = usb_cdc::getSerialUSBDriver();
+        const auto uart_port = &STDOUT_SD;
 
+        while (!os::isRebootRequested())
+        {
             const bool using_usb = os::getStdIOStream() == reinterpret_cast<::BaseChannel*>(usb_port);
             const bool usb_connected = usb_cdc::getState() == usb_cdc::State::Connected;
 
@@ -160,6 +159,10 @@ class CLIThread : public chibios_rt::BaseStaticThread<2048>
             os::shell::BaseChannelWrapper wrapper(os::getStdIOStream());
             shell_.runFor(wrapper, 100);
         }
+
+        DEBUG_LOG("Disconnecting USB\n");
+        os::setStdIOStream(reinterpret_cast<::BaseChannel*>(uart_port));
+        usbDisconnectBus(usb_cdc::getSerialUSBDriver()->config->usbp);
     }
 
 public:
