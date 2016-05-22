@@ -24,6 +24,7 @@
 #include <utility>
 #include <array>
 #include <cassert>
+#include "util.hpp"
 
 
 namespace bootloader
