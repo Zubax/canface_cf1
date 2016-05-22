@@ -92,6 +92,35 @@ void die()
 void restart()
 {
     NVIC_SystemReset();
+    for (;;) { }        // Noreturn
+}
+
+void bootApplication()
+{
+    // We cordially extend our thanks to David Sidrane and Ben Dyer, whose ideas have somewhat inspired this thing.
+    chSysLock();
+
+    // Deinit all peripherals that may have been used
+    RCC->APB1RSTR |= RCC_APB1RSTR_CANRST | RCC_APB1RSTR_USBRST;
+    RCC->APB2RSTR |= RCC_APB2RSTR_USART1RST;
+
+    // Kill the sys tick
+    SysTick->CTRL = 0;
+
+    // Update the vector table location
+    __asm volatile("dsb");
+    __asm volatile("isb");
+    SCB->VTOR = APPLICATION_OFFSET;
+    __asm volatile("dsb");
+
+    // Let's roll!
+    const unsigned stacktop = *reinterpret_cast<unsigned*>(APPLICATION_OFFSET);
+    const unsigned entrypoint = *reinterpret_cast<unsigned*>(APPLICATION_OFFSET + 4);
+    asm volatile("msr msp, %[stacktop]          \n"
+                 "bx       %[entrypoint]        \n"
+                 :: [stacktop] "r"(stacktop), [entrypoint] "r"(entrypoint):);
+
+    for (;;) { }        // Noreturn
 }
 
 void setStatusLED(bool state)

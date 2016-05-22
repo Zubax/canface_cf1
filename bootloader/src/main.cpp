@@ -225,7 +225,7 @@ int main()
     /*
      * Main loop
      */
-    while (!os::isRebootRequested())
+    while (!os::isRebootRequested() && (bl.getState() != bootloader::State::ReadyToBoot))
     {
         watchdog.reset();
         (void)bl.getState();
@@ -239,4 +239,19 @@ int main()
         ::sleep(1);             // Providing some time for other components to react
         board::restart();
     }
+
+    /*
+     * Booting the application
+     */
+    DEBUG_LOG("BOOTING APP\n");
+
+    board::setStatusLED(true);
+    board::setTrafficLED(false);
+
+    ::sleep(1);                 // Providing some time for other components to react
+
+    // Actually the state may have been switched, but it's ok for debugging
+    assert(bl.getState() == bootloader::State::ReadyToBoot);
+
+    board::bootApplication();
 }

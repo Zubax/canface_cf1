@@ -31,7 +31,11 @@ os::watchdog::Timer init(unsigned watchdog_timeout_msec);
 __attribute__((noreturn))
 void die();
 
+__attribute__((noreturn))
 void restart();
+
+__attribute__((noreturn))
+void bootApplication();
 
 void setStatusLED(bool state);
 void setTrafficLED(bool state);
