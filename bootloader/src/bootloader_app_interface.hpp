@@ -51,7 +51,7 @@ struct AppShared
 };
 
 
-static_assert(sizeof(AppShared) <= 256, "AppShared is larger than the amount of allocated memory");
+static_assert(sizeof(AppShared) <= 240, "AppShared may be larger than the amount of allocated memory");
 
 
 static inline auto makeMarshaller()

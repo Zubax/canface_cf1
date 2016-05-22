@@ -178,7 +178,7 @@ int main()
 
     if (os::isRebootRequested())
     {
-        ::sleep(1);             // Providing some time for other components to react
+        ::usleep(500000);       // Providing some time for other components to react
         board::restart();
     }
 
@@ -187,10 +187,12 @@ int main()
      */
     DEBUG_LOG("BOOTING APP\n");
 
+    os::requestReboot();        // Notifying other components that we're going down
+
     board::setStatusLED(true);
     board::setTrafficLED(false);
 
-    ::sleep(1);                 // Providing some time for other components to react
+    ::usleep(500000);           // Providing some time for other components to react
 
     // Actually the state may have been switched, but it's ok for debugging
     assert(bl.getState() == bootloader::State::ReadyToBoot);
