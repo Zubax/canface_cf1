@@ -45,6 +45,15 @@ enum class StorageUtilizationCheckMode
 };
 
 /**
+ * This option allows to erase the structure automatically once it's read
+ */
+enum class AutoErase
+{
+    EraseAfterRead,
+    DoNotErase
+};
+
+/**
  * Implementation details, do not use directly
  */
 namespace impl_
@@ -89,7 +98,7 @@ class AppSharedMarshaller
         }
     };
 
-    static_assert(std::is_pod<Container>::value, "Container must be a POD type");
+    //static_assert(std::is_pod<Container>::value, "Container must be a POD type");
 
     template <int N>
     struct IntegerAsType
@@ -137,13 +146,12 @@ class AppSharedMarshaller
     template <bool WriteNotRead, unsigned PtrIndex, unsigned RemainingSize>
     typename std::enable_if<(RemainingSize > 0)>::type unwindReadWrite(void* structure)
     {
+        static_assert(PtrIndex < std::tuple_size<Pointers>::value, "Storage is not large enough for the structure");
         const auto ret = WriteNotRead ?
                          writeOne<RemainingSize>(structure, std::get<PtrIndex>(pointers_)) :
                          readOne<RemainingSize>(structure, std::get<PtrIndex>(pointers_));
 
         constexpr auto Increment = decltype(ret)::Value;
-
-        static_assert(PtrIndex < std::tuple_size<Pointers>::value, "Storage is not large enough for the structure");
         static_assert(RemainingSize >= Increment, "Rock is dead");
 
         structure = static_cast<void*>(static_cast<std::uint8_t*>(structure) + Increment);
@@ -169,11 +177,20 @@ public:
      *         First - the data structure
      *         Second - true if data exists, false if not. In the latter case the value of the first item is undefined.
      */
-    std::pair<Container, bool> read()
+    std::pair<Container, bool> read(AutoErase auto_erase = AutoErase::DoNotErase)
     {
         ContainerWrapper wrapper;
+
         unwindReadWrite<false, 0, sizeof(wrapper)>(&wrapper);
-        return {wrapper.container, wrapper.isCRCValid()};
+
+        const bool valid = wrapper.isCRCValid();
+
+        if (valid && (auto_erase == AutoErase::EraseAfterRead))
+        {
+            erase();
+        }
+
+        return {wrapper.container, valid};
     }
 
     /**

@@ -30,6 +30,7 @@
 #include "usb_cdc.hpp"
 #include "cli.hpp"
 #include "bootloader/bootloader.hpp"
+#include "bootloader/app_shared.hpp"
 
 
 namespace app
@@ -113,6 +114,30 @@ public:
     }
 };
 
+/**
+ * This struct is used to exchange data with the application.
+ * Its format allows for future extensions.
+ */
+struct AppShared
+{
+    std::uint32_t reserved_a = 0;                               ///< Reserved for future use
+    std::uint32_t reserved_b = 0;                               ///< Reserved for future use
+
+    /*
+     * UAVCAN part
+     */
+    std::uint32_t can_bus_speed = 0;                            ///< Reserved for future use
+    std::uint8_t uavcan_node_id = 0;                            ///< Reserved for future use
+
+    static constexpr std::uint8_t UAVCANFileNameMaxLength = 201;
+    char uavcan_file_name[UAVCANFileNameMaxLength] = {};        ///< Reserved for future use
+
+    /*
+     * General part
+     */
+    bool stay_in_bootloader = false;
+};
+
 }
 }
 
@@ -145,6 +170,57 @@ int main()
     bootloader::Bootloader bl(backend, app::ApplicationBootDelayMSec);
 
     cli::init(bl);
+
+    /*
+     * Parsing the app shared struct
+     */
+    {
+        // This is so ugly it's almost perfect. FIXME invent something prettier than this.
+        auto app_shared_marshaller = bootloader::app_shared::makeAppSharedMarshaller<app::AppShared>(
+            &CAN->sFilterRegister[0].FR1,  &CAN->sFilterRegister[0].FR2,
+            &CAN->sFilterRegister[1].FR1,  &CAN->sFilterRegister[1].FR2,
+            &CAN->sFilterRegister[2].FR1,  &CAN->sFilterRegister[2].FR2,
+            &CAN->sFilterRegister[3].FR1,  &CAN->sFilterRegister[3].FR2,
+            &CAN->sFilterRegister[4].FR1,  &CAN->sFilterRegister[4].FR2,
+            &CAN->sFilterRegister[5].FR1,  &CAN->sFilterRegister[5].FR2,
+            &CAN->sFilterRegister[6].FR1,  &CAN->sFilterRegister[6].FR2,
+            &CAN->sFilterRegister[7].FR1,  &CAN->sFilterRegister[7].FR2,
+            &CAN->sFilterRegister[8].FR1,  &CAN->sFilterRegister[8].FR2,
+            &CAN->sFilterRegister[9].FR1,  &CAN->sFilterRegister[9].FR2,
+            &CAN->sFilterRegister[10].FR1, &CAN->sFilterRegister[10].FR2,
+            &CAN->sFilterRegister[11].FR1, &CAN->sFilterRegister[11].FR2,
+            &CAN->sFilterRegister[12].FR1, &CAN->sFilterRegister[12].FR2,
+            &CAN->sFilterRegister[13].FR1, &CAN->sFilterRegister[13].FR2,
+            &CAN->sFilterRegister[14].FR1, &CAN->sFilterRegister[14].FR2,
+            &CAN->sFilterRegister[15].FR1, &CAN->sFilterRegister[15].FR2,
+            &CAN->sFilterRegister[16].FR1, &CAN->sFilterRegister[16].FR2,
+            &CAN->sFilterRegister[17].FR1, &CAN->sFilterRegister[17].FR2,
+            &CAN->sFilterRegister[18].FR1, &CAN->sFilterRegister[18].FR2,
+            &CAN->sFilterRegister[19].FR1, &CAN->sFilterRegister[19].FR2,
+            &CAN->sFilterRegister[20].FR1, &CAN->sFilterRegister[20].FR2,
+            &CAN->sFilterRegister[21].FR1, &CAN->sFilterRegister[21].FR2,
+            &CAN->sFilterRegister[22].FR1, &CAN->sFilterRegister[22].FR2,
+            &CAN->sFilterRegister[23].FR1, &CAN->sFilterRegister[23].FR2,
+            &CAN->sFilterRegister[24].FR1, &CAN->sFilterRegister[24].FR2,
+            &CAN->sFilterRegister[25].FR1, &CAN->sFilterRegister[25].FR2,
+            &CAN->sFilterRegister[26].FR1, &CAN->sFilterRegister[26].FR2,
+            &CAN->sFilterRegister[27].FR1, &CAN->sFilterRegister[27].FR2
+        );
+
+        const auto app_shared = app_shared_marshaller.read(bootloader::app_shared::AutoErase::EraseAfterRead);
+        if (app_shared.second)
+        {
+            if (app_shared.first.stay_in_bootloader)
+            {
+                DEBUG_LOG("Boot cancelled by apps request\n");
+                bl.cancelBoot();
+            }
+        }
+        else
+        {
+            DEBUG_LOG("App shared struct not found\n");
+        }
+    }
 
     /*
      * Main loop
