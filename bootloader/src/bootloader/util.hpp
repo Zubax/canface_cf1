@@ -27,6 +27,13 @@
 namespace bootloader
 {
 /**
+ * Error codes.
+ * These are returned from functions in negated form, i.e. -10000 means error code 10000.
+ */
+static constexpr std::int16_t ErrOK                     = 0;
+static constexpr std::int16_t ErrInvalidState           = 10001;
+
+/**
  * This is used to verify integrity of the application and other data.
  * CRC-64-WE
  * Description: http://reveng.sourceforge.net/crc-catalogue/17plus.htm#crc.cat-bits.64
