@@ -42,7 +42,7 @@
 #define HAL_USE_USB                 TRUE
 
 #define SERIAL_DEFAULT_BITRATE      115200
-#define SERIAL_BUFFERS_SIZE         1024
-#define SERIAL_USB_BUFFERS_SIZE     1024
+#define SERIAL_BUFFERS_SIZE         1792
+#define SERIAL_USB_BUFFERS_SIZE     1792
 
 #include <zubax_chibios/sys/halconf_tail.h>
