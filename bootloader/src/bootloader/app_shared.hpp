@@ -104,10 +104,17 @@ class AppSharedMarshaller
     };
 
     template <unsigned MaxSize, typename T>                     // Holy pants why auto doesn't work here
-    IntegerAsType<ConstexprMin<sizeof(T), MaxSize>::Result> readOne(void* destination, volatile T* ptr)
+    IntegerAsType<ConstexprMin<sizeof(T), MaxSize>::Result> readOne(void* destination, const volatile T* ptr)
     {
         const T x = *ptr;                                       // Guaranteeing proper pointer access
         std::memmove(destination, &x, ConstexprMin<sizeof(T), MaxSize>::Result);
+        return {};
+    }
+
+    template <unsigned MaxSize>
+    IntegerAsType<MaxSize> readOne(void* destination, const void* ptr)
+    {
+        std::memmove(destination, ptr, MaxSize);                // Raw memory access
         return {};
     }
 
@@ -117,6 +124,13 @@ class AppSharedMarshaller
         T x = T();
         std::memmove(&x, source, ConstexprMin<sizeof(T), MaxSize>::Result);
         *ptr = x;                                               // Guaranteeing proper pointer access
+        return {};
+    }
+
+    template <unsigned MaxSize>
+    IntegerAsType<MaxSize> writeOne(const void* source, void* ptr)
+    {
+        std::memmove(ptr, source, MaxSize);                     // Raw memory access
         return {};
     }
 
@@ -170,6 +184,16 @@ public:
         ContainerWrapper wrapper(cont);
         unwindReadWrite<true, 0, sizeof(wrapper)>(&wrapper);
     }
+
+    /**
+     * Invalidates the stored data.
+     */
+    void erase()
+    {
+        ContainerWrapper wrapper;
+        std::memset(&wrapper, 0, sizeof(wrapper));
+        unwindReadWrite<true, 0, sizeof(wrapper)>(&wrapper);
+    }
 };
 
 } // namespace impl_
@@ -192,6 +216,8 @@ public:
  *     }
  *     // Writing data:
  *     marshaller.write(the_data);
+ *     // Erasing data:
+ *     marshaller.erase();
  *
  * @tparam Container                    Payload data type, i.e. a structure that should be stored or read.
  *
@@ -205,8 +231,8 @@ public:
  *                                      store exactly 4 bytes, etc. Supported pointer sizes are 8, 16, 32, and 64 bit.
  *
  * @return                              An instance of @ref impl_::AppSharedMarshaller<>.
- *                                      The returned instance supports methods read() and write() that can be used to
- *                                      read and write the storage, respectively.
+ *                                      The returned instance supports methods read(), write(), and erase(), that can
+ *                                      be used to read, write, and erase the storage, respectively.
  */
 template <
     typename Container,
