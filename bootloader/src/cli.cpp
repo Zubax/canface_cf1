@@ -19,13 +19,13 @@
 
 #include "usb_cdc.hpp"
 #include "cli.hpp"
-#include "bootloader/loaders/ymodem.hpp"
 #include <board/board.hpp>
 #include <unistd.h>
 #include <cstdio>
 #include <zubax_chibios/os.hpp>
 #include <zubax_chibios/util/base64.hpp>
 #include <zubax_chibios/util/shell.hpp>
+#include <zubax_chibios/bootloader/loaders/ymodem.hpp>
 #include <ch.hpp>
 #include <hal.h>
 

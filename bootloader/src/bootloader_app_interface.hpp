@@ -20,7 +20,7 @@
 #pragma once
 
 #include <hal.h>
-#include "bootloader/app_shared.hpp"
+#include <zubax_chibios/bootloader/app_shared.hpp>
 
 namespace bootloader_app_interface
 {

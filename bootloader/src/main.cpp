@@ -25,12 +25,11 @@
 #include <cstdlib>
 #include <zubax_chibios/os.hpp>
 #include <zubax_chibios/platform/stm32/flash_writer.hpp>
+#include <zubax_chibios/bootloader/bootloader.hpp>
 
 #include "board/board.hpp"
 #include "usb_cdc.hpp"
 #include "cli.hpp"
-#include "bootloader/bootloader.hpp"
-#include "bootloader/app_shared.hpp"
 #include "bootloader_app_interface.hpp"
 
 

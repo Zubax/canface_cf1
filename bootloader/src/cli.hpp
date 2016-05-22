@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "bootloader/bootloader.hpp"
+#include <zubax_chibios/bootloader/bootloader.hpp>
 
 
 namespace cli
