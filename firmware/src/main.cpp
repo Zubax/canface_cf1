@@ -30,6 +30,9 @@
 #include "usb_cdc.hpp"
 #include "can_bus.hpp"
 
+// This is ugly, do something better.
+#include "../../bootloader/src/bootloader_app_interface.hpp"
+
 
 namespace app
 {
@@ -598,6 +601,16 @@ class CommandProcessor
         return getASCIIStatusCode(true);
     }
 
+    const char* cmdBootloader(int, char**)
+    {
+        bootloader_app_interface::AppShared apsh;
+        apsh.stay_in_bootloader = true;
+        bootloader_app_interface::write(apsh);
+
+        reboot_requested = true;
+        return getASCIIStatusCode(true);
+    }
+
     static bool startsWith(const char* const str, const char* const prefix)
     {
         return std::strncmp(prefix, str, std::strlen(prefix)) == 0;
@@ -872,6 +885,10 @@ public:
         else if (startsWith(cmd, "_reboot"))
         {
             return processComplexCommand(cmd, &CommandProcessor::cmdReboot);
+        }
+        else if (startsWith(cmd, "_bootloader"))
+        {
+            return processComplexCommand(cmd, &CommandProcessor::cmdBootloader);
         }
         else
         {

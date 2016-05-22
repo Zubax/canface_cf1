@@ -72,6 +72,8 @@ os::watchdog::Timer init(unsigned watchdog_timeout_msec)
      */
     sdStart(&STDOUT_SD, nullptr);
 
+    DEBUG_LOG("STARTING BOOTLOADER\n");
+
     return wdt;
 }
 
