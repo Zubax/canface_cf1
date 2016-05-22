@@ -62,6 +62,7 @@ USE_LTO := yes
 
 SERIAL_CLI_PORT_NUMBER = 1
 
+RELEASE ?= 0
 RELEASE_OPT = -O3 -fomit-frame-pointer # -g3    # -g3 is needed for profiling
 DEBUG_OPT = -O2 -g3 -DDISABLE_WATCHDOG=1
 
@@ -83,7 +84,7 @@ BOOTLOADER_IMAGE := $(BOOTLOADER_DIR)/build/com.zubax.babel.bin
 # This rule hook is defined in the ChibiOS build system
 POST_MAKE_ALL_RULE_HOOK: build/$(PROJECT).bin build/$(PROJECT).elf
 	# Building the bootloader
-	+cd $(BOOTLOADER_DIR) && make
+	+cd $(BOOTLOADER_DIR) && make RELEASE=$(RELEASE)
 	
 	# Removing previous build outputs that could use a different git hash
 	rm -rf build/*.application.bin build/*.compound.bin
