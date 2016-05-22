@@ -51,8 +51,12 @@ struct AppShared
 };
 
 
+static_assert(sizeof(AppShared) <= 256, "AppShared is larger than the amount of allocated memory");
+
+
 static inline auto makeMarshaller()
 {
+    // Note that the first 256 bytes of SRAM are used for bootloader-app communication! See the linker script.
     return bootloader::app_shared::makeAppSharedMarshaller<AppShared>(reinterpret_cast<void*>(SRAM_BASE));
 }
 
