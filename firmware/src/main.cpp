@@ -82,11 +82,6 @@ struct ParamCache
     }
 } param_cache;
 
-/**
- * This global is set when an external reboot command is received.
- */
-bool reboot_requested = false;
-
 
 auto init()
 {
@@ -204,9 +199,10 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<512>
                 reloadConfigs();
             }
 
-            if (reboot_requested)
+            if (os::isRebootRequested())
             {
                 ::usleep(10000);        // Providing time to send the response
+                can::close();
                 NVIC_SystemReset();
             }
 
@@ -597,7 +593,7 @@ class CommandProcessor
 
     const char* cmdReboot(int, char**)
     {
-        reboot_requested = true;
+        os::requestReboot();
         return getASCIIStatusCode(true);
     }
 
@@ -607,7 +603,7 @@ class CommandProcessor
         apsh.stay_in_bootloader = true;
         bootloader_app_interface::write(apsh);
 
-        reboot_requested = true;
+        os::requestReboot();
         return getASCIIStatusCode(true);
     }
 
