@@ -26,8 +26,8 @@ __process_stack_size__  = 0x0400;
 
 MEMORY
 {
-    flash : org = 0x08008000, len = 94k /* The last sector is reserved for configuration */
-    ram   : org = 0x20000000, len = 24k
+    flash : org = 0x08008000, len = 94k                 /* The last sector is reserved for configuration */
+    ram   : org = 0x20000100, len = 24k - 256           /* 256 bytes reserved for bootloader-app interface */
 }
 
 

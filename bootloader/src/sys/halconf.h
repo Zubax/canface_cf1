@@ -43,7 +43,7 @@
 
 #define SERIAL_DEFAULT_BITRATE      115200
 // Large buffers are recommended for YMODEM with 1K blocks
-#define SERIAL_BUFFERS_SIZE         2048
-#define SERIAL_USB_BUFFERS_SIZE     2048
+#define SERIAL_BUFFERS_SIZE         1536
+#define SERIAL_USB_BUFFERS_SIZE     1536
 
 #include <zubax_chibios/sys/halconf_tail.h>

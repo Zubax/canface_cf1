@@ -26,8 +26,8 @@ __process_stack_size__  = 0x0400;
 
 MEMORY
 {
-    flash : org = 0x08000000, len = 32k - 256         /* 256 bytes are reserved for the signature */
-    ram   : org = 0x20000000, len = 24k
+    flash : org = 0x08000000, len = 32k - 256           /* 256 bytes are reserved for the signature */
+    ram   : org = 0x20000100, len = 24k - 256           /* 256 bytes reserved for bootloader-app interface */
 }
 
 
