@@ -37,10 +37,11 @@ namespace app
 {
 namespace
 {
-
-constexpr unsigned WatchdogTimeoutMSec = 1500;
-constexpr unsigned ApplicationBootDelayMSec = 4000;
-constexpr unsigned WatchdogTimeoutWhenBootingApplicationMSec = 10000;
+/**
+ * This watchdog timeout will be applied to the bootloader itself, and also to the application boot process.
+ * In other words, the application will have to reset the watchdog in this time after boot.
+ */
+constexpr unsigned WatchdogTimeoutMSec = 5000;
 
 /**
  * This class contains logic and hardcoded values that are SPECIFIC FOR THIS PARTICULAR MCU AND APPLICATION.
@@ -143,7 +144,7 @@ int main()
      */
     app::AppStorageBackend backend;
 
-    bootloader::Bootloader bl(backend, app::ApplicationBootDelayMSec);
+    bootloader::Bootloader bl(backend);
 
     cli::init(bl);
 
@@ -196,6 +197,8 @@ int main()
 
     // Actually the state may have been switched, but it's ok for debugging
     assert(bl.getState() == bootloader::State::ReadyToBoot);
+
+    watchdog.reset();           // The final reset, the application will have time to boot and init until next timeout
 
     board::bootApplication();
 }
