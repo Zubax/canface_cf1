@@ -987,13 +987,15 @@ int main()
         watchdog.reset();
 
         ::BaseChannel* const stdio_stream = os::getStdIOStream();
-        const bool using_usb = reinterpret_cast<::BaseChannel*>(stdio_stream) ==
-                               reinterpret_cast<::BaseChannel*>(usb_port);
-        std::size_t nread = using_usb ? usb_port->iqueue.q_counter : uart_port->iqueue.q_counter;
 
         static std::uint8_t buf[128];
-        nread = chnReadTimeout(stdio_stream, buf, std::max<std::size_t>(1, std::min<std::size_t>(sizeof(buf), nread)),
-                               MS2ST(ReadTimeoutMSec));
+
+        // First, read as much as possible without blocking to maximize throughput; if nothing is available, block
+        std::size_t nread = chnReadTimeout(stdio_stream, buf, sizeof(buf), TIME_IMMEDIATE);
+        if UNLIKELY(nread == 0)         // This branch will be taken only when traffic is low
+        {
+            nread = chnReadTimeout(stdio_stream, buf, 1, MS2ST(ReadTimeoutMSec));
+        }
 
         if LIKELY(nread > 0)
         {
@@ -1005,6 +1007,8 @@ int main()
         else
         {
             // Switching interfaces if necessary
+            const bool using_usb = reinterpret_cast<::BaseChannel*>(stdio_stream) ==
+                                   reinterpret_cast<::BaseChannel*>(usb_port);
             const bool usb_connected = usb_cdc::getState() == usb_cdc::State::Connected;
             if (using_usb != usb_connected)
             {

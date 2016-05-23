@@ -40,6 +40,7 @@
 #define HAL_USE_SPI                 FALSE
 #define HAL_USE_UART                FALSE
 #define HAL_USE_USB                 TRUE
+#define HAL_USE_WDG                 FALSE
 
 #define SERIAL_DEFAULT_BITRATE      115200
 // Large buffers are recommended for YMODEM with 1K blocks
