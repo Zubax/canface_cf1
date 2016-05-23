@@ -115,6 +115,33 @@ public:
     }
 };
 
+
+static inline std::pair<unsigned, unsigned> bootloaderStateToLEDOnOffDurationMSec(bootloader::State state)
+{
+    switch (state)
+    {
+    case bootloader::State::NoAppToBoot:
+    {
+        return {50, 50};
+    }
+    case bootloader::State::BootCancelled:
+    {
+        return {50, 950};
+    }
+    case bootloader::State::AppUpgradeInProgress:
+    {
+        return {500, 500};
+    }
+    case bootloader::State::BootDelay:
+    case bootloader::State::ReadyToBoot:
+    {
+        return {0, 0};
+    }
+    }
+    assert(false);
+    return {0, 0};
+}
+
 }
 }
 
@@ -168,11 +195,29 @@ int main()
     /*
      * Main loop
      */
-    while (!os::isRebootRequested() && (bl.getState() != bootloader::State::ReadyToBoot))
+    while (!os::isRebootRequested())
     {
         watchdog.reset();
-        (void)bl.getState();
-        ::sleep(1);
+
+        const auto bl_state = bl.getState();
+        if (bl_state == bootloader::State::ReadyToBoot)
+        {
+            break;
+        }
+
+        const auto duration = app::bootloaderStateToLEDOnOffDurationMSec(bl_state);
+        if (duration.first == 0 && duration.second == 0)
+        {
+            board::setTrafficLED(false);
+            chThdSleepMilliseconds(100);
+        }
+        else
+        {
+            board::setTrafficLED(true);
+            chThdSleepMilliseconds(duration.first);
+            board::setTrafficLED(false);
+            chThdSleepMilliseconds(duration.second);
+        }
     }
 
     watchdog.reset();
@@ -188,10 +233,9 @@ int main()
      */
     DEBUG_LOG("BOOTING APP\n");
 
-    os::requestReboot();        // Notifying other components that we're going down
-
-    board::setStatusLED(true);
     board::setTrafficLED(false);
+
+    os::requestReboot();        // Notifying other components that we're going down
 
     ::usleep(500000);           // Providing some time for other components to react
 
