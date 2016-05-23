@@ -329,6 +329,13 @@ static void usb_event(USBDriver* usbp, usbevent_t event)
     }
 }
 
+static void sof_handler(USBDriver*)
+{
+    chSysLockFromISR();
+    sduSOFHookI(&SDU1);
+    chSysUnlockFromISR();
+}
+
 /*
  * USB driver configuration.
  */
@@ -337,7 +344,7 @@ static const USBConfig usbcfg =
     usb_event,
     get_descriptor,
     sduRequestsHook,
-    NULL
+    sof_handler
 };
 
 /*
