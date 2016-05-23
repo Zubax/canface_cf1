@@ -711,6 +711,35 @@ public:
         }
 
         /*
+         * Complex commands
+         * These are handled before the single-letter SLCAN commands to avoid unwanted greedy matching
+         */
+        if (startsWith(cmd, "cfg"))
+        {
+            return processComplexCommand(cmd, &CommandProcessor::cmdConfig);
+        }
+        else if (startsWith(cmd, "zubax_id"))
+        {
+            return processComplexCommand(cmd, &CommandProcessor::cmdZubaxID);
+        }
+        else if (startsWith(cmd, "stat"))
+        {
+            return processComplexCommand(cmd, &CommandProcessor::cmdStat);
+        }
+        else if (startsWith(cmd, "bootloader"))
+        {
+            return processComplexCommand(cmd, &CommandProcessor::cmdBootloader);
+        }
+        else if (startsWith(cmd, "_reboot"))    // Starts with underscore because 'r' is greedily matched above
+        {
+            return processComplexCommand(cmd, &CommandProcessor::cmdReboot);
+        }
+        else
+        {
+            ;   // No handler
+        }
+
+        /*
          * Regular SLCAN commands
          */
         switch (cmd[0])
@@ -871,34 +900,6 @@ public:
         {
             break;
         }
-        }
-
-        /*
-         * Complex commands
-         */
-        if (startsWith(cmd, "cfg"))
-        {
-            return processComplexCommand(cmd, &CommandProcessor::cmdConfig);
-        }
-        else if (startsWith(cmd, "zubax_id"))
-        {
-            return processComplexCommand(cmd, &CommandProcessor::cmdZubaxID);
-        }
-        else if (startsWith(cmd, "_stat"))
-        {
-            return processComplexCommand(cmd, &CommandProcessor::cmdStat);
-        }
-        else if (startsWith(cmd, "_reboot"))
-        {
-            return processComplexCommand(cmd, &CommandProcessor::cmdReboot);
-        }
-        else if (startsWith(cmd, "_bootloader"))
-        {
-            return processComplexCommand(cmd, &CommandProcessor::cmdBootloader);
-        }
-        else
-        {
-            ;   // No handler
         }
 
         return getASCIIStatusCode(false);
