@@ -512,13 +512,12 @@ inline bool emitFrameRTRStd(const char* cmd)
 
 class CommandProcessor
 {
-    const char* cmdConfig(int argc, char** argv)
+    void cmdConfig(int argc, char** argv)
     {
         (void)os::config::executeCLICommand(argc - 1, &argv[1]);
-        return getASCIIStatusCode(true);
     }
 
-    const char* cmdZubaxID(int argc, char** argv)
+    void cmdZubaxID(int argc, char** argv)
     {
         if (argc == 1)
         {
@@ -552,24 +551,20 @@ class CommandProcessor
             if (!os::base64::decode(sign, encoded))
             {
                 std::puts("ERROR: Invalid base64");
-                return getASCIIStatusCode(false);
             }
 
             if (!board::tryWriteDeviceSignature(sign))
             {
                 std::puts("ERROR: Write failed");
-                return getASCIIStatusCode(false);
             }
         }
         else
         {
-            return getASCIIStatusCode(false);
+            std::puts("ERROR: Invalid usage");
         }
-
-        return getASCIIStatusCode(true);
     }
 
-    const char* cmdStat(int, char**)
+    void cmdStat(int, char**)
     {
         static constexpr auto FormatString = "%-22s: %s\n";
 
@@ -604,24 +599,20 @@ class CommandProcessor
         }
 
         std::printf("%-22s: %f\n", "bus_voltage", board::getBusVoltage());
-
-        return getASCIIStatusCode(true);
     }
 
-    const char* cmdReboot(int, char**)
+    void cmdReboot(int, char**)
     {
         os::requestReboot();
-        return getASCIIStatusCode(true);
     }
 
-    const char* cmdBootloader(int, char**)
+    void cmdBootloader(int, char**)
     {
         bootloader_app_interface::AppShared apsh;
         apsh.stay_in_bootloader = true;
         bootloader_app_interface::write(apsh);
 
         os::requestReboot();
-        return getASCIIStatusCode(true);
     }
 
     static bool startsWith(const char* const str, const char* const prefix)
@@ -629,7 +620,7 @@ class CommandProcessor
         return std::strncmp(prefix, str, std::strlen(prefix)) == 0;
     }
 
-    const char* processComplexCommand(char* buf, const char* (CommandProcessor::*handler)(int, char**))
+    const char* processComplexCommand(char* buf, void (CommandProcessor::*handler)(int, char**))
     {
         // Replying with echo
         std::puts(buf);
@@ -680,9 +671,11 @@ class CommandProcessor
         // Invoking the handler
         if (args[0] != nullptr)
         {
-            return (this->*handler)(idx, args);
+            (this->*handler)(idx, args);
         }
-        return getASCIIStatusCode(false);
+
+        // Returning the end of the multi-line response marker
+        return "\x03\r\n\x03\r\n";
     }
 
     static inline const char* getASCIIStatusCode(bool status) { return status ? "\r" : "\a"; }
