@@ -701,8 +701,8 @@ public:
         {
             return emitFrameRTRExt(cmd) ? "Z\r" : "\a";
         }
-        else if LIKELY(cmd[0] == 'r')
-        {
+        else if LIKELY(cmd[0] == 'r' && cmd[1] <= '9')  // The second condition is needed to avoid greedy matching
+        {                                               // See long commands below
             return emitFrameRTRStd(cmd) ? "z\r" : "\a";
         }
         else
@@ -730,7 +730,7 @@ public:
         {
             return processComplexCommand(cmd, &CommandProcessor::cmdBootloader);
         }
-        else if (startsWith(cmd, "_reboot"))    // Starts with underscore because 'r' is greedily matched above
+        else if (startsWith(cmd, "reboot"))
         {
             return processComplexCommand(cmd, &CommandProcessor::cmdReboot);
         }
