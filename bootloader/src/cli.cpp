@@ -70,24 +70,28 @@ class ZubaxIDCommand : public os::shell::ICommandHandler
         ios.print("bl_vcs_commit: %u\n", GIT_HASH);
         ios.print("bl_build_date: %s\n", __DATE__);
 
-        auto hw_version = board::detectHardwareVersion();
-        ios.print("hw_version   : '%u.%u'\n", hw_version.major, hw_version.minor);
-
-        char base64_buf[os::base64::predictEncodedDataLength(std::tuple_size<board::DeviceSignature>::value) + 1];
-
-        ios.print("hw_unique_id : '%s'\n", os::base64::encode(board::readUniqueID(), base64_buf));
-
-        board::DeviceSignature signature;
-        if (board::tryReadDeviceSignature(signature))
         {
-            ios.print("hw_signature : '%s'\n", os::base64::encode(signature, base64_buf));
+            auto hw_version = board::detectHardwareVersion();
+            ios.print("hw_version   : '%u.%u'\n", hw_version.major, hw_version.minor);
+        }
+
+        {
+            char base64_buf[os::base64::predictEncodedDataLength(std::tuple_size<board::DeviceSignature>::value) + 1];
+
+            ios.print("hw_unique_id : '%s'\n", os::base64::encode(board::readUniqueID(), base64_buf));
+
+            board::DeviceSignature signature;
+            if (board::tryReadDeviceSignature(signature))
+            {
+                ios.print("hw_signature : '%s'\n", os::base64::encode(signature, base64_buf));
+            }
         }
 
         assert(g_bootloader_ != nullptr);
         const auto appinfo = g_bootloader_->getAppInfo();
         if (appinfo.second)
         {
-            const auto inf = appinfo.first;
+            const auto& inf = appinfo.first;
             ios.print("fw_version   : '%u.%u'\n", inf.major_version, inf.minor_version);
             ios.print("fw_vcs_commit: %u\n", inf.vcs_commit);
         }

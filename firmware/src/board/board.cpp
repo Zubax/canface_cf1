@@ -22,6 +22,7 @@
 #include <ch.hpp>
 #include <hal.h>
 #include <unistd.h>
+#include <zubax_chibios/platform/stm32/flash_writer.hpp>
 
 /// PAL setup
 const ::PALConfig pal_default_config =
@@ -207,18 +208,33 @@ UniqueID readUniqueID()
 bool tryReadDeviceSignature(DeviceSignature& out_sign)
 {
     std::memcpy(out_sign.data(), &DeviceSignatureStorage[0], std::tuple_size<DeviceSignature>::value);
-
-    bool valid = false;
     for (auto x : out_sign)
     {
         if (x != 0xFF && x != 0x00)          // All 0xFF/0x00 is not a valid signature, it's empty storage
         {
-            valid = true;
-            break;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool tryWriteDeviceSignature(const DeviceSignature& sign)
+{
+    {
+        DeviceSignature dummy;
+        if (tryReadDeviceSignature(dummy))
+        {
+            return false;               // Already written
         }
     }
 
-    return valid;
+    // Before flash can be written, the source must be aligned.
+    alignas(4) std::uint8_t aligned_buffer[std::tuple_size<DeviceSignature>::value];
+    std::copy(std::begin(sign), std::end(sign), std::begin(aligned_buffer));
+
+    os::stm32::FlashWriter writer;
+
+    return writer.write(&DeviceSignatureStorage[0], &aligned_buffer[0], sizeof(aligned_buffer));
 }
 
 HardwareVersion detectHardwareVersion()

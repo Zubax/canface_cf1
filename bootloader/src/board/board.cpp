@@ -146,7 +146,6 @@ UniqueID readUniqueID()
 bool tryReadDeviceSignature(DeviceSignature& out_sign)
 {
     std::memcpy(out_sign.data(), &DeviceSignatureStorage[0], std::tuple_size<DeviceSignature>::value);
-
     for (auto x : out_sign)
     {
         if (x != 0xFF && x != 0x00)          // All 0xFF/0x00 is not a valid signature, it's empty storage
@@ -154,8 +153,7 @@ bool tryReadDeviceSignature(DeviceSignature& out_sign)
             return true;
         }
     }
-
-    return true;
+    return false;
 }
 
 HardwareVersion detectHardwareVersion()

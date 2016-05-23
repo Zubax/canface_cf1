@@ -529,20 +529,37 @@ class CommandProcessor
             std::printf("sw_vcs_commit: %u\n", unsigned(GIT_HASH));
             std::printf("sw_build_date: %s\n", __DATE__);
 
-            auto hw_version = board::detectHardwareVersion();
-            std::printf("hw_version   : '%u.%u'\n", hw_version.major, hw_version.minor);
+            {
+                auto hw_version = board::detectHardwareVersion();
+                std::printf("hw_version   : '%u.%u'\n", hw_version.major, hw_version.minor);
+            }
 
             char base64_buf[os::base64::predictEncodedDataLength(std::tuple_size<board::DeviceSignature>::value) + 1];
 
-            const auto uid = board::readUniqueID();
-            std::printf("hw_unique_id : '%s'\n", os::base64::encode(uid, base64_buf));
+            std::printf("hw_unique_id : '%s'\n", os::base64::encode(board::readUniqueID(), base64_buf));
 
-            // TODO: read and report the signature
+            board::DeviceSignature signature;
+            if (board::tryReadDeviceSignature(signature))
+            {
+                std::printf("hw_signature : '%s'\n", os::base64::encode(signature, base64_buf));
+            }
         }
         else if (argc == 2)
         {
-            // TODO: signature installation
-            (void)argv;
+            const char* const encoded = argv[1];
+            board::DeviceSignature sign;
+
+            if (!os::base64::decode(sign, encoded))
+            {
+                std::puts("ERROR: Invalid base64");
+                return getASCIIStatusCode(false);
+            }
+
+            if (!board::tryWriteDeviceSignature(sign))
+            {
+                std::puts("ERROR: Write failed");
+                return getASCIIStatusCode(false);
+            }
         }
         else
         {
