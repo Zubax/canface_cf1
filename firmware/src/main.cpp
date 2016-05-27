@@ -675,7 +675,7 @@ class CommandProcessor
         }
 
         // Returning the end of the multi-line response marker
-        return "\x03\r\n\x03\r\n";
+        return "\x03\r\n";
     }
 
     static inline const char* getASCIIStatusCode(bool status) { return status ? "\r" : "\a"; }
