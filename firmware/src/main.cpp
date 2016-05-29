@@ -598,7 +598,7 @@ class CommandProcessor
             STAT_PRINT_ONE_KEY(statistics, tx_mailbox_peak_usage)
         }
 
-        std::printf("%-22s: %f\n", "bus_voltage", board::getBusVoltage());
+        std::printf("%-22s: %.1f\n", "bus_voltage", board::getBusVoltage());
     }
 
     void cmdReboot(int, char**)
