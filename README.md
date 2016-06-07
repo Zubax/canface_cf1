@@ -1,10 +1,32 @@
-# Zubax CAN adapter
+# Zubax Babel
 
-Add the following info:
+Zubax Babel is a high performance USB-CAN and UART-CAN adapter that can be used as a standalone device or as an embeddable
+module for original equipment manufacturers (OEM).
+Zubax Babel implements the quasi-standard SLCAN protocol that is understood by most CAN software products,
+including the Linux SocketCAN framework.
+If Zubax Babel is used with [UAVCAN](http://uavcan.org),
+we recommend to use the [UAVCAN GUI Tool](https://github.com/UAVCAN/gui_tool),
+which fully supports all of the advanced features available in Zubax Babel.
 
-- Description
-- Links to docs and product page
-- Building and flashing instructions
+## Features
+
+* Standard SLCAN (aka LAWICEL) protocol
+* CAN 2.0 A/B 10kbps to 1Mbps
+([DroneCode/UAVCAN standard CAN connectors](http://uavcan.org/Specification/8._Hardware_design_recommendations))
+* USB 2.0 full speed (CDC ACM) (Micro USB type B)
+* TTL UART (5V tolerant) 2400 to 3000000 baud/sec
+([DroneCode standard connector](https://wiki.dronecode.org/workgroup/connectors/start#dcd-mini))
+* Embedded 120 Ohm CAN termination resistor that can be enabled and disabled programmatically
+* Optional 5 V / 400 mA bus power supply that can be enabled and disabled programmatically
+* Bus voltage measurement
+* Can be used as an OEM module or as a demoboard
+* Embedded bootloader supporting standard XMODEM/YMODEM over USB and UART
+
+**This is a work-in-progress repo.**
+
+TODO: Add links to docs and product page.
+
+TODO: Add building and flashing instructions.
 
 ## Firmware
 
@@ -17,6 +39,10 @@ Add the following info:
 
 Article on passive delay compensation algorithm - relevant for CAN frame timestamp recovery on the host side:
 [A Passive Solution to the Sensor Synchronization Problem, by Edwin Olson](https://april.eecs.umich.edu/pdfs/olson2010.pdf).
+This algoritm is employed in the SLCAN backend in [PyUAVCAN library](http://uavcan.org/Implementations/Pyuavcan).
+
+Also see the enclosed file documenting the common features of the SLCAN protocol: 
+[Generic_SLCAN_API.pdf](Generic_SLCAN_API.pdf).
 
 ## License
 
