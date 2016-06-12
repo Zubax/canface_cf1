@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <zubax_chibios/os.hpp>
 #include <zubax_chibios/util/base64.hpp>
+#include <chprintf.h>
 
 #include "board/board.hpp"
 #include "usb_cdc.hpp"
@@ -535,7 +536,15 @@ class CommandProcessor
 
             char base64_buf[os::base64::predictEncodedDataLength(std::tuple_size<board::DeviceSignature>::value) + 1];
 
-            std::printf("hw_unique_id : '%s'\n", os::base64::encode(board::readUniqueID(), base64_buf));
+            const auto uid = board::readUniqueID();
+            std::printf("hw_unique_id : '%s'\n", os::base64::encode(uid, base64_buf));
+
+            std::memset(&base64_buf[0], 0, sizeof(base64_buf));
+            for (unsigned i = 0; i < uid.size(); i++)
+            {
+                chsnprintf(&base64_buf[i * 2], 3, "%02x", uid[i]);
+            }
+            std::printf("hw_info_url  : http://device.zubax.com/device_info?uid=%s\n", &base64_buf[0]);
 
             board::DeviceSignature signature;
             if (board::tryReadDeviceSignature(signature))
