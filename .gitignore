@@ -24,5 +24,8 @@ __pycache__
 .cproject
 .pydevproject
 
+# JetBrains stuff
+.idea
+
 # Libs
 dsdlc_generated
