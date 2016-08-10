@@ -22,7 +22,7 @@ sys.path.insert(1, os.path.join(sys.path[0], 'pyuavcan'))
 
 from drwatson import init, run, make_api_context_with_user_provided_credentials, execute_shell_command,\
     info, error, input, CLIWaitCursor, download, abort, glob_one, download_newest, open_serial_port,\
-    enforce, fatal, imperative, load_firmware_via_gdb, BackgroundSpinner
+    enforce, fatal, load_firmware_via_gdb, BackgroundSpinner
 import drwatson.can
 import logging
 import time
@@ -32,7 +32,7 @@ import re
 from base64 import b64decode, b64encode
 from contextlib import closing
 import random
-
+import binascii
 import uavcan
 import uavcan.driver
 
@@ -225,11 +225,15 @@ def process_one_device(set_device_info):
     if not skip_fw_upload:
         info('Loading the firmware')
         with CLIWaitCursor():
-            load_firmware_via_gdb(firmware_data,
-                                  toolchain_prefix=TOOLCHAIN_PREFIX,
-                                  load_offset=FLASH_OFFSET,
-                                  gdb_port=glob_one(DEBUGGER_PORT_GDB_GLOB),
-                                  gdb_monitor_scan_command='swdp_scan')
+            try:
+                load_firmware_via_gdb(firmware_data,
+                                      toolchain_prefix=TOOLCHAIN_PREFIX,
+                                      load_offset=FLASH_OFFSET,
+                                      gdb_port=glob_one(DEBUGGER_PORT_GDB_GLOB),
+                                      gdb_monitor_scan_command='swdp_scan')
+            except Exception as ex:
+                logging.info('Firmware load error', exc_info=True)
+                fatal('Could not load firmware; check the debug connector; error: %r', ex)
     else:
         info('Firmware upload skipped')
 
@@ -243,6 +247,7 @@ def process_one_device(set_device_info):
         zubax_id = read_zubax_id(drv_target)
         unique_id = b64decode(zubax_id['hw_unique_id'])
         product_id = zubax_id['product_id']
+        assert PRODUCT_NAME == product_id
         set_device_info(product_id, unique_id)
 
         info('Configuring the adapter...')
@@ -320,7 +325,32 @@ def process_one_device(set_device_info):
             enforce(input('Is LED4 (activity, GREEN) blinking quickly?', yes_no=True),
                     'Activity LED is not working, or the bus has been disconnected')
 
+        info('Resetting configuration to factory defaults...')
+        drv_target.execute_cli_command('cfg erase')
+
         info('Installing signature...')
+
+        # Getting the signature
+        info('Requesting signature for unique ID %s', binascii.hexlify(unique_id).decode())
+        gen_sign_response = licensing_api.generate_signature(unique_id, PRODUCT_NAME)
+        if gen_sign_response.new:
+            info('New signature has been generated')
+        else:
+            info('This particular device has been signed earlier, reusing existing signature')
+        base64_signature = b64encode(gen_sign_response.signature).decode()
+        logger.info('Generated signature in Base64: %s', base64_signature)
+
+        # Installing the signature; this may fail if the device has been signed earlier - the failure will be ignored
+        out = drv_target.execute_cli_command('zubax_id %s' % base64_signature)
+        logger.debug('Signature installation response (may fail, which is OK): %r', out)
+
+        # Reading the signature back and verifying it
+        installed_signature = read_zubax_id(drv_target)['hw_signature']
+        logger.info('Installed signature in Base64: %s', installed_signature)
+        enforce(b64decode(installed_signature) == gen_sign_response.signature,
+                'Written signature does not match the generated signature')
+
+        info('Signature has been installed and verified')
 
 
 run(licensing_api, process_one_device)
