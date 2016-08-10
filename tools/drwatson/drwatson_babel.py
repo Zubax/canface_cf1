@@ -22,18 +22,19 @@ sys.path.insert(1, os.path.join(sys.path[0], 'pyuavcan'))
 
 from drwatson import init, run, make_api_context_with_user_provided_credentials, execute_shell_command,\
     info, error, input, CLIWaitCursor, download, abort, glob_one, download_newest, open_serial_port,\
-    enforce, SerialCLI, BackgroundSpinner, fatal, BackgroundDelay, imperative, \
-    load_firmware_via_gdb, convert_units_from_to, BackgroundCLIListener
+    enforce, fatal, imperative, load_firmware_via_gdb, BackgroundSpinner
+import drwatson.can
 import logging
 import time
 import yaml
-import binascii
-import uavcan
 import glob
 import re
 from base64 import b64decode, b64encode
-from contextlib import closing, contextmanager
-from functools import partial
+from contextlib import closing
+import random
+
+import uavcan
+import uavcan.driver
 
 
 PRODUCT_NAME = 'com.zubax.babel'
@@ -47,7 +48,9 @@ BOOT_TIMEOUT = 10
 END_OF_BOOT_LOG_TIMEOUT = 3
 
 BUS_VOLTAGE_RANGE_ON = 4, 6
-BUS_VOLTAGE_RANGE_OFF = 0, 1
+BUS_VOLTAGE_RANGE_OFF = 0, 2
+
+NUM_TEST_FRAMES = 1000
 
 
 logger = logging.getLogger('main')
@@ -100,10 +103,16 @@ SLCAN_ADAPTER_UID_LOWERCASE = resolve_adapter_uid().lower()
 
 
 def get_target_serial_port_symlink():
+    out = None
     for p in glob.glob('/dev/serial/by-id/*'):
         if ('zubax' in p.lower()) and ('babel' in p.lower()) and (SLCAN_ADAPTER_UID_LOWERCASE not in p.lower()):
-            logger.debug('Detected target serial port symlink: %r', p)
-            return p
+            enforce(not out,
+                    'More than one target detected; make sure no extra hardware is attached to this computer\n'
+                    '%r, %r', out, p)
+            out = p
+
+    logger.debug('Detected target serial port symlink: %r', out)
+    return out
 
 
 def wait_for_boot():
@@ -124,32 +133,29 @@ def wait_for_boot():
             info('Boot successful')
             return
 
+        time.sleep(1)
+
     abort('The serial port of the device did not appear in the system.'
           'This may indicate that the device could not boot or that the USB connection to it is not working properly.'
           "Please double check the cabling. If it still doesn't work, the device must be broken.")
 
 
-def init_can_iface():
+def prepare_can_iface():
     if '/' not in args.iface:
         logger.debug('Using iface %r as SocketCAN', args.iface)
         execute_shell_command('ifconfig %s down && ip link set %s up type can bitrate %d sample-point 0.875',
                               args.iface, args.iface, CAN_BITRATE)
-        return args.iface
     else:
         logger.debug('Using iface %r as SLCAN', args.iface)
-
         # We don't want the SLCAN daemon to interfere...
         execute_shell_command('killall -INT slcand &> /dev/null', ignore_failure=True)
         time.sleep(1)
-
         # Making sure the interface can be open
         with open(args.iface, 'bw') as _f:
             pass
 
-        return args.iface
 
-
-def check_interfaces():
+def check_and_prepare_interfaces():
     ok = True
 
     def test_serial_port(glob, name):
@@ -165,7 +171,7 @@ def check_interfaces():
     ok = test_serial_port(DEBUGGER_PORT_GDB_GLOB, 'GDB') and ok
     ok = test_serial_port(DEBUGGER_PORT_CLI_GLOB, 'CLI') and ok
     try:
-        init_can_iface()
+        prepare_can_iface()
         info('CAN interface is OK')
     except Exception:
         logging.debug('CAN check error', exc_info=True)
@@ -177,7 +183,7 @@ def check_interfaces():
               'If this application is running on a virtual machine, make sure that hardware '
               'sharing is configured correctly.')
 
-check_interfaces()
+check_and_prepare_interfaces()
 
 licensing_api = make_api_context_with_user_provided_credentials()
 
@@ -188,6 +194,24 @@ with CLIWaitCursor():
     else:
         firmware_data = download_newest(DEFAULT_FIRMWARE_GLOB)
     assert 30 < (len(firmware_data) / 1024) <= 240, 'Invalid firmware size'
+
+
+def read_zubax_id(drv: drwatson.can.SLCAN):
+    zubax_id_lines = drv.execute_cli_command('zubax_id')
+    try:
+        zubax_id = yaml.load(zubax_id_lines)
+    except Exception:
+        logger.info('Could not parse YAML: %r', zubax_id_lines)
+        raise
+    logger.info('Zubax ID: %r', zubax_id)
+    return zubax_id
+
+
+def make_random_can_frame():
+    extended = random.choice([True, False])
+    can_id = random.randrange(0, 2**(29 if extended else 11))
+    data = bytes(random.randint(0, 255) for _ in range(random.randint(0, 8)))
+    return uavcan.driver.CANFrame(can_id=can_id, data=data, extended=extended)
 
 
 def process_one_device(set_device_info):
@@ -212,9 +236,91 @@ def process_one_device(set_device_info):
     info('Waiting for the device to boot...')
     wait_for_boot()
 
-    # TODO: Test CAN interface (enable the terminator first!)
-    # TODO: Test power supply
-    # TODO: Test UART (requires an external power supply via CAN)
+    with closing(drwatson.can.SLCAN(get_target_serial_port_symlink(),
+                                    bitrate=CAN_BITRATE,
+                                    default_timeout=1)) as drv_target:
+        info('Reading Zubax ID...')
+        zubax_id = read_zubax_id(drv_target)
+        unique_id = b64decode(zubax_id['hw_unique_id'])
+        product_id = zubax_id['product_id']
+        set_device_info(product_id, unique_id)
+
+        info('Configuring the adapter...')
+
+        drv_target.execute_cli_command('cfg set can.terminator_on 1')  # Terminator ON
+
+        logger.info('Adapter state:\n%s', drv_target.execute_cli_command('stat'))
+
+        with closing(uavcan.driver.make_driver(args.iface, bitrate=CAN_BITRATE)) as drv_test:
+            random_frames = [make_random_can_frame() for _ in range(NUM_TEST_FRAMES)]
+
+            info('Testing CAN bus exchange: target --> test')
+            for idx, rf in enumerate(random_frames):
+                drv_target.send(rf.id, rf.data, rf.extended)
+                received = drv_test.receive(1)
+                enforce(received is not None, 'Timeout when trying to receive frame %d', idx + 1)
+                enforce(received.extended == rf.extended and
+                        received.data == rf.data and
+                        received.id == rf.id,
+                        'Received frame %d [%r] does not match the reference [%r]', idx + 1, received, rf)
+
+            info('Testing CAN bus exchange: test --> target')
+            for idx, rf in enumerate(random_frames):
+                drv_test.send(rf.id, rf.data, rf.extended)
+                try:
+                    received = drv_target.receive(1)
+                except TimeoutError:
+                    fatal('Timeout when trying to receive frame %d', idx + 1)
+                enforce(received['ext'] == rf.extended and
+                        received['data'] == rf.data and
+                        received['id'] == rf.id,
+                        'Received frame %d [%r] does not match the reference [%r]', idx + 1, received, rf)
+
+            info('Test exchange OK (2x%d frames)', len(random_frames))
+
+        info('Testing power supply...')
+
+        drv_target.execute_cli_command('cfg set can.power_on 0')       # Bus power OFF
+        time.sleep(2)
+        stat = yaml.load(drv_target.execute_cli_command('stat'))
+        enforce(BUS_VOLTAGE_RANGE_OFF[0] <= stat['bus_voltage'] <= BUS_VOLTAGE_RANGE_OFF[1],
+                'Invalid voltage on the bus (power is turned OFF): %r volts; '
+                'there may be a short circuit on the board', stat['bus_voltage'])
+        info('Bus voltage: %r', stat['bus_voltage'])
+
+        drv_target.execute_cli_command('cfg set can.power_on 1')       # Bus power ON
+        time.sleep(2)
+        stat = yaml.load(drv_target.execute_cli_command('stat'))
+        enforce(BUS_VOLTAGE_RANGE_ON[0] <= stat['bus_voltage'] <= BUS_VOLTAGE_RANGE_ON[1],
+                'Invalid voltage on the bus (power is turned ON): %r volts; '
+                'the power supply circuit is malfunctioning', stat['bus_voltage'])
+        info('Bus voltage: %r', stat['bus_voltage'])
+
+        info('Power supply is OK')
+
+        info('Testing LED indicators...')
+        # LED1 - CAN Power      - Red
+        # LED2 - Terminator ON  - Orange
+        # LED3 - Status         - Blue
+        # LED4 - CAN Activity   - Green
+        enforce(input('Is LED1 (CAN power, RED) turned on?', yes_no=True),
+                'CAN Power LED is not working')
+
+        enforce(input('Is LED2 (terminator, ORANGE) turned on?', yes_no=True),
+                'Terminator and/or its LED are not working')
+
+        enforce(input('Is LED3 (status, BLUE) blinking about once a second?', yes_no=True),
+                'Status LED is not working')
+
+        def generate_traffic():
+            drv_target.send(0, b'', False)
+            time.sleep(0.2)
+
+        with BackgroundSpinner(generate_traffic):
+            enforce(input('Is LED4 (activity, GREEN) blinking quickly?', yes_no=True),
+                    'Activity LED is not working, or the bus has been disconnected')
+
+        info('Installing signature...')
 
 
 run(licensing_api, process_one_device)
