@@ -95,17 +95,19 @@ def resolve_adapter_uid():
             except IndexError:
                 uid = None
             logger.debug('SLCAN adapter port: %r --> %r, UID: %r', p, p_real, uid)
-            return uid
+            return uid.lower()
 
     fatal('Could not determine UID of the SLCAN adapter')
 
-SLCAN_ADAPTER_UID_LOWERCASE = resolve_adapter_uid().lower()
+SLCAN_ADAPTER_UID_LOWERCASE = resolve_adapter_uid()
 
 
 def get_target_serial_port_symlink():
     out = None
     for p in glob.glob('/dev/serial/by-id/*'):
-        if ('zubax' in p.lower()) and ('babel' in p.lower()) and (SLCAN_ADAPTER_UID_LOWERCASE not in p.lower()):
+        if SLCAN_ADAPTER_UID_LOWERCASE and (SLCAN_ADAPTER_UID_LOWERCASE in p.lower()):
+            continue
+        if ('zubax' in p.lower()) and ('babel' in p.lower()):
             enforce(not out,
                     'More than one target detected; make sure no extra hardware is attached to this computer\n'
                     '%r, %r', out, p)
