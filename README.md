@@ -1,10 +1,10 @@
-# Zubax Babel
+# [Zubax Babel](https://docs.zubax.com/zubax_babel)
 
-Zubax Babel is a high performance USB-CAN and UART-CAN adapter that can be used as a standalone device or as an embeddable
-module for original equipment manufacturers (OEM).
-Zubax Babel implements the quasi-standard SLCAN protocol that is understood by most CAN software products,
-including the Linux SocketCAN framework.
-If Zubax Babel is used with [UAVCAN](http://uavcan.org),
+Zubax Babel is a high performance USB-CAN and UART-CAN adapter that can be used as a
+standalone device or as an embeddable module for original equipment manufacturers (OEM).
+Zubax Babel implements the quasi-standard SLCAN protocol (aka LAWICEL protocol) that is understood by
+most CAN software products, including the Linux SocketCAN framework.
+If Zubax Babel is used with [UAVCAN](http://uavcan.org) networks,
 we recommend to use the [UAVCAN GUI Tool](https://github.com/UAVCAN/gui_tool),
 which fully supports all of the advanced features available in Zubax Babel.
 
@@ -12,17 +12,18 @@ which fully supports all of the advanced features available in Zubax Babel.
 
 ## Features
 
-* Standard SLCAN (aka LAWICEL) protocol
-* CAN 2.0 A/B 10kbps to 1Mbps
-([DroneCode/UAVCAN standard CAN connectors](http://uavcan.org/Specification/8._Hardware_design_recommendations))
-* USB 2.0 full speed (CDC ACM) (Micro USB type B)
+* Standard SLCAN (aka LAWICEL) protocol.
+* CAN 2.0 A/B 10 kbps to 1 Mbps
+([DroneCode/UAVCAN standard CAN connectors](http://uavcan.org/Specification/8._Hardware_design_recommendations)).
+* USB 2.0 full speed (CDC ACM) (Micro USB type B).
 * TTL UART (5V tolerant) 2400 to 3000000 baud/sec
-([DroneCode standard connector](https://wiki.dronecode.org/workgroup/connectors/start#dcd-mini))
-* Embedded 120 Ohm CAN termination resistor that can be enabled and disabled programmatically
-* Optional 5 V / 400 mA bus power supply that can be enabled and disabled programmatically
-* Bus voltage measurement
-* Can be used as an OEM module or as a demoboard
-* Embedded bootloader supporting standard XMODEM/YMODEM over USB and UART
+([DroneCode standard connector](https://wiki.dronecode.org/workgroup/connectors/start#dcd-mini)).
+* Can be used as an OEM module or as a demoboard.
+* Embedded bootloader supporting standard XMODEM/YMODEM over USB and UART.
+* Embedded 120&#8486; CAN termination resistor that can be enabled and disabled programmatically.
+* Optional 5 V / 400 mA bus power supply that can be enabled and disabled programmatically.
+* Bus voltage measurement.
+* Can be powered from USB, UART, CAN, or from the SMD pads.
 
 ## Relevant information
 
@@ -95,7 +96,7 @@ For example:
 sz -vv --ymodem --1k $file > $port < $port
 ```
 
-The steps above are automated with the script `./zubax_chibios/tools/flash_via_serial_bootloader.sh`.
+The steps above are automated with the script `firmware/zubax_chibios/tools/flash_via_serial_bootloader.sh`.
 
 ### Hardware timer usage
 
