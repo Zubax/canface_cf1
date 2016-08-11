@@ -8,6 +8,8 @@ If Zubax Babel is used with [UAVCAN](http://uavcan.org),
 we recommend to use the [UAVCAN GUI Tool](https://github.com/UAVCAN/gui_tool),
 which fully supports all of the advanced features available in Zubax Babel.
 
+[**READ THE DOCUMENTATION HERE**](https://docs.zubax.com/zubax_babel).
+
 ## Features
 
 * Standard SLCAN (aka LAWICEL) protocol
@@ -22,27 +24,83 @@ which fully supports all of the advanced features available in Zubax Babel.
 * Can be used as an OEM module or as a demoboard
 * Embedded bootloader supporting standard XMODEM/YMODEM over USB and UART
 
-**This is a work-in-progress repo.**
-
-TODO: Add links to docs and product page.
-
-TODO: Add building and flashing instructions.
-
-## Firmware
-
-### Hardware timer usage
-
-* TIM2 (32-bit) - System tick timer (ChibiOS default, see `STM32_ST_TIM`)
-* TIM5 (32-bit) - CAN timestamping
-
 ## Relevant information
 
 Article on passive delay compensation algorithm - relevant for CAN frame timestamp recovery on the host side:
 [A Passive Solution to the Sensor Synchronization Problem, by Edwin Olson](https://april.eecs.umich.edu/pdfs/olson2010.pdf).
 This algoritm is employed in the SLCAN backend in [PyUAVCAN library](http://uavcan.org/Implementations/Pyuavcan).
 
-Also see the enclosed file documenting the common features of the SLCAN protocol: 
+Also see the enclosed file documenting the common features of the SLCAN protocol:
 [Generic_SLCAN_API.pdf](Generic_SLCAN_API.pdf).
+
+## Firmware
+
+### Building
+
+Install ARM GCC toolchain version 4.9 or newer.
+Clone this repository, init all submodules (`git submodule update --init --recursive`),
+then execute the following from the repository root:
+
+```bash
+cd firmware
+make -j8 RELEASE=1   # Omit RELEASE=1 to build the debug version
+```
+
+Invoking make from the firmware directory will also build the bootloader.
+The option `RELEASE` defaults to 0 (off); when set to a non-zero value,
+it will build the firmware in release configuration rather than debug configuration.
+Debug configuration adds a bunch of runtime checks, which make things slower,
+so it should be used only for development purposes.
+
+When the firmware is built, the `build` directory will contain the following files:
+
+* `com.zubax.*.application.bin` - application binary suitable for loading via the bootloader,
+with correct firmware descriptor and CRC.
+* `com.zubax.*.compound.bin` - above image combined with the bootloader; can be flashed on an empty MCU.
+* `compound.elf` - ELF file with embedded bootloader and correct image CRC; can be used for symbol debugging.
+Since this ELF includes the bootloader and has a correct firmware descriptor,
+it can be flashed and executed directly with an SWD debugger, no extra steps required.
+
+### Loading
+
+#### Via the Debug Port
+
+Use [Zubax DroneCode Probe](https://docs.zubax.com/dronecode_probe) or any other JTAG/SWD debugger.
+This helper script should do everything automatically (execute from the firmware directory):
+
+```bash
+./zubax_chibios/tools/blackmagic_flash.sh
+```
+
+#### Via the USB/UART Bootloader
+
+The bootloader selects between USB and UART (DroneCode debug port) automatically:
+if USB is connected, it will be used, and the UART will be ignored;
+if USB is not connected, UART will be used instead.
+UART in the bootloader operates at 115200-8N1, fixed.
+
+1. Connect to the device's CLI via USB virtual serial port or via UART (if USB is not connected),
+and execute `bootloader` to enter the bootloader. The device will restart.
+2. Immediately after reboot, the device will enter the bootloader and stick there.
+Note that if the bootloader can't find a correct firmware image in the memory,
+it will never pass the control to the firmware, so in this case the first step should be skipped.
+You can always detect if the device is in the bootloader or in the application by executing `zubax_id`:
+if it's running the bootloader, there will be a field `mode` set to the value `bootloader`.
+Also the status LED will be glowing solid rather than blinking or being turned off.
+3. In the bootloader's CLI execute `download`. This will start the X/YMODEM receiver.
+Transmit the firmware image into the serial port using either YMODEM, XMODEM, or XMODEM-1K.
+For example:
+
+```bash
+sz -vv --ymodem --1k $file > $port < $port
+```
+
+The steps above are automated with the script `./zubax_chibios/tools/flash_via_serial_bootloader.sh`.
+
+### Hardware timer usage
+
+* TIM2 (32-bit) - System tick timer (ChibiOS default, see `STM32_ST_TIM`)
+* TIM5 (32-bit) - CAN timestamping
 
 ## License
 
