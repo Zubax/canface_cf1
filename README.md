@@ -1,5 +1,7 @@
 # [Zubax Babel](https://docs.zubax.com/zubax_babel)
 
+[![Join the chat at https://gitter.im/Zubax/general](https://img.shields.io/badge/GITTER-join%20chat-green.svg)](https://gitter.im/Zubax/general)
+
 Zubax Babel is a high performance USB-CAN and UART-CAN adapter that can be used as a
 standalone device or as an embeddable module for original equipment manufacturers (OEM).
 Zubax Babel implements the quasi-standard SLCAN protocol (aka LAWICEL protocol) that is understood by
