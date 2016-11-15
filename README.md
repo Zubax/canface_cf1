@@ -7,7 +7,7 @@ standalone device or as an embeddable module for original equipment manufacturer
 Zubax Babel implements the quasi-standard SLCAN protocol (aka LAWICEL protocol) that is understood by
 most CAN software products, including the Linux SocketCAN framework.
 If Zubax Babel is used with [UAVCAN](http://uavcan.org) networks,
-we recommend to use the [UAVCAN GUI Tool](https://github.com/UAVCAN/gui_tool),
+we recommend to use the [UAVCAN GUI Tool](http://uavcan.org/GUI_Tool),
 which fully supports all of the advanced features available in Zubax Babel.
 
 [**READ THE DOCUMENTATION HERE**](https://docs.zubax.com/zubax_babel).
