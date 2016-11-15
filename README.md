@@ -38,6 +38,9 @@ Also see the enclosed file documenting the common features of the SLCAN protocol
 
 ## Firmware
 
+If you're not running Linux or OSX natively, you can download
+[Bistromathic - a Linux virtual machine pre-configured for embedded development](https://files.zubax.com/vm/bistromathic.ova).
+
 ### Building
 
 Install ARM GCC toolchain version 4.9 or newer.
