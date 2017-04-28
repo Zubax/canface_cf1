@@ -108,4 +108,7 @@ POST_MAKE_ALL_RULE_HOOK: build/$(PROJECT).bin build/$(PROJECT).elf
 	# Removing temporary files
 	cd build && rm -f $(PROJECT).bin $(PROJECT).elf *.hex *.tmp.bin
 
+upload: build/compound.elf
+	./zubax_chibios/tools/blackmagic_flash.sh
+
 include zubax_chibios/rules_stm32f37x.mk
