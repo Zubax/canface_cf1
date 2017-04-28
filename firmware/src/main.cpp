@@ -889,7 +889,8 @@ public:
         }
         case 'V':               // HW/SW version
         {
-            std::printf("V%x%x%x%x\r", HW_VERSION, 0, FW_VERSION_MAJOR, FW_VERSION_MINOR);
+            const auto hw_ver = board::detectHardwareVersion();
+            std::printf("V%x%x%x%x\r", hw_ver.major, hw_ver.minor, FW_VERSION_MAJOR, FW_VERSION_MINOR);
             return nullptr;
         }
         case 'N':               // Serial number

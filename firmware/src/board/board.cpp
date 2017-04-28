@@ -241,7 +241,7 @@ HardwareVersion detectHardwareVersion()
 {
     auto v = HardwareVersion();
 
-    v.major = HW_VERSION;
+    v.major = HW_VERSION_MAJOR;
     v.minor = 0;                // Some detection will be added in future versions
 
     return v;

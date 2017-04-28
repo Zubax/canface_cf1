@@ -43,7 +43,7 @@
 #define HAL_USE_WDG                 FALSE
 
 #define SERIAL_DEFAULT_BITRATE      115200
-#define SERIAL_BUFFERS_SIZE         1792
+#define SERIAL_BUFFERS_SIZE         1536
 
 #define SERIAL_USB_BUFFERS_NUMBER   15
 #define SERIAL_USB_BUFFERS_SIZE     128
