@@ -1041,3 +1041,11 @@ int main()
         }
     }
 }
+
+
+#define MATCH_GCC_VERSION(major, minor, patch)  \
+    ((__GNUC__ == (major)) && (__GNUC_MINOR__ == (minor)) && (__GNUC_PATCHLEVEL__ == (patch)))
+
+#if !(MATCH_GCC_VERSION(6, 3, 1))
+# error "This compiler is not supported"
+#endif
