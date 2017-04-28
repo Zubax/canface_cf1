@@ -59,8 +59,8 @@ constexpr unsigned WatchdogTimeoutMSec = 1500;
 constexpr unsigned CANTxTimeoutMSec = 50;
 
 os::config::Param<unsigned> cfg_can_bitrate  ("can.bitrate",            1000000, 10000, 1000000); // Exposed via SLCAN
-os::config::Param<bool> cfg_can_power_on     ("can.power_on",           false);
-os::config::Param<bool> cfg_can_terminator_on("can.terminator_on",      false);
+os::config::Param<bool> cfg_can_power_on     ("can.power_on",           true);
+os::config::Param<bool> cfg_can_terminator_on("can.terminator_on",      true);
 
 os::config::Param<bool> cfg_timestamping_on("slcan.timestamping_on",    true);                    // Exposed via SLCAN
 os::config::Param<bool> cfg_flags_on       ("slcan.flags_on",           false);
