@@ -19,9 +19,9 @@
 
 PROJECT = com.zubax.babel
 
-HW_VERSION = 1
+HW_VERSION_MAJOR = 1
 FW_VERSION_MAJOR = 1
-FW_VERSION_MINOR = 0
+FW_VERSION_MINOR = 1
 
 #
 # Application
@@ -34,7 +34,7 @@ UINCDIR = src                \
 
 UDEFS = -DFW_VERSION_MAJOR=$(FW_VERSION_MAJOR)           \
         -DFW_VERSION_MINOR=$(FW_VERSION_MINOR)           \
-        -DHW_VERSION=$(HW_VERSION)                       \
+        -DHW_VERSION_MAJOR=$(HW_VERSION_MAJOR)           \
         -DPRODUCT_ID_STRING=\"$(PROJECT)\"               \
         -DPRODUCT_NAME_STRING=\"Zubax\ Babel\"
 
@@ -76,9 +76,8 @@ CPPWARN += $(CWARN)
 # Bootloader integration
 #
 
-HW_VERSION_MAJOR_MINOR := $(HW_VERSION).0
 FW_VERSION_MAJOR_MINOR_VCS_HASH := $(FW_VERSION_MAJOR).$(FW_VERSION_MINOR).$(GIT_HASH)
-COMPOUND_IMAGE_FILE := $(PROJECT)-$(HW_VERSION_MAJOR_MINOR)-$(FW_VERSION_MAJOR_MINOR_VCS_HASH).compound.bin
+COMPOUND_IMAGE_FILE := $(PROJECT)-$(HW_VERSION_MAJOR)-$(FW_VERSION_MAJOR_MINOR_VCS_HASH).compound.bin
 BOOTLOADER_DIR := $(abspath ../bootloader)
 BOOTLOADER_IMAGE := $(BOOTLOADER_DIR)/build/com.zubax.babel.bin
 
@@ -96,7 +95,7 @@ POST_MAKE_ALL_RULE_HOOK: build/$(PROJECT).bin build/$(PROJECT).elf
 	cd build && cat padded_bootloader.tmp.bin $(PROJECT).bin >$(COMPOUND_IMAGE_FILE)
 	
 	# Generating the signed image for the bootloader
-	cd build && ../zubax_chibios/tools/make_boot_descriptor.py $(PROJECT).bin $(PROJECT) $(HW_VERSION_MAJOR_MINOR) \
+	cd build && ../zubax_chibios/tools/make_boot_descriptor.py $(PROJECT).bin $(PROJECT) $(HW_VERSION_MAJOR)       \
 	                                                           --also-patch-descriptor-in=$(PROJECT).elf           \
 	                                                           --also-patch-descriptor-in=$(COMPOUND_IMAGE_FILE)
 	
