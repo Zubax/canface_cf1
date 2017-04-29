@@ -197,7 +197,17 @@ class BackgroundThread : public chibios_rt::BaseStaticThread<512>
             if (new_cfg_modcnt != cfg_modcnt)
             {
                 cfg_modcnt = new_cfg_modcnt;
+
                 reloadConfigs();
+
+                {
+                    DEBUG_LOG("Saving config... ");             // No new line here, this is intentional
+                    const int res = configSave();               // TODO: Use C++ API
+                    DEBUG_LOG("Config save result: %d\n", res);
+                    // If it fails, we don't care, as there's nothing we can do anyway.
+                    // The user may ensure that the configuration is saved by invoking the save action explicitly.
+                    (void) res;
+                }
             }
 
             if (os::isRebootRequested())
