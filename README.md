@@ -27,7 +27,7 @@ which fully supports all of the advanced features available in Zubax Babel.
 * Bus voltage measurement.
 * Can be powered from USB, UART, CAN, or from the SMD pads.
 
-## Relevant information
+## Relevant Information
 
 Article on passive delay compensation algorithm - relevant for CAN frame timestamp recovery on the host side:
 [A Passive Solution to the Sensor Synchronization Problem, by Edwin Olson](https://april.eecs.umich.edu/pdfs/olson2010.pdf).
@@ -40,6 +40,19 @@ Also see the enclosed file documenting the common features of the SLCAN protocol
 
 If you're not running Linux or OSX natively, you can download
 [Bistromathic - a Linux virtual machine pre-configured for embedded development](https://files.zubax.com/vm/bistromathic.ova).
+
+### Change Log
+
+#### v1.1
+
+* CAN terminator is turned ON by default.
+* CAN power is turned ON by default.
+* Configuration parameters are saved automatically immediately after modification.
+It is no longer necessary to save configuration manually.
+
+#### v1.0
+
+Initial release.
 
 ### Building
 
@@ -103,7 +116,7 @@ sz -vv --ymodem --1k $file > $port < $port
 
 The steps above are automated with the script `firmware/zubax_chibios/tools/flash_via_serial_bootloader.sh`.
 
-### Hardware timer usage
+### Hardware Timer Usage
 
 * TIM2 (32-bit) - System tick timer (ChibiOS default, see `STM32_ST_TIM`)
 * TIM5 (32-bit) - CAN timestamping
