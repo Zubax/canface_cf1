@@ -63,7 +63,7 @@ in the end device, all of which are desirable properties in the target applicati
 
 Shall it be desired to provide additional mechanical protection for the device or to use it as generic diagnostic adapter, the plastic enclosure pictured on the figure \ref{enclosure} can be used.
 Please contact your supplier for the ordering information;
-alternatively, visit \url{https://github.com/Zubax/zubax_gnss/} to download
+alternatively, visit \url{https://github.com/Zubax/zubax_babel/} to download
 3D printable enclosure models suitable for in-house manufacturing.
 
 \begin{figure}[hb]
@@ -162,7 +162,7 @@ CAN channel is open, CAN error passive & Blinking 4 Hz (quickly) \\
 CAN channel is open, CAN bus off & Blinking 10 Hz (very quickly) \\
 \end{ZubaxSimpleTable}
 
-While the bootloader is running, the traffic LED (green) is used to indicate the bootloader’s status as follows:
+While the bootloader is running, the traffic LED (green) is used to indicate the bootloader\textquotesingle s status as follows:
 
 \begin{ZubaxSimpleTable}{Bootloader status indication}{| l |  X |}
 Status & Pattern \\
@@ -202,7 +202,7 @@ Please refer to the OEM section below.
 
 \chapter{SLCAN protocol}
 
-SLCAN (also known as LAWICEL) is a quasi-standard protocol designed for tunneling CAN data (frames, commands and adapter status information) via serial links (UART or USB CDC ACM). Zubax Babel implements all mandatory SLCAN commands, so that its compatibility with third party software products that rely on SLCAN is ensured. A brief recap of standard SLCAN commands, prepared by Oliver Hartkopp, can be found in this document: \fbox{Generic\_SLCAN\_API.pdf}.
+SLCAN (also known as LAWICEL) is a quasi-standard protocol designed for tunneling CAN data (frames, commands and adapter status information) via serial links (UART or USB CDC ACM). Zubax Babel implements all mandatory SLCAN commands, so that its compatibility with third party software products that rely on SLCAN is ensured. A brief recap of standard SLCAN commands, prepared by Oliver Hartkopp, can be found in this document: \href{https://docs.zubax.com/zubax_babel/Generic_SLCAN_API.pdf}{Generic\_SLCAN\_API.pdf}.
 
 SLCAN is an ASCII protocol, where the data is exchanged in blocks, each block may contain only printable ASCII characters and is terminated with either ACK (\fbox{$\backslash$r}, ASCII code 13) or NACK (\fbox{$\backslash$a}, ASCII code 7). Every block begins with a well-defined character which indicates what information the block is carrying; in this description we’re going to refer to this character as Block ID. Three types of blocks are defined:
 
@@ -524,7 +524,7 @@ Custom applications can be loaded either directly via SWD, in which case great c
 
 The embedded bootloader enables firmware update via the following protocols and interfaces:
 
-\begin{ZubaxSimpleTable}{Bootloader protocols and interfaces}{| X[1] | X[2] | X[7] | X[5] |}
+\begin{ZubaxSimpleTable}{Bootloader protocols and interfaces}{| X[2] | X[2] | X[7] | X[5] |}
 Interface & Parameters & Protocol & Note \\
 USB & CDC ACM & YMODEM, XMODEM, XMODEM-1K (autodetect) & When connected, DCD Port is inactive \\
 DCD port (UART) & 115200-8N1 (fixed) & Same as USB CDC ACM & 	Available only while USB is disconnected \\
@@ -578,6 +578,7 @@ sz -vv --ymodem --1k $file > $port < $port
 
 If the application was successfully received and CRC verification confirmed that it is not damaged, the bootloader will automatically transition into the state \fbox{BootDelay}.
 
+\iffalse
 \chapter{Accessories}
 
 Zubax Babel can be used with the following accesories:
@@ -596,4 +597,7 @@ The acessories can be purchased from \href{https://zubax.com/sales-network}{our 
 \item \href{https://github.com/Zubax/zubax_babel}{Source repository (includes 3D printable enclosure models)}
 \item \href{http://zubax.com/product/zubax-babel}{Product description}
 \end{itemize}
+
+\fi
+
 \end{document}
