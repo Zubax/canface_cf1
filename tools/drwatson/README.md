@@ -18,4 +18,4 @@ execute `sudo ./setup.sh`, and you're ready to get started:
 
 ## Other documentation
 
-Refer to <https://docs.zubax.com/> to find more documentation about anything.
+Refer to <https://kb.zubax.com/> to find more documentation about anything.
