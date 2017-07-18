@@ -1,4 +1,4 @@
-# [Zubax Babel](https://docs.zubax.com/zubax_babel)
+# [Zubax Babel](https://zubax.com/products/babel)
 
 [![Join the chat at https://gitter.im/Zubax/general](https://img.shields.io/badge/GITTER-join%20chat-green.svg)](https://gitter.im/Zubax/general)
 
@@ -10,7 +10,7 @@ If Zubax Babel is used with [UAVCAN](http://uavcan.org) networks,
 we recommend to use the [UAVCAN GUI Tool](http://uavcan.org/GUI_Tool),
 which fully supports all of the advanced features available in Zubax Babel.
 
-[**READ THE DOCUMENTATION HERE**](https://docs.zubax.com/zubax_babel).
+[**ZUBAX BABEL HOMEPAGE**](https://zubax.com/products/babel).
 
 ## Features
 
@@ -84,7 +84,7 @@ it can be flashed and executed directly with an SWD debugger, no extra steps req
 
 #### Via the Debug Port
 
-Use [Zubax DroneCode Probe](https://docs.zubax.com/dronecode_probe) or any other JTAG/SWD debugger.
+Use [Zubax DroneCode Probe](https://kb.zubax.com/x/iIAh) or any other JTAG/SWD debugger.
 This helper script should do everything automatically (execute from the firmware directory):
 
 ```bash
