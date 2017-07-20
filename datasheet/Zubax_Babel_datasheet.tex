@@ -13,7 +13,9 @@
 \begin{document}
 \frontmatter
 \begin{titlepage}
+
 \section*{Overview}
+
 Zubax Babel is an advanced USB-CAN and UART-CAN adapter that can be used as a standalone device or as an embeddable module for OEM. It features a software-controlled termination resistor, embedded bus power supply and bus voltage monitoring. Zubax Babel uses the quasi-standard SLCAN (aka LAWICEL) protocol (with Zubax extensions) for transferring CAN data over serial port.
 
 \section*{Features}
@@ -43,7 +45,6 @@ Zubax Babel is primarily intended for UAVCAN applications, although other CAN bu
 \listoffigures
 \listoftables
 
-
 \mainmatter
 
 \chapter{Overview}
@@ -52,7 +53,7 @@ Zubax Babel is an advanced USB-CAN and UART-CAN adapter that can be used as a st
 
 \section{System integration}
 
-Zubax BABEL is powered from USB or oprional SMD pads. It can provide power(up to 500mA) to UAVCAN bus via software controlled key.  
+Zubax BABEL is powered from USB or optional SMD pads. It can provide power(up to 500mA) to UAVCAN bus via software controlled key.  
 The 5 V rail of the CAN interface us not used by the device; 5 V rails of CAN connector pair are connected directly together.
 
 \section{Enclosure}\label{sec:enclosure}
@@ -109,15 +110,17 @@ High-level output voltage & 2.8 & 3.3	& 3.4	& V \\
 Source/sink current (magnitude) & & 10 & & mA \\
 \end{ZubaxSimpleTable}
 \clearpage
+
 \section{Mechanical characteristics}
+
 The drawing below documents the basic mechanical characteristics of Zubax Babel, such as the placement of connectors and mounting holes:
 
 \begin{figure}[!hbt]
 	\centerline{\includegraphics[width=1.1\textwidth]{babel_dimensions}}
 	\caption{Babel drawing.\label{drawing}}
 \end{figure}
-
 \clearpage
+
 Pinout is shown on the diagram:
 \begin{figure}[!hbt]
 	\centerline{\includegraphics[width=1\textwidth]{babel_pinout}}
@@ -135,7 +138,7 @@ The device is powered by +5 VDC which can be delivered via any (or multiple) of 
 \end{itemize}
 
 The device has a reverse current protection on the USB power input, to prevent back-powering the USB host when it is turned off. The CAN power output has a solid state switch that can be enabled and disabled programmatically (more on this in the later sections); however, the device can be powered from the CAN bus regardless of the state of the power switch. Additional 3.3VDC output on the SMD pads can be used to power the external circuit when the device is used in OEM mode. See the following diagram:
-\\ \\
+
 \begin{figure}[!hbt]
 	\centerline{\includegraphics[width=1\textwidth]{power_supply}}
 	\caption{power supply scheme.\label{power supply scheme}}
@@ -173,6 +176,7 @@ No valid application found, boot is not possible & Blinking 10 Hz (very quickly)
 \end{ZubaxSimpleTable}
 
 \chapter{Interfaces}
+
 \section{USB}
 
 Zubax Babel exposes a USB CDC ACM interface (a.k.a. virtual serial port) via full-speed USB 2.0 port. For more information about the serial port and appropriate drivers, please refer to the dedicated article.
@@ -188,6 +192,7 @@ The DroneCode Debug Port exposes the standard ARM SWD interface and a UART port.
 Note that while USB is connected, the UART interface of the DroneCode Debug Port is not available. In order to use UART, USB must be disconnected.
 
 \section{CAN bus}
+
 Zubax Babel implements ISO 11898, also known as high-speed CAN. The CAN interface recovers from bus-off and other error states automatically.
 
 The CAN bus interface is exposed via two parallel 4-pin JST GH connectors. These are the standard UAVCAN Micro Connectors.
@@ -222,7 +227,9 @@ Keep in mind that Zubax Babel can be communicated with either via USB or via the
 
 Decent implementation of a host-side SLCAN driver in Python can be found in the \href{http://uavcan.org/Implementations/Pyuavcan/}{PyUAVCAN library}.
 \clearpage
+
 \section{SLCAN commands}
+
 \subsection{CAN controller configuration}
 
 \begin{ZubaxSimpleTable}{CAN controller configuration}{| l |  l | X |}
@@ -238,7 +245,7 @@ Block ID & Arguments & Purpose \\
 
 All commands return \fbox{$\backslash$r} on success and \fbox{$\backslash$a} on failure. Commands that are implemented for compatibility always report success.
 
-The command \fbox{S} accepts a non-negative decimal number which represents the desired CAN bitrate. If the channel is open, changes in bitrate will not take effect until it’s re-open again. The values are interpreted as follows:
+The command \fbox{S} accepts a non-negative decimal number which represents the desired CAN bitrate. If the channel is open, changes in bitrate will not take effect until it is re-opened again. The values are interpreted as follows:
 
 \begin{ZubaxSimpleTable}{CAN bitrate}{| l |  X |}
 Value & Interpretation, bits per second \\ 
@@ -285,6 +292,7 @@ Response & Meaning \\
 \end{ZubaxSimpleTable}
 
 \subsection{Miscellaneous commands}
+
 \begin{ZubaxSimpleTable}{Miscellaneous commands}{| l |  l | X |}
 Block ID & Arguments & Purpose \\
 \fbox{U} & Decimal number, see below & Set UART baud rate \\ 
@@ -293,7 +301,6 @@ Block ID & Arguments & Purpose \\
 \fbox{V} & None & Get hardware and software version \\
 \fbox{N} & None & Get unique ID (conventional SLCAN adapters return the serial number, which Zubax products may not have) \\
 \end{ZubaxSimpleTable}
-
 \clearpage
 
 The command \fbox{U} accepts a non-negative decimal number which represents the desired UART baud rate. Changes will take effect shortly after the command was executed (typically within 100 milliseconds), no reboot is necessary; therefore, the host should adjust the baud rate of the serial port immediately after execution of this command. The number is interpreted as follows:
@@ -358,7 +365,7 @@ Additionally, frame notification blocks may be extended with timestamp informati
 
 When timestamping is enabled, frame notification blocks will be extended with four more hexadecimal characters, containing the time, in milliseconds, when they were received. The millisecond timestamp overflows every 60000 milliseconds (once a minute), so the valid values lie in the range from 0 to 59999, inclusive. The frame timestamp can be converted into the target clock domain, e.g. monotonic clock of the host system, using the \href{https://april.eecs.umich.edu/pdfs/olson2010.pdf}{Olson algorithm} (timestamp synchronization in PyUAVCAN is based on the Olson algorithm too). In loopback mode with timestamping enabled, the loopback frames will have the timestamp of the moment when they were delivered to the bus.
 
-When SLCAN flags are enabled, frame indications will be amended as follows:
+When SLCAN flags are enabled, frame indications will be amended as follows:\
 \begin{itemize}
 \item Loopback frames will be appended the character \fbox{L} at the end of the block. This option allows the host to distinguish between received frames and the frames that were received from the bus.
 \end{itemize}
@@ -372,10 +379,10 @@ No & Yes & \fbox{T123456784012345680BED$\backslash$r} (transmission timestamp 30
 Yes & No & \fbox{T12345678401234568L$\backslash$r} (added flag \fbox{L})\\
 Yes & Yes & \fbox{T123456784012345680BEDL$\backslash$r} (both of the above) \\
 \end{ZubaxSimpleTable}
-
 \clearpage
 
 \section{CLI extensions}
+
 Zubax Babel implements an extension of the SLCAN protocol that allows it to run a conventional CLI shell over the same serial port that is used for SLCAN communications, while maintaining full compatibility with SLCAN.
 
 A CLI command is a sequence of printable ASCII characters terminated with \fbox{$\backslash$r$\backslash$n} (ASCII codes 13, 10); the sequence must not be also a valid SLCAN command. Every CLI command returns a response that begins with the exact copy of the received command, terminated with \fbox{$\backslash$r$\backslash$n}, then followed by an arbitrary number of lines, each terminated with \fbox{$\backslash$r$\backslash$n}, and finalized with the ASCII END-OF-TEXT character (code 3) immediately followed by the final \fbox{$\backslash$r$\backslash$n}.
@@ -399,6 +406,7 @@ The facts that CLI commands and their responses are terminated with \fbox{$\back
 
 CLI commands can be executed manually if the SLCAN port is open in a terminal emulator program (it is recommended to enable local echo, since SLCAN does not provide remote echo). Read this article for more info: \href{https://docs.zubax.com/usb}{USB command line interface}.
 \clearpage
+
 \subsection{CLI commands}
 
 This section documents what CLI commands are implemented and how to use them.
@@ -433,7 +441,6 @@ H397RlSNc0TtWDPOyA713z0k+v+ZY5PGXkRFiUfspnU/EJ8+r0url2dYp7NApx4lOklOgNgHrGCA6lPx
 \end{minted}
 
 This command may also accept one argument, which must be the Base64 encoded RSA-1024 Certificate of Authenticity of the device. This use case does not serve any useful purpose during normal use of the device.
-
 \clearpage
 
 \fbox{stat}
@@ -530,7 +537,6 @@ USB & CDC ACM & YMODEM, XMODEM, XMODEM-1K (autodetect) & When connected, DCD Por
 DCD port (UART) & 115200-8N1 (fixed) & Same as USB CDC ACM & 	Available only while USB is disconnected \\
 \end{ZubaxSimpleTable}
 
-
 \section{CLI commands}
 
 \fbox{reboot}
@@ -579,6 +585,7 @@ sz -vv --ymodem --1k $file > $port < $port
 If the application was successfully received and CRC verification confirmed that it is not damaged, the bootloader will automatically transition into the state \fbox{BootDelay}.
 
 \iffalse
+
 \chapter{Accessories}
 
 Zubax Babel can be used with the following accesories:
@@ -592,6 +599,7 @@ Zubax Babel can be used with the following accesories:
 The acessories can be purchased from \href{https://zubax.com/sales-network}{our distributors}.
 
 \chapter{Links}
+
 \begin{itemize}
 \item \href{http://shop.titaneliteinc.com/index.php?route=product/product&product_id=1004}{Purchase}
 \item \href{https://github.com/Zubax/zubax_babel}{Source repository (includes 3D printable enclosure models)}
