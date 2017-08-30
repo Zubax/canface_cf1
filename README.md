@@ -56,7 +56,7 @@ Initial release.
 
 ### Building
 
-Install ARM GCC toolchain version 4.9 or newer.
+Install ARM GCC toolchain version 6.3.
 Clone this repository, init all submodules (`git submodule update --init --recursive`),
 then execute the following from the repository root:
 
