@@ -1,1 +1,0 @@
-document_templates/documentation_template_latex/zubaxdoc.cls
