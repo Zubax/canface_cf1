@@ -134,136 +134,172 @@ the certificate of authenticity and how it can be used to trace the origins of y
 
 \chapter{Characteristics}
 
-\section{General electrical characteristics}
+\section{Absolute maximum ratings}
 
-\begin{ZubaxSimpleTable}{Environmental conditions}{|c |l c|c|X|}
-     Parameter &  Min & Max & Unit  & Note \\
-	 Board temperature & -40 & 70 & \degree{}C & \\
-	 Relative humidity & 0 & 100 &\%RH & Non-considering 
+Stresses that exceed the limits specified in this section may cause permanent damage to the device.
+Proper operation of the device within the limits specified in this section is not implied.
+
+\begin{ZubaxSimpleTable}{Absolute maximum ratings}{|c X|c c|c|}
+    Symbol            & Parameter                & Min  & Max & Unit \\
+    $V_\text{supply}$ & Supply voltage           & -0.3 & 6   & V \\
+    $T_\text{oper}$   & Operating temperature    & -40  & 85  & \degree{}C \\
+	              & UART RX input voltage    & -0.3 & 6   & V\\
+	              & CAN H/L input voltage    & -4   & 16  & V\\
 \end{ZubaxSimpleTable}
 
-\begin{ZubaxSimpleTable}{Power}{|c | c | c | c | c | X | }
-Parameter & Minimum & Typical & Maximum & Units & Note \\
-Supply voltage & 4.0 & 5.0 & 5.5 & V & Any power input \\ 
-Supply current & 30 & 50 & 80 & mA & SMD pads floating, UART and SWD lines floating \\
-3.3 V rail output voltage & 3.2 & 3.3 & 3.4 & V & \\
-3.3 V rail external load &  & & 100 & mA & \\
+\section{Environmental conditions}
+
+\begin{ZubaxTableWrapper}{Environmental conditions}
+    \begin{ZubaxWrappedTable}{|c X|l c|c|c|}
+        Symbol            & Parameter                     &  Min & Max & Unit \\
+        $T_\text{oper}$   & Operating temperature         & -40  & 85  & \degree{}C \\
+        $T_\text{stor}$   & Storage temperature           & -40  & 85  & \degree{}C \\
+        $\phi_\text{oper}$& Operating humidity\tnote{a}   & 0    & 100 & \%RH\\
+    \end{ZubaxWrappedTable}
+    \begin{tablenotes}
+        \item[a] Condensation not permitted.
+    \end{tablenotes}
+\end{ZubaxTableWrapper}
+
+\section{Communication interfaces}
+
+\subsection{CAN bus}
+
+Zubax Babel implements ISO 11898, also known as high-speed CAN.
+The CAN interface recovers from bus-off and other error states automatically.
+
+The CAN bus interface is exposed via two parallel 4-pin JST GH connectors.
+These are the standard UAVCAN Micro Connectors.
+
+The device has an embedded 120$\Omega$ termination resistor that can be enabled and disabled via the SLCAN interface.
+
+The power switch, when turned on, delivers the +5 VDC supply to the CAN bus,
+which can be used to power other CAN bus nodes from Zubax Babel (see the power system diagram).
+
+\subsection{USB}
+
+Zubax Babel exposes a USB CDC ACM interface (a.k.a. virtual serial port) via full-speed USB 2.0 port.
+For more information about the serial port and appropriate drivers, please refer to the dedicated article.
+
+The device implements the SLCAN protocol with custom extensions on top of the CDC ACM interface,
+which is documented in the later sections.
+
+Note that while USB is connected, the UART interface of the DroneCode Debug Port is not available.
+In order to use UART, USB must be disconnected.
+
+\subsection{Dronecode debug port}
+
+The DroneCode Debug Port exposes the standard ARM SWD interface and a UART port.
+The UART port exposes a CLI.
+Same SLCAN protocol operates on top of the UART CLI as on the USB CLI.
+
+Note that while USB is connected, the UART interface of the DroneCode Debug Port is not available.
+In order to use UART, USB must be disconnected.
+
+\begin{ZubaxSimpleTable}{UART characteristics}{|c X| c c c | c | }
+    Symbol & Parameter                        & Min  & Typ    & Max       & Unit \\
+           & Supported baud rates             & 2400 & 115200 & 3~000~000 & baud/s \\
+           & Low-level input voltage          & -0.3 & 0      & 1.6       & V \\
+           & High-level input voltage         & 2.1  & 3.3    & 5.5       & V \\
+           & Low-level output voltage         & 0    & 0      & 0.5       & V \\
+           & High-level output voltage        & 2.8  & 3.3    & 3.4       & V \\
+           & Source/sink current (magnitude)  &      &        &  10       & mA \\
 \end{ZubaxSimpleTable}
 
-\begin{ZubaxSimpleTable}{CAN bus}{| X | c | c | c | c | }
-Parameter & Minimum & Typical & Maximum & Units \\
-Supported baud rates &	2400 & 115200 & 	3000000	& baud/s \\
-Low-level input voltage &	-0.3 &	0 &	1.6 &	V \\
-High-level input voltage &	2.1 &	3.3 & 5.5 & 	V \\
-Low-level output voltage &	0 &	0 &	0.5 &	V \\
-High-level output voltage & 2.8 & 3.3 & 3.4 &	 V \\
-Source/sink current (magnitude)  & & &			10 &	mA \\
+\subsection{SMD pads}
+
+\begin{ZubaxSimpleTable}{SMD signal pads}{|c X| c c c | c | }
+    Symbol & Parameter                       & Min  & Typ & Max & Unit \\
+           & Low-level input voltage         & -0.3 & 0   & 1.6 & V \\
+           & High-level input voltage        & 2.1  & 3.3 & 5.5 & V \\
+           & Low-level output voltage        & 0    & 0   & 0.5 & V \\
+           & High-level output voltage       & 2.8  & 3.3 & 3.4 & V \\
+           & Source/sink current (magnitude) &      & 10  &     & mA \\
 \end{ZubaxSimpleTable}
 
-\begin{ZubaxSimpleTable}{SMD signal pads}{| X | c | c | c | c | }
-Parameter & Minimum & Typical & Maximum & Units \\
-Low-level input voltage & -0.3 & 0 & 1.6 & V \\
-High-level input voltage & 2.1 & 3.3 & 5.5 & V \\
-Low-level output voltage & 0 & 0 & 0.5 & V \\
-High-level output voltage & 2.8 & 3.3	& 3.4	& V \\
-Source/sink current (magnitude) & & 10 & & mA \\
-\end{ZubaxSimpleTable}
-\clearpage
+\section{Power supply}
+
+The device requires a +5 V DC power supply (table \ref{table:power})
+which can be delivered via any of the interface connectors:
+
+\begin{itemize}
+    \item USB connector (power input only).
+    \item CAN connectors (power input, optional power output).
+    \item DroneCode Debug Port connector (power input and output).
+    \item SMD pads (power input and output).
+\end{itemize}
+
+The device has a reverse current protection on the USB power input, to prevent back-powering the USB host when it is turned off. The CAN power output has a solid state switch that can be enabled and disabled programmatically (more on this in the later sections); however, the device can be powered from the CAN bus regardless of the state of the power switch. Additional 3.3 VDC output on the SMD pads can be used to power the external circuit when the device is used in OEM mode. See the following diagram:
+
+\begin{figure}[!hbt]
+    \centerline{\includegraphics[width=1\textwidth]{power_supply}}
+    \vspace{1em}
+    \caption{Power supply architecture.\label{fig:power_supply_scheme}}
+\end{figure}
+
+\begin{ZubaxTableWrapper}{Power supply characteristics}
+    \begin{ZubaxWrappedTable}{|c X| c c c | c|}\label{table:power}
+        Symbol            & Parameter                 & Min & Typ & Max & Unit \\
+        $V_\text{supply}$ & Supply voltage\tnote{a}   & 4.0 & 5.0 & 5.5 & V  \\
+        $I_\text{supply}$ & Supply current\tnote{b}   & 30  & 50  & 80  & mA \\
+                          & 3.3 V rail output voltage & 3.2 & 3.3 & 3.4 & V  \\
+                          & 3.3 V rail external load  &     &     & 100 & mA \\
+    \end{ZubaxWrappedTable}
+    \begin{tablenotes}
+        \item[a] Any power input.
+        \item[b] SMD pads floating, Dronecode port disconnected.
+    \end{tablenotes}
+\end{ZubaxTableWrapper}
 
 \section{Mechanical characteristics}
 
-The drawing below documents the basic mechanical characteristics of Zubax Babel, such as the placement of connectors and mounting holes:
+The figure \ref{fig:drawing} documents the basic mechanical characteristics of Zubax Babel,
+such as the placement of connectors and mounting holes.
+The pinout of the SMD pads and other connectors is shown on the figure \ref{fig:pinout}.
 
-\begin{figure}[!hbt]
-	\centerline{\includegraphics[width=1.1\textwidth]{babel_dimensions}}
-	\caption{Babel drawing.\label{drawing}}
+\begin{figure}[hbtp]
+	\centerline{\includegraphics[width=1.2\textwidth]{babel_dimensions}}
+	\caption{Physical dimensions of Babel.\label{fig:drawing}}
 \end{figure}
-\clearpage
 
-Pinout is shown on the diagram:
-\begin{figure}[!hbt]
+\begin{figure}[hbtp]
 	\centerline{\includegraphics[width=1\textwidth]{pinout_annotated}}
 	\vspace{2em}
-	\caption{Babel pinout.\label{pinout}}
-\end{figure}
-
-\chapter{Power supply}
-
-The device is powered by +5 VDC which can be delivered via any (or multiple) of the interface connectors:
-\begin{itemize}
-\item USB connector (input only)
-\item CAN connectors (input, optional output)
-\item DroneCode Debug Port connector (input and output)
-\item SMD pads (input and output)
-\end{itemize}
-
-The device has a reverse current protection on the USB power input, to prevent back-powering the USB host when it is turned off. The CAN power output has a solid state switch that can be enabled and disabled programmatically (more on this in the later sections); however, the device can be powered from the CAN bus regardless of the state of the power switch. Additional 3.3VDC output on the SMD pads can be used to power the external circuit when the device is used in OEM mode. See the following diagram:
-
-\begin{figure}[!hbt]
-	\centerline{\includegraphics[width=1\textwidth]{power_supply}}
-	\caption{power supply scheme.\label{power supply scheme}}
+	\caption{Babel pinout.\label{fig:pinout}}
 \end{figure}
 
 \chapter{LED indicators}
 
-\begin{ZubaxSimpleTable}{Led indicators}{| l |  X |}
-Color & Indicates \\
-Red & CAN power switch is turned ON \\
-Orange & 120$\Omega$ CAN terminator ON \\
-Blue & Status, see below \\
-Green & Blinks once if there was at least one CAN frame successfully sent or received in the last 25 milliseconds. This feature allows the user to visually evaluate the load of the CAN bus.
+\begin{ZubaxSimpleTable}{Led indicators}{| l | X |}
+    Color    & Indicates \\
+    Red      & The CAN power switch is turned ON \\
+    Orange   & The CAN termination resistor is turned ON \\
+    Blue     & Status, see below \\
+    Green    & Blinks once if there was at least one CAN frame successfully sent or received in the last
+               25 milliseconds.
+               This feature allows the user to visually evaluate the load of the CAN bus.
 \end{ZubaxSimpleTable}
 
-The status LED (blue) behaves as follows:
+The Status LED (blue) behaves as follows:
 
-\begin{ZubaxSimpleTable}{Status LED behavior}{| l |  X |}
-Status & Pattern \\
-Bootloader is running & Glowing continuously \\
-CAN channel is closed & Turned OFF \\
-CAN channel is open and operating normally & Blinking 1 Hz (slowly) \\
-CAN channel is open, CAN error passive & Blinking 4 Hz (quickly) \\
-CAN channel is open, CAN bus off & Blinking 10 Hz (very quickly) \\
+\begin{ZubaxSimpleTable}{Status LED behavior}{| l X |}
+    Status                                     & Pattern \\
+    Bootloader is running                      & Glowing continuously \\
+    CAN channel is closed                      & Turned OFF \\
+    CAN channel is open and operating normally & Blinking 1 Hz (slowly) \\
+    CAN channel is open, CAN error passive     & Blinking 4 Hz (quickly) \\
+    CAN channel is open, CAN bus off           & Blinking 10 Hz (very quickly) \\
 \end{ZubaxSimpleTable}
 
 While the bootloader is running, the traffic LED (green) is used to indicate the bootloader\textquotesingle s status as follows:
 
-\begin{ZubaxSimpleTable}{Bootloader status indication}{| l |  X |}
-Status & Pattern \\
-Ready to boot, or waiting for boot delay expiration & Turned OFF\\
-Boot cancelled by external request (e.g. CLI command) & Blinking 1 Hz, short pulses (50 ms) \\
-Application upgrade is in progress & Blinking 1 Hz, long pulses (500 ms) \\
-No valid application found, boot is not possible & Blinking 10 Hz (very quickly) \\
+\begin{ZubaxSimpleTable}{Bootloader status indication}{| l X |}
+    Status                                               & Pattern \\
+    Ready to boot, or waiting for boot delay expiration  & Turned OFF \\
+    Boot canceled by external request (e.g. CLI command) & Blinking 1 Hz, short pulses (50 ms) \\
+    Application upgrade is in progress                   & Blinking 1 Hz, long pulses (500 ms) \\
+    No valid application found, boot is not possible     & Blinking 10 Hz (very quickly) \\
 \end{ZubaxSimpleTable}
-
-\chapter{Interfaces}
-
-\section{USB}
-
-Zubax Babel exposes a USB CDC ACM interface (a.k.a. virtual serial port) via full-speed USB 2.0 port. For more information about the serial port and appropriate drivers, please refer to the dedicated article.
-
-The device implements the SLCAN protocol with custom extensions on top of the CDC ACM interface, which is documented in the later sections.
-
-Note that while USB is connected, the UART interface of the DroneCode Debug Port is not available. In order to use UART, USB must be disconnected.
-
-\section{DroneCode Debug Port}
-
-The DroneCode Debug Port exposes the standard ARM SWD interface and a UART port. The UART port exposes a CLI. Same SLCAN protocol operates on top of the UART CLI as on the USB CLI.
-
-Note that while USB is connected, the UART interface of the DroneCode Debug Port is not available. In order to use UART, USB must be disconnected.
-
-\section{CAN bus}
-
-Zubax Babel implements ISO 11898, also known as high-speed CAN. The CAN interface recovers from bus-off and other error states automatically.
-
-The CAN bus interface is exposed via two parallel 4-pin JST GH connectors. These are the standard UAVCAN Micro Connectors.
-
-The device has an embedded 120$\Omega$ termination resistor that can be enabled and disabled via the SLCAN interface.
-
-The power switch, when turned on, delivers the +5 VDC supply to the CAN bus, which can be used to power other CAN bus nodes from Zubax Babel (see the power system diagram).
-
-\section{SMD pads}
-
-Please refer to the OEM section below.
 
 \chapter{SLCAN protocol}
 
