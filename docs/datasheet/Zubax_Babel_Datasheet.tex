@@ -5,7 +5,6 @@
 %
 
 \documentclass{zubaxdoc}
-\usepackage{svg}
 \graphicspath{{document_templates/documentation_template_latex/}}
 
 \usepackage{ConfigParamIndex}
@@ -22,27 +21,57 @@
 
 \section*{Overview}
 
-Zubax Babel is an advanced USB-CAN and UART-CAN adapter that can be used as a standalone device or as an embeddable module for OEM. It features a software-controlled termination resistor, embedded bus power supply and bus voltage monitoring. Zubax Babel uses the quasi-standard SLCAN (aka LAWICEL) protocol (with Zubax extensions) for transferring CAN data over serial port.
+Zubax Babel is an advanced USB-\allowbreak{}CAN and UART-\allowbreak{}CAN adapter
+that can be used as a standalone device or as an embeddable module for
+OEM\footnote{Original equipment manufacturer.}.
+
+Babel uses the quasi-standard SLCAN (aka LAWICEL) protocol (with Zubax extensions)
+for transferring CAN data over USB and UART.
+There is a wide selection of software products that can communicate with SLCAN-compatible adapters.
 
 \section*{Features}
 
-The adapter has a number of important features that are rarely seen in competing designs:
 \begin{itemize}
-\item Low latency - cumulative latency between the USB CDC ACM interface on the host system and the CAN bus is under 1 millisecond. Tested with USB connection on desktop Linux 3.13 using low-latency SLCAN driver from PyUAVCAN.
-\item High throughput - the device handles over 5000 frames per second in either direction continuously. Tested with USB connection on desktop Linux 3.13. When using UART interface, the throughput of the device is limited by the UART baud rate.
-\item Proper prioritization of outgoing CAN frames. The adapter properly schedules the outgoing frames, avoiding the inner priority inversion in the TX queue.
-\item Large RX buffer (255 CAN frames plus 2KB of serial buffers) allows the device to handle short-term traffic bursts without frame losses when interfaced via low-speed UART.
+    \item Very low latency -- the cumulative latency between the host system
+          and the CAN bus is under 1 millisecond.\footnote{Tested via USB on Linux 3.13
+          using the low-latency SLCAN driver from the PyUAVCAN library.}
+
+    \item Very high throughput -- the device handles more than 5000 frames per second in either direction
+          continuously.\footnote{Tested via USB on Linux 3.13.
+          When using the UART interface, the throughput is limited by the UART baud rate setting.}
+
+    \item Large RX buffer (255 CAN frames plus 2KB of serial buffers) allows the device to handle short-term
+          traffic bursts regardless of the throughput of the host-side interface.
+
+    \item Proper prioritization of the outgoing CAN frames.
+          The adapter properly schedules the outgoing frames, avoiding the inner priority inversion problem
+          in the TX queue.
+
+    \item Embedded 120~$\Omega{}$ CAN bus termination resistor that can be turned on and off by a command.
+
+    \item Embedded CAN bus power supply output that can be turned on and off by a command.
+
+    \item CAN bus supply voltage monitoring.
+
+    \item SMD soldering pads for OEM applications.
 \end{itemize}
 
 \BeginRightColumn
 
 \section*{Applications}
 
-Zubax Babel is primarily intended for UAVCAN applications, although other CAN bus protocols are supported equally well. We recommend the UAVCAN GUI Tool for use with Zubax Babel; however, there is a wide selection of software products that can talk with SLCAN adapters and therefore are compatible with Zubax Babel too.
+\begin{itemize}
+    \item General-purpose USB-CAN or UART-CAN adapter.
+    \item Diagnostic, monitoring, and development tool for \href{http://uavcan.org}{UAVCAN} networks.
+          We recommend the UAVCAN GUI Tool for use with UAVCAN applications.
+    \item Generic CAN/UAVCAN development board.
+    \item Programmable CAN unit in OEM applications.
+\end{itemize}
 
-\centering
-\includegraphics[width=0.45\textwidth]{top}
-\includegraphics[width=0.45\textwidth]{bottom}
+\centering{
+    \includegraphics[width=0.45\textwidth]{top}
+    \includegraphics[width=0.45\textwidth]{bottom}
+}
 
 \end{titlepage}
 
