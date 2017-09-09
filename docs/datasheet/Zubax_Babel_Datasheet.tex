@@ -84,29 +84,53 @@ There is a wide selection of software products that can communicate with SLCAN-c
 
 \chapter{Overview}
 
-Zubax Babel is an advanced USB-CAN and UART-CAN adapter that can be used as a standalone device or as an embeddable module for OEM. It features a software-controlled termination resistor, embedded bus power supply and bus voltage monitoring. Zubax Babel uses the quasi-standard SLCAN (aka LAWICEL) protocol (with Zubax extensions) for transferring CAN data over serial port.
+Zubax Babel is an advanced USB-CAN and UART-CAN adapter
+that can be used as a standalone device or as an embeddable module for
+OEM.
 
-\section{System integration}
+\section{Accessories}
 
-Zubax BABEL is powered from USB or optional SMD pads. It can provide power(up to 500mA) to UAVCAN bus via software controlled key.  
-The 5 V rail of the CAN interface us not used by the device; 5 V rails of CAN connector pair are connected directly together.
+Zubax Babel can be used with the following accessories:
+\begin{itemize}
+    \item Plastic enclosure described in the section \ref{sec:enclosure}.
+    \item UAVCAN cabling and related items.
+    \item Standard USB cables.
+    \item Cables compatible with the Dronecode Autopilot Connector Standard.
+\end{itemize}
 
-\section{Enclosure}\label{sec:enclosure}
+Please contact your supplier for the ordering information.
 
-Zubax Babel is intended for integration into the end system in the form of the bare PCB,
-as this facilitates lower weight and tighter arrangement of components
-in the end device, all of which are desirable properties in the target application domains.
+\subsection{Enclosure}\label{sec:enclosure}
 
-Shall it be desired to provide additional mechanical protection for the device or to use it as generic diagnostic adapter, the plastic enclosure pictured on the figure \ref{enclosure} can be used.
-Please contact your supplier for the ordering information;
-alternatively, visit \url{https://github.com/Zubax/zubax_babel/} to download
-3D printable enclosure models suitable for in-house manufacturing.
+Zubax Babel can be enclosed into a plastic enclosure pictured on the figure \ref{fig:enclosure}.
+The enclosure provides a mechanical protection that makes the device more suitable for use as a
+general-purpose desktop CAN adapter tool.
 
 \begin{figure}[hb]
-	\centering
-	\includegraphics[width=0.45\textwidth]{housing}
-	\caption{Plastic enclosure.\label{enclosure}}
+    \centering
+    \includegraphics[width=0.45\textwidth]{housing}
+    \caption{Plastic enclosure.\label{fig:enclosure}}
 \end{figure}
+
+Please contact your supplier for the ordering information;
+alternatively, visit the website at \mbox{\url{https://github.com/Zubax/zubax_babel}} to download
+3D-printable enclosure models suitable for in-house manufacturing.
+
+\section{Quality assurance}
+
+Every manufactured Babel undergoes an automated testing procedure that validates that
+the device is functioning as designed.
+The test log for every manufactured device is available on the web at
+\url{https://device.zubax.com/device_info}.
+This feature can be used to facilitate traceability of purchased devices and
+provide additional safety assurances.
+
+Every manufactured device has a strong digital signature stored in its non-volatile memory
+which proves the origins of the product and eliminates the risk of sourcing unlicensed or
+counterfeit hardware.
+This signature is referred to as Certificate of Authenticity (CoA).
+Please refer to the \href{https://kb.zubax.com}{Zubax Knowledge Base} to learn more about
+the certificate of authenticity and how it can be used to trace the origins of your hardware.
 
 \chapter{Characteristics}
 
