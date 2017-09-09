@@ -8,7 +8,13 @@
 \usepackage{svg}
 \graphicspath{{document_templates/documentation_template_latex/}}
 
+\usepackage{ConfigParamIndex}
+\usepackage{amsmath}
+\usepackage{textcomp}
+
 \title{Zubax Babel Datasheet}
+
+\hbadness=10000
 
 \begin{document}
 \frontmatter
@@ -567,7 +573,7 @@ State ID & State name & Comment \\
 
 \begin{figure}[H]
 	\centerline{\includegraphics[width=1\textwidth]{bootloader_state_machine}}
-	\caption{Bootloader state machine.\label{drawing}}
+	\caption{Bootloader state machine.\label{bootloader_state_machine}}
 \end{figure}
 
 \fbox{wait}
