@@ -262,7 +262,7 @@ If redundancy is desired, multiple Babels should be used in parallel, one per bu
     \label{can_daisy_chain}}
 \end{figure}
 
-\subsubsection{Connector pinout}
+\subsubsection{Characteristics}
 
 \begin{ZubaxTableWrapper}{UAVCAN Micro (JST GH) standard connector pinout}
     \begin{ZubaxWrappedTable}{|l X X[2]|}
@@ -276,8 +276,6 @@ If redundancy is desired, multiple Babels should be used in parallel, one per bu
 	    \item[a] Power output be enabled/disabled by setting the configuration parameter \CfgRef{can.power+on}.
 	\end{tablenotes}
 \end{ZubaxTableWrapper}
-
-\subsubsection{Physical characteristics}
 
 \begin{ZubaxTableWrapper}{CAN bus interface characteristics}
 	\begin{ZubaxWrappedTable}{|c X|c c c|c|}
@@ -305,46 +303,121 @@ If redundancy is desired, multiple Babels should be used in parallel, one per bu
 
 \subsection{USB}\label{sec:usb}
 
-Zubax Babel exposes a USB CDC ACM interface (a.k.a. virtual serial port) via full-speed USB 2.0 port.
-For more information about the serial port and appropriate drivers, please refer to the dedicated article.
+The device implements a full-speed USB 2.0 port with the standard CDC ACM interface
+(also known as ``virtual serial port'').
+The device features driverless compatibility with all major operating systems
+(Windows, GNU/Linux, Mac OS).\footnote{Get more knowledge and helpful tips at \url{https://kb.zubax.com}.}
 
-The device implements the SLCAN protocol with custom extensions on top of the CDC ACM interface,
-which is documented in the later sections.
+The physical connector type is USB micro B (which is one of the most common device-side USB connector types).
 
-Note that while USB is connected, the UART interface of the DroneCode Debug Port is not available.
-In order to use UART, USB must be disconnected.
+\subsubsection{Identification}
+
+Babel will report the following properties to the USB host:
+\begin{itemize}
+    \item Vendor ID -- 0x1D50
+    \item Product ID -- 0x60C7
+    \item Vendor string -- \verb|Zubax Robotics|
+    \item Device description string -- \verb|Zubax Babel|
+    \item Device ID -- the 128-bit globally unique device ID (section \ref{sec:product_identification})
+                       as a hexadecimal string
+\end{itemize}
 
 \subsection{Dronecode debug port}\label{sec:dronecode_debug_port}
 
-The DroneCode Debug Port exposes the standard ARM SWD interface and a UART port.
-The UART port exposes a CLI.
-Same SLCAN protocol operates on top of the UART CLI as on the USB CLI.
+The device features a Dronecode debug port interface available via the standard
+Dronecode Debug Mini connector (DCD-Mini)\footnote{\url{https://wiki.dronecode.org/workgroup/connectors/start}}.
+This port can be conveniently used with the \href{https://kb.zubax.com/x/iIAh}{Zubax Dronecode Probe},
+or any other UART-capable hardware with a compatible connector.
 
-Note that while USB is connected, the UART interface of the DroneCode Debug Port is not available.
-In order to use UART, USB must be disconnected.
+The physical location of the connector is documented in the section \ref{sec:mechanical}.
 
-\begin{ZubaxSimpleTable}{UART characteristics}{|c X| c c c | c | }
-    Symbol & Parameter                        & Min  & Typ    & Max       & Unit \\
-           & Supported baud rates             & 2400 & 115200 & 3~000~000 & baud/s \\
-           & Low-level input voltage          & -0.3 & 0      & 1.6       & V \\
-           & High-level input voltage         & 2.1  & 3.3    & 5.5       & V \\
-           & Low-level output voltage         & 0    & 0      & 0.5       & V \\
-           & High-level output voltage        & 2.8  & 3.3    & 3.4       & V \\
-           & Source/sink current (magnitude)  &      &        &  10       & mA \\
+The Dronecode debug port provides access to the UART and JTAG/SWD interfaces;
+the latter is mostly useful for OEM applications and for using Babel as a development board.
+
+\subsubsection{UART interface}
+
+The baud rate can be changed by setting the configuration parameter \CfgRef{uart.baudrate}.
+The following parameters of the UART interface are fixed and cannot be changed by the user:
+\begin{itemize}
+    \item Word size -- 8 bit
+    \item Parity control -- none
+    \item Stop bits -- 1 bit
+\end{itemize}
+
+\subsubsection{SWD interface}
+
+The SWD interface is a standard debug interface implemented in many ARM cores.
+Please refer to the specialized literature for additional information.
+
+Information about the use of Babel in OEM applications is provided in the section \ref{sec:oem_applications}.
+
+The recommended SWD adapter for use with Babel is the \href{https://kb.zubax.com/x/iIAh}{Zubax Dronecode Probe}.
+
+\subsubsection{Characteristics}
+
+\begin{ZubaxTableWrapper}{Dronecode Debug Mini standard connector pinout}
+    \begin{ZubaxWrappedTable}{|l X X X[2]|}
+        Pin no. & Type            & Name                & Comment\\
+        1       & Power           & TPWR                & +5 V power supply input/output\\
+        2       & Output          & UART\_TX            & \\
+        3       & Input           & UART\_RX            & Pulled up with a resistor\\
+        4       & Input/Output    & SWDIO               & For OEM \& development use\\
+        5       & Input           & SWDCLK              & For OEM \& development use\\
+        6       & Ground          & GND                 & Power \& signal ground\\
+    \end{ZubaxWrappedTable}
+\end{ZubaxTableWrapper}
+
+\begin{ZubaxSimpleTable}{Dronecode debug port characteristics}{|c X|c c c|c|}
+	Symbol  & Parameter                                 & Min  & Typ    & Max         & Unit \\
+                & Supported UART baud rates                 & 2400 & 115200 & 3\,000\,000 & baud/s \\
+                & Low-level input voltage                   & -0.3 & 0      & 1.6         & V\\
+                & High-level input voltage                  & 2.1  & 3.3    & 5.5         & V\\
+                & Low-level output voltage                  & 0    & 0      & 0.5         & V\\
+                & High-level output voltage                 & 2.8  & 3.3    & 3.4         & V\\
+                & Source/sink current via data pins         &      &        & 10          & mA\\
+                & UART RX pull up resistance                & 30   & 40     & 50          & $\text{k}\Omega$\\
+	        & Connector resistance during device lifetime &    & 20     & 40          & $\text{m}\Omega$\\
 \end{ZubaxSimpleTable}
 
 \subsection{SMD pads}\label{sec:smd_pads}
 
-\begin{ZubaxSimpleTable}{SMD signal pads}{|c X| c c c | c | }
+Babel exposes a set of SMD pads which facilitate the following applications of the device:
+\begin{itemize}
+    \item Programmable CAN module for OEM applications.
+          Babel can be directly soldered into a larger PCB using the exposed SMD pads.
+    \item CAN development board.
+          Standard 2.54\,mm connectors can be soldered to the SMD pads in order to make the device compatible with
+          standard prototyping breadboards.
+\end{itemize}
+
+Information about the use of Babel in OEM applications is provided in the section \ref{sec:oem_applications}.
+The pinout specification for the SMD pads is provided on the figure \ref{fig:pinout}.
+
+\begin{ZubaxSimpleTable}{SMD signal pads characteristics}{|c X| c c c | c | }
     Symbol & Parameter                       & Min  & Typ & Max & Unit \\
            & Low-level input voltage         & -0.3 & 0   & 1.6 & V \\
            & High-level input voltage        & 2.1  & 3.3 & 5.5 & V \\
            & Low-level output voltage        & 0    & 0   & 0.5 & V \\
            & High-level output voltage       & 2.8  & 3.3 & 3.4 & V \\
-           & Source/sink current (magnitude) &      & 10  &     & mA \\
+           & Source/sink current (magnitude) &      &     & 10  & mA \\
 \end{ZubaxSimpleTable}
 
-\section{Mechanical characteristics}\label{sec:mechanical}
+\section{Product identification}\label{sec:product_identification}
+
+This section documents the device properties that are reported in response to identification requests,
+such the CLI command \verb|zubax_id| (section \ref{sec:cli_command_zubax_id}).
+
+The product ID string is reported as ``\verb|com.zubax.babel|''.
+The prefix ``\verb|com.zubax.|'' is shared by many of the products designed by Zubax Robotics.
+
+Every manufactured device has a globally unique 128-bit ID (UID) that cannot be changed.
+
+Every manufactured device is equipped with a certificate of authenticity,
+which is a function of, among other things, the UID and the product ID of the device.
+Please refer to the web resources provided by Zubax Robotics to learn more about the certificate of authenticity
+and how it can be used to verify the authenticity of products.
+
+\section{Geometry and pinout}\label{sec:mechanical}
 
 The figure \ref{fig:drawing} documents the basic mechanical characteristics of Zubax Babel,
 such as the placement of connectors and mounting holes.
@@ -665,7 +738,7 @@ Reboots the device into the bootloader, where it will wait forever for commands.
 
 Reboots the device.
 
-\chapter{OEM applications}
+\chapter{OEM applications}\label{sec:oem_applications}
 
 Besides the primary role as a USB/UART-CAN adapter tool, Zubax Babel can be effectively applied as an integral part of a larger system or device, either as a CAN adapter or, if loaded with a user-developed firmware, in a completely different role. These use cases are referred to as OEM applications.
 
