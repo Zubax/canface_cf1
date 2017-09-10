@@ -230,6 +230,14 @@ which facilitates easy integration of the device into the end application withou
 The default bit rate of the CAN bus can be set via the configuration parameter \CfgRef{can.bitrate},
 in bits per second.
 
+Babel always attempts to configure the CAN timings so as to achieve settings as close as possible to the
+following:
+\begin{itemize}
+    \item Sampling point location: 87.5\%.
+    \item Time quanta per bit: 8--10 for bit rate $\geq$ 1 Mbps, 16--17 otherwise.
+    \item Resynchronization jump width: 1 time quantum.
+\end{itemize}
+
 The CAN interface recovers from the bus-off state automatically once the controller has
 observed 128 occurrences of 11 consecutive recessive bits on the bus, as defined by the CAN specification.
 
@@ -434,40 +442,98 @@ The pinout of the SMD pads and other connectors is shown on the figure \ref{fig:
 	\caption{Babel pinout.\label{fig:pinout}}
 \end{figure}
 
-\chapter{LED indicators}
+\chapter{Operating principles}
 
-\begin{ZubaxSimpleTable}{Led indicators}{| l | X |}
-    Color    & Indicates \\
-    Red      & The CAN power switch is turned ON \\
-    Orange   & The CAN termination resistor is turned ON \\
-    Blue     & Status, see below \\
-    Green    & Blinks once if there was at least one CAN frame successfully sent or received in the last
-               25 milliseconds.
-               This feature allows the user to visually evaluate the load of the CAN bus.
+\section{Overview}
+
+Babel keeps its CAN controller disabled by default in order to ensure that no unnecessary
+interference with the CAN bus is introduced.
+The CAN controller can be enabled, which is referred to as \emph{opening the channel}.
+In this context, ``channel'' refers to the data tunnel between the CAN bus and a high-side
+interface (either USB or UART).
+
+When opening the channel, it is possible to explicitly specify the desired bit rate of the CAN bus.
+If the CAN bit rate was not specified explicitly, Babel will use the value stored in the parameter
+\CfgRef{can.bitrate}.
+If the bit rate was specified explicitly, the parameter value will be automatically updated.
+
+When the channel is opened, all of the buffers become flushed (i.e. cleared)
+and the interface statistic counters get reset.
+An attempt to open the channel when it is already opened is interpreted as if there was an implicit
+close command before the channel is re-opened again.
+
+Babel runs a single instance of an SLCAN protocol handler that can be attached either to the
+USB CDC ACM interface (virtual serial port) or the physical UART interface.
+By default, the UART interface is used.
+If Babel detects that the USB interface is connected to a USB host,
+it disconnects the SLCAN protocol handler from the UART port and attaches it to the USB CDC ACM port.
+The reverse happens when the USB port becomes disconnected.
+It is therefore impossible to use both USB and UART interfaces at the same time concurrently.
+
+\section{Start up and initialization}
+
+Immediately after powering on, the device starts the embedded bootloader (described in detail in the section
+\ref{sec:bootloader}).
+The bootloader awaits for external commands for a few seconds.
+If no commands requesting it to download a new firmware image or wait longer were received,
+and if a valid application (i.e. firmware) was found in the ROM,
+the bootloader starts the application.
+If no valid application is found in the ROM, the bootloader will wait for commands forever.
+
+\section{LED indicators}
+
+\newcommand{\LEDX}{{\rule{0.4em}{0.8em}}}
+\newcommand{\LEDO}{{\rule{0.4em}{0.1em}}}
+
+\newcommand{\ShowColor}[1]{{\color{#1}\rule{2em}{0.8em}}}
+
+Babel is equipped with four separate LED indicators that reflect the current state of the device.
+Their functions are summarized in the table \ref{table:led_indicators}.
+
+\begin{ZubaxSimpleTable}{LED indicators}{|l l X|}\label{table:led_indicators}
+    Color                     & Name               & Behavior \\
+    \ShowColor{red} Red       & CAN power LED      & Glows when the CAN bus power output is enabled. \\
+    \ShowColor{orange} Orange & CAN terminator LED & Glows when the CAN bus termination resistor is enabled. \\
+    \ShowColor{blue} Blue     & Status LED         & See table \ref{table:status_led_behavior}. \\
+    \ShowColor{green} Green   & CAN traffic LED    & Blinks once if at least one CAN frame was successfully
+                                                     transmitted or successfully received in the last
+                                                     25~milliseconds. Glows steadily when the intensity of CAN
+                                                     traffic is higher than 40 frames per second.
+                                                     The function of this LED is different while the bootloader
+                                                     is running; see the section \ref{sec:bootloader}. \\
 \end{ZubaxSimpleTable}
 
-The Status LED (blue) behaves as follows:
+The behavior of the status LED is more complex than that of other indicators.
+It is specified in the table \ref{table:status_led_behavior}.
+Observe that there is one special mode that is used while the embedded bootloader is running.
+The bootloader is documented separately in the section \ref{sec:bootloader}.
 
-\begin{ZubaxSimpleTable}{Status LED behavior}{| l X |}
-    Status                                     & Pattern \\
-    Bootloader is running                      & Glowing continuously \\
-    CAN channel is closed                      & Turned OFF \\
-    CAN channel is open and operating normally & Blinking 1 Hz (slowly) \\
-    CAN channel is open, CAN error passive     & Blinking 4 Hz (quickly) \\
-    CAN channel is open, CAN bus off           & Blinking 10 Hz (very quickly) \\
+\begin{ZubaxSimpleTable}{Status LED behavior}{|l l X|}\label{table:status_led_behavior}
+    Status & LED pattern (step 50 ms) & LED behavior \\
+
+    Bootloader is running
+    & \LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX
+    & Glowing continuously.
+      In this mode, the CAN traffic LED behaves as described in the section \ref{sec:bootloader}. \\
+
+    CAN channel closed
+    & \LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO
+    & Turned OFF \\
+
+    CAN channel open, normal operation
+    & \LEDX\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO
+    & Blinking 1 Hz \\
+
+    CAN channel open, error passive
+    & \LEDX\LEDO\LEDO\LEDO\LEDO\LEDX\LEDO\LEDO\LEDO\LEDO\LEDX\LEDO\LEDO\LEDO\LEDO\LEDX\LEDO\LEDO\LEDO\LEDO
+    & Blinking 4 Hz \\
+
+    CAN channel open, bus off
+    & \LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO
+    & Blinking 10 Hz \\
 \end{ZubaxSimpleTable}
 
-While the bootloader is running, the traffic LED (green) is used to indicate the bootloader\textquotesingle s status as follows:
-
-\begin{ZubaxSimpleTable}{Bootloader status indication}{| l X |}
-    Status                                               & Pattern \\
-    Ready to boot, or waiting for boot delay expiration  & Turned OFF \\
-    Boot canceled by external request (e.g. CLI command) & Blinking 1 Hz, short pulses (50 ms) \\
-    Application upgrade is in progress                   & Blinking 1 Hz, long pulses (500 ms) \\
-    No valid application found, boot is not possible     & Blinking 10 Hz (very quickly) \\
-\end{ZubaxSimpleTable}
-
-\chapter{SLCAN protocol}
+\chapter{SLCAN protocol}\label{sec:slcan}
 
 SLCAN (also known as LAWICEL) is a quasi-standard protocol designed for tunneling CAN data (frames, commands and adapter status information) via serial links (UART or USB CDC ACM). Zubax Babel implements all mandatory SLCAN commands, so that its compatibility with third party software products that rely on SLCAN is ensured. A brief recap of standard SLCAN commands, prepared by Oliver Hartkopp, can be found in this document: \href{https://docs.zubax.com/zubax_babel/Generic_SLCAN_API.pdf}{Generic\_SLCAN\_API.pdf}.
 
@@ -780,16 +846,16 @@ Configuration parameters are stored in the non-volatile memory on the adapter. S
 Starting from firmware version v1.1, configuration parameters are stored into the non-volatile memory automatically after modification.
 
 % name, SLCAN alias, takes effect at, min, max, default, note
-\newcommand\CfgParamIndexEntry[6]{%
-    \CfgDef{#1} & \footnotesize{#2} & \footnotesize{\CfgListReferences{#1}} &
-    \footnotesize{#3} & \footnotesize{#4} & \footnotesize{#5} & \footnotesize{#6}
+\newcommand\CfgParamIndexEntry[7]{%
+    \CfgDef{#1} & \footnotesize{#2} & \footnotesize{#3} & \footnotesize{\CfgListReferences{#1}} &
+    \footnotesize{#4} & \footnotesize{#5} & \footnotesize{#6} & \footnotesize{#7}
     \tabularnewline
 }%
 \newenvironment{CfgParamIndex}[1]{%
     \begin{ZubaxTableWrapper}{#1}
     \setlength\tabcolsep{2.5pt}
-    \begin{ZubaxWrappedTable}{@{} l c l | c c c | X @{}}
-    Name & \makecell[cb]{SLCAN\\alias} & Pages & Min & Max & Def. & Description \\
+    \begin{ZubaxWrappedTable}{@{} l c l l | c c c | X @{}}
+    Name & \makecell[cb]{SLCAN\\alias} & \makecell[lb]{Takes\\effect at} & Pages & Min & Max & Def. & Description \\
 }{%
     \end{ZubaxWrappedTable}
     \end{ZubaxTableWrapper}
@@ -797,27 +863,27 @@ Starting from firmware version v1.1, configuration parameters are stored into th
 
 \begin{CfgParamIndex}{Configuration parameter index}
 
-\CfgParamIndexEntry{can.bitrate}{S}{10\,000}{1\,000\,000}{1\,000\,000}
+\CfgParamIndexEntry{can.bitrate}{S}{channel open}{10\,000}{1\,000\,000}{1\,000\,000}
 {CAN bus bit rate, in bit/s.}
 
-\CfgParamIndexEntry{can.power+on}{}{0}{1}{1}
+\CfgParamIndexEntry{can.power+on}{}{immediately}{0}{1}{1}
 {Enable CAN bus power output.}
 
-\CfgParamIndexEntry{can.terminator+on}{}{0}{1}{1}
+\CfgParamIndexEntry{can.terminator+on}{}{immediately}{0}{1}{1}
 {Enable the embedded CAN bus termination resistor.}
 
-\CfgParamIndexEntry{slcan.timestamping+on}{Z}{0}{1}{1}
+\CfgParamIndexEntry{slcan.timestamping+on}{Z}{immediately}{0}{1}{1}
 {Time stamp all incoming and outgoing CAN frames.}
 
-\CfgParamIndexEntry{slcan.flags+on}{}{0}{1}{0}
+\CfgParamIndexEntry{slcan.flags+on}{}{immediately}{0}{1}{0}
 {Enable flags for SLCAN indications (SLCAN protocol extension).}
 
-\CfgParamIndexEntry{uart.baudrate}{U}{2400}{3\,000\,000}{115200}
+\CfgParamIndexEntry{uart.baudrate}{U}{immediately}{2400}{3\,000\,000}{115200}
 {Baud rate of the UART port.}
 
 \end{CfgParamIndex}
 
-\chapter{Embedded bootloader}
+\chapter{Embedded bootloader}\label{sec:bootloader}
 
 The embedded bootloader enables firmware update via the following protocols and interfaces:
 
