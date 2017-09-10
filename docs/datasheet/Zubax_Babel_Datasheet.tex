@@ -161,22 +161,149 @@ Proper operation of the device within the limits specified in this section is no
     \end{tablenotes}
 \end{ZubaxTableWrapper}
 
+\section{Power supply}\label{sec:power}
+
+Babel requires a +5 V DC power supply input
+which can be delivered via any of the available interface connectors.
+
+The device has a reverse current protection on the USB power input
+which prevents back-powering the USB host when it is turned off.
+
+The CAN power output has a solid state switch that can be enabled and disabled
+by setting the configuration parameter \CfgRef{can.power+on}.
+The device can always be powered from the CAN bus regardless of the state of the power switch.
+
+An additional +3.3 V DC output on the SMD pads can be used to power an external circuitry when the device
+is used as a development board or in OEM applications.
+The pinout specification for the SMD pads is provided in the section \ref{sec:smd_pads}.
+
+The topology of the power supply circuits is documented on the figure \ref{fig:power_supply_scheme}.
+Power input and output capabilities per interface are summarized in the table \ref{table:power_supply_summary}.
+
+\begin{figure}[!hbt]
+    \centerline{\includegraphics[width=1\textwidth]{power_supply}}
+    \vspace{1em}
+    \caption{Power supply architecture.\label{fig:power_supply_scheme}}
+\end{figure}
+
+\begin{ZubaxSimpleTable}{Power supply summary}{|l X X|}\label{table:power_supply_summary}
+    Interface            & Direction              & Section \\
+    CAN                  & Input, optional output & \ref{sec:can_bus} \\
+    USB                  & Input                  & \ref{sec:usb} \\
+    Dronecode debug port & Input, output          & \ref{sec:dronecode_debug_port} \\
+    SMD pads             & Input, output          & \ref{sec:smd_pads} \\
+\end{ZubaxSimpleTable}
+
+\begin{ZubaxTableWrapper}{Power supply characteristics}
+    \begin{ZubaxWrappedTable}{|c X| c c c | c|}\label{table:power}
+        Symbol            & Parameter                 & Min & Typ & Max & Unit \\
+        $V_\text{supply}$ & Supply voltage\tnote{a}   & 4.0 & 5.0 & 5.5 & V  \\
+        $I_\text{supply}$ & Supply current\tnote{b}   & 30  & 50  & 80  & mA \\
+                          & 3.3 V rail output voltage & 3.2 & 3.3 & 3.4 & V  \\
+                          & 3.3 V rail external load  &     &     & 100 & mA \\
+    \end{ZubaxWrappedTable}
+    \begin{tablenotes}
+        \item[a] Any power input.
+        \item[b] SMD pads floating, Dronecode port disconnected.
+    \end{tablenotes}
+\end{ZubaxTableWrapper}
+
 \section{Communication interfaces}
 
-\subsection{CAN bus}
+Zubax Babel features a variety of communication interfaces that facilitate easy integration into various
+applications:
+\begin{itemize}
+    \item CAN 2.0A/B (ISO 11898).
+    \item USB port (CDC ACM, virtual serial port).
+    \item Dronecode debug port.
+    \item SMD pads for OEM applications.
+\end{itemize}
 
-Zubax Babel implements ISO 11898, also known as high-speed CAN.
-The CAN interface recovers from bus-off and other error states automatically.
+\subsection{CAN bus}\label{sec:can_bus}
 
-The CAN bus interface is exposed via two parallel 4-pin JST GH connectors.
-These are the standard UAVCAN Micro Connectors.
+Zubax Babel implements the ISO 11898 CAN 2.0 A/B bus physical layer standard, also known as high-speed CAN.
+The CAN bus interface is equipped with two standard
+UAVCAN Micro connectors (JST GH)\footnote{\url{https://kb.zubax.com/x/EoAh}}
+electrically parallel to each other,
+which facilitates easy integration of the device into the end application without the need to use T-connectors.
 
-The device has an embedded 120$\Omega$ termination resistor that can be enabled and disabled via the SLCAN interface.
+The default bit rate of the CAN bus can be set via the configuration parameter \CfgRef{can.bitrate},
+in bits per second.
 
-The power switch, when turned on, delivers the +5 VDC supply to the CAN bus,
-which can be used to power other CAN bus nodes from Zubax Babel (see the power system diagram).
+The CAN interface recovers from the bus-off state automatically once the controller has
+observed 128 occurrences of 11 consecutive recessive bits on the bus, as defined by the CAN specification.
 
-\subsection{USB}
+The device has an embedded 120 $\Omega$ CAN termination resistor that can be enabled and disabled
+by setting the configuration parameter \CfgRef{can.terminator+on}.
+Changes to this configuration parameter take effect immediately.
+
+The power switch, when turned on, delivers a +5 V DC supply to the CAN bus,
+which can be used to power other CAN bus nodes from Zubax Babel
+(section \ref{sec:power}).
+The power switch is controlled by the configuration parameter \CfgRef{can.power+on}.
+Changes to this configuration parameter take effect immediately.
+
+The physical locations of the CAN connectors are documented in the section \ref{sec:mechanical}.
+
+\subsubsection{Device interconnection}
+
+The figure \ref{can_daisy_chain} shows a typical CAN bus topology.
+Observe that if Babel is a last device on the bus, a separate termination resistor would not be necessary,
+since Babel has an embedded termination resistor that can be enabled by setting the configuration
+parameter \CfgRef{can.terminator+on}.
+
+The CAN bus interface of Babel is not redundant.
+If redundancy is desired, multiple Babels should be used in parallel, one per bus.
+
+\begin{figure}[hbt]
+    \centering
+    \includegraphics[width=1\textwidth]{can_daisy_chain}
+    \caption{CAN bus interconnection diagram.
+    \label{can_daisy_chain}}
+\end{figure}
+
+\subsubsection{Connector pinout}
+
+\begin{ZubaxTableWrapper}{UAVCAN Micro (JST GH) standard connector pinout}
+    \begin{ZubaxWrappedTable}{|l X X[2]|}
+        Pin no. & Type            & Function\\
+        1       & Power           & +5 V power supply output and/or pass-trough\tnote{a}\\
+        2       & Input/output    & CAN High\\
+        3       & Input/output    & CAN Low\\
+        4       & Ground          & Power \& signal ground\\
+    \end{ZubaxWrappedTable}
+	\begin{tablenotes}
+	    \item[a] Power output be enabled/disabled by setting the configuration parameter \CfgRef{can.power+on}.
+	\end{tablenotes}
+\end{ZubaxTableWrapper}
+
+\subsubsection{Physical characteristics}
+
+\begin{ZubaxTableWrapper}{CAN bus interface characteristics}
+	\begin{ZubaxWrappedTable}{|c X|c c c|c|}
+		Symbol  & Parameter                                 & Min  & Typ  & Max  & Unit \\
+		        & Bit rate                                  &      &      & 1000 & Kbps \\
+		        & Positive-going input threshold voltage    &      & 750  & 900  & mV \\
+		        & Negative-going input threshold voltage    & 500  & 600  &      & mV \\
+		        & Differential output voltage, dominant     & 1.5  & 2.0  & 3.0  & V \\
+		        & Differential output voltage, recessive    & -120 & 0    & 12   & mV \\
+		        & Inter-connector current pass-through\tnote{a}& -1&      & 1    & A \\
+		        & Connector resistance during device lifetime &    & 30   & 50   & $\text{m}\Omega$ \\
+		        & CAN bus power output voltage\tnote{b}     & $V_\text{supply}-$0.4
+		                                                    & $V_\text{supply}-$0.3
+		                                                    & $V_\text{supply}$
+		                                                    & V \\
+		        & CAN bus power output current              & -1   &      & 0.3  & mA
+	\end{ZubaxWrappedTable}
+	\begin{tablenotes}
+	    \item[a] The limit is imposed by the PCB.
+	    \item[b] CAN power supply voltage is a function of the input supply voltage and
+	             the voltage drop in the CAN power switch circuit.
+	             The latter is dependent on the CAN power supply current.
+	\end{tablenotes}
+\end{ZubaxTableWrapper}
+
+\subsection{USB}\label{sec:usb}
 
 Zubax Babel exposes a USB CDC ACM interface (a.k.a. virtual serial port) via full-speed USB 2.0 port.
 For more information about the serial port and appropriate drivers, please refer to the dedicated article.
@@ -187,7 +314,7 @@ which is documented in the later sections.
 Note that while USB is connected, the UART interface of the DroneCode Debug Port is not available.
 In order to use UART, USB must be disconnected.
 
-\subsection{Dronecode debug port}
+\subsection{Dronecode debug port}\label{sec:dronecode_debug_port}
 
 The DroneCode Debug Port exposes the standard ARM SWD interface and a UART port.
 The UART port exposes a CLI.
@@ -206,7 +333,7 @@ In order to use UART, USB must be disconnected.
            & Source/sink current (magnitude)  &      &        &  10       & mA \\
 \end{ZubaxSimpleTable}
 
-\subsection{SMD pads}
+\subsection{SMD pads}\label{sec:smd_pads}
 
 \begin{ZubaxSimpleTable}{SMD signal pads}{|c X| c c c | c | }
     Symbol & Parameter                       & Min  & Typ & Max & Unit \\
@@ -217,41 +344,7 @@ In order to use UART, USB must be disconnected.
            & Source/sink current (magnitude) &      & 10  &     & mA \\
 \end{ZubaxSimpleTable}
 
-\section{Power supply}
-
-The device requires a +5 V DC power supply (table \ref{table:power})
-which can be delivered via any of the interface connectors:
-
-\begin{itemize}
-    \item USB connector (power input only).
-    \item CAN connectors (power input, optional power output).
-    \item DroneCode Debug Port connector (power input and output).
-    \item SMD pads (power input and output).
-\end{itemize}
-
-The device has a reverse current protection on the USB power input, to prevent back-powering the USB host when it is turned off. The CAN power output has a solid state switch that can be enabled and disabled programmatically (more on this in the later sections); however, the device can be powered from the CAN bus regardless of the state of the power switch. Additional 3.3 VDC output on the SMD pads can be used to power the external circuit when the device is used in OEM mode. See the following diagram:
-
-\begin{figure}[!hbt]
-    \centerline{\includegraphics[width=1\textwidth]{power_supply}}
-    \vspace{1em}
-    \caption{Power supply architecture.\label{fig:power_supply_scheme}}
-\end{figure}
-
-\begin{ZubaxTableWrapper}{Power supply characteristics}
-    \begin{ZubaxWrappedTable}{|c X| c c c | c|}\label{table:power}
-        Symbol            & Parameter                 & Min & Typ & Max & Unit \\
-        $V_\text{supply}$ & Supply voltage\tnote{a}   & 4.0 & 5.0 & 5.5 & V  \\
-        $I_\text{supply}$ & Supply current\tnote{b}   & 30  & 50  & 80  & mA \\
-                          & 3.3 V rail output voltage & 3.2 & 3.3 & 3.4 & V  \\
-                          & 3.3 V rail external load  &     &     & 100 & mA \\
-    \end{ZubaxWrappedTable}
-    \begin{tablenotes}
-        \item[a] Any power input.
-        \item[b] SMD pads floating, Dronecode port disconnected.
-    \end{tablenotes}
-\end{ZubaxTableWrapper}
-
-\section{Mechanical characteristics}
+\section{Mechanical characteristics}\label{sec:mechanical}
 
 The figure \ref{fig:drawing} documents the basic mechanical characteristics of Zubax Babel,
 such as the placement of connectors and mounting holes.
@@ -572,22 +665,6 @@ Reboots the device into the bootloader, where it will wait forever for commands.
 
 Reboots the device.
 
-\chapter{Configuration parameters}
-
-Configuration parameters are stored in the non-volatile memory on the adapter. Stored parameters will be re-initialized to the saved values automatically every time the adapter is turned on. Changes in adapter configuration take effect shortly after the corresponding command changing them is executed, typically within 100 milliseconds, unless stated otherwise elsewhere. Some configuration parameters are aliased via dedicated standard SLCAN commands.
-
-Starting from firmware version v1.1, configuration parameters are stored into the non-volatile memory automatically after modification.
-
-\begin{ZubaxSimpleTable}{Configuration parameters}{| X[4] |  X[1] | X[3] | X[5] |}
-Name & SLCAN \newline alias & Default value & Purpose \\
-\fbox{can.bitrate} & \fbox{S} & 1000000 & CAN bitrate, in bits per second.\\
-\fbox{can.power\textunderscore on} &  & true (before firmware v1.1: false) & Open the CAN power switch (see the power supply diagram).\\
-\fbox{can.terminator\textunderscore on} & & true (before firmware v1.1: false) & Enable the 120 termination resistor.\\
-\fbox{slcan.timestamping\textunderscore on} & \fbox{Z} & true & Provide timestamp information for CAN frame indications.\\
-\fbox{slcan.flags\textunderscore on} & & false & Append flags to CAN frame indications (this is a non-standard SLCAN extension).\\
-\fbox{uart.baudrate} & \fbox{U} & 115200 & UART baud rate.\\
-\end{ZubaxSimpleTable}
-
 \chapter{OEM applications}
 
 Besides the primary role as a USB/UART-CAN adapter tool, Zubax Babel can be effectively applied as an integral part of a larger system or device, either as a CAN adapter or, if loaded with a user-developed firmware, in a completely different role. These use cases are referred to as OEM applications.
@@ -623,7 +700,51 @@ Zubax Babel is based on the microcontroller STM32F373CBT6; its main characterist
 
 Custom applications can be loaded either directly via SWD, in which case great care should be taken to not accidentally erase the bootloader; or via the bootloader itself. More information about the bootloader can be gathered in the dedicated section.
 
-\chapter{Bootloader}
+\chapter{Configuration parameters}
+
+Configuration parameters are stored in the non-volatile memory on the adapter. Stored parameters will be re-initialized to the saved values automatically every time the adapter is turned on. Changes in adapter configuration take effect shortly after the corresponding command changing them is executed, typically within 100 milliseconds, unless stated otherwise elsewhere. Some configuration parameters are aliased via dedicated standard SLCAN commands.
+
+Starting from firmware version v1.1, configuration parameters are stored into the non-volatile memory automatically after modification.
+
+% name, SLCAN alias, takes effect at, min, max, default, note
+\newcommand\CfgParamIndexEntry[6]{%
+    \CfgDef{#1} & \footnotesize{#2} & \footnotesize{\CfgListReferences{#1}} &
+    \footnotesize{#3} & \footnotesize{#4} & \footnotesize{#5} & \footnotesize{#6}
+    \tabularnewline
+}%
+\newenvironment{CfgParamIndex}[1]{%
+    \begin{ZubaxTableWrapper}{#1}
+    \setlength\tabcolsep{2.5pt}
+    \begin{ZubaxWrappedTable}{@{} l c l | c c c | X @{}}
+    Name & \makecell[cb]{SLCAN\\alias} & Pages & Min & Max & Def. & Description \\
+}{%
+    \end{ZubaxWrappedTable}
+    \end{ZubaxTableWrapper}
+}
+
+\begin{CfgParamIndex}{Configuration parameter index}
+
+\CfgParamIndexEntry{can.bitrate}{S}{10\,000}{1\,000\,000}{1\,000\,000}
+{CAN bus bit rate, in bit/s.}
+
+\CfgParamIndexEntry{can.power+on}{}{0}{1}{1}
+{Enable CAN bus power output.}
+
+\CfgParamIndexEntry{can.terminator+on}{}{0}{1}{1}
+{Enable the embedded CAN bus termination resistor.}
+
+\CfgParamIndexEntry{slcan.timestamping+on}{Z}{0}{1}{1}
+{Time stamp all incoming and outgoing CAN frames.}
+
+\CfgParamIndexEntry{slcan.flags+on}{}{0}{1}{0}
+{Enable flags for SLCAN indications (SLCAN protocol extension).}
+
+\CfgParamIndexEntry{uart.baudrate}{U}{2400}{3\,000\,000}{115200}
+{Baud rate of the UART port.}
+
+\end{CfgParamIndex}
+
+\chapter{Embedded bootloader}
 
 The embedded bootloader enables firmware update via the following protocols and interfaces:
 
