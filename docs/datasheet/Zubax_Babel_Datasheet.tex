@@ -589,109 +589,233 @@ A high quality host-side implementation of the SLCAN protocol in Python can be f
 
 \section{SLCAN commands}
 
-\subsection{CAN controller configuration}
+\subsection{CAN controller configuration commands}
 
-\begin{ZubaxSimpleTable}{CAN controller configuration}{| l |  l | X |}
-Block ID & Arguments & Purpose \\
-\fbox{S} & 	Decimal number, see below & Set CAN bitrate. \\
-\fbox{O} & None & Open CAN channel at the specified earlier bitrate in normal mode; re-open if already open. \\
-\fbox{L} & None & Open CAN channel at the specified earlier bitrate in silent mode (listen only); re-open if already open. \\
-\fbox{l} & None & Open CAN channel at the specified earlier bitrate in normal mode with loopback enabled; re-open if already open. \\
-\fbox{C} & None & Close CAN channel; do nothing if channel is not open. \\
-\fbox{M} & Any, not checked & This command is not applicable for Zubax Babel, it is implemented only for compatibility reasons. \\
-\fbox{m} & Any, not checked & See \fbox{M}
+\begin{ZubaxSimpleTable}{CAN controller configuration commands}{|l l X|}
+    Block ID   & Arguments                 & Purpose \\
+
+    \texttt{S} & Section \ref{sec:slcan_can_bit_rate_interpretation}
+                                           & Set the CAN bit rate. The CAN bit rate will be stored in the
+                                             configuration parameter \CfgRef{can.bitrate}. \\
+
+    \texttt{O} & None                      & Open CAN channel in normal mode; re-open if already open.
+                                             The bit rate value will be taken from \CfgRef{can.bitrate}. \\
+
+    \texttt{L} & None                      & Open CAN channel in silent mode (listen only); re-open if already open.
+                                             The bit rate value will be taken from \CfgRef{can.bitrate}.
+                                             Section \ref{sec:slcan_silent_mode}. \\
+
+    \texttt{l} & None                      & Open CAN channel in normal mode with loopback enabled;
+                                             re-open if already open.
+                                             The bit rate value will be taken from \CfgRef{can.bitrate}. 
+                                             Section \ref{sec:slcan_loopback_mode}. \\
+
+    \texttt{C} & None                      & Close CAN channel; do nothing if the channel is not open. \\
+
+    \texttt{M} & Any                       & This command is not applicable to Babel,
+                                             it is implemented only for compatibility reasons.
+                                             Arguments are not validated. \\
+
+    \texttt{m} & Any                       & See \texttt{M}.
 \end{ZubaxSimpleTable}
 
-All commands return \fbox{$\backslash$r} on success and \fbox{$\backslash$a} on failure. Commands that are implemented for compatibility always report success.
+All commands return ACK (\verb|\r|) on success and NACK (\verb|\a|) on failure.
+Commands that are implemented only for compatibility reasons always report success.
 
-The command \fbox{S} accepts a non-negative decimal number which represents the desired CAN bitrate. If the channel is open, changes in bitrate will not take effect until it is re-opened again. The values are interpreted as follows:
+\subsubsection{CAN bit rate configuration}\label{sec:slcan_can_bit_rate_interpretation}
 
-\begin{ZubaxSimpleTable}{CAN bitrate}{| l |  X |}
-Value & Interpretation, bits per second \\ 
-0 & 10000 \\
-1 & 20000 \\
-2 & 50000 \\
-3 & 100000 \\
-4 & 125000 \\
-5 & 250000 \\
-6 & 500000 \\
-7 & 800000 \\
-8 & 1000000 \\
-Any other & The number is interpreted as-is, no additional conversion is performed.\\
+The command \verb|S| accepts a non-negative decimal number which represents the desired CAN bit rate.
+If the channel is open, changes in the bit rate configuration will not take effect until it is re-opened again.
+The values are interpreted as specified in the table \ref{table:slcan_can_bit_rate_interpretation}.
+
+\begin{ZubaxSimpleTable}{CAN bit rate interpretation}{|l X|}\label{table:slcan_can_bit_rate_interpretation}
+    Value     & Interpretation, bit/s \\ 
+    0         & 10000 \\
+    1         & 20000 \\
+    2         & 50000 \\
+    3         & 100000 \\
+    4         & 125000 \\
+    5         & 250000 \\
+    6         & 500000 \\
+    7         & 800000 \\
+    8         & 1000000 \\
+    Any other & The number is interpreted as-is, no additional conversion is performed.\\
 \end{ZubaxSimpleTable}
 
-When the channel is open with loopback enabled, all transmitted frames will be sent back to the host, with the loopback flag set (if SLCAN flags are enabled). See more on this in the section dedicated to SLCAN notifications.
+\subsubsection{Silent mode}\label{sec:slcan_silent_mode}
 
-\subsection{CAN frame transmission}
+When the channel is open in the silent mode,
+the adapter configures its CAN controller in silent mode as well.
+This mode ensures that the adapter will not interfere with the CAN bus,
+regardless of the physical state of the interface (e.g. the controller will not confirm
+received CAN frames; transmission of any CAN frames, including error frames, will never take place).
 
-In the command table, arguments are indicated as defined in the table below. Valid hexadecimal characters are the following:  \fbox{0123456789} \fbox{abcdef} \fbox{ABCDEF}.
+In silent mode, all outgoing CAN frames are ignored by the adapter.
+CAN frames received from the bus are processed as usual.
 
-\begin{ZubaxSimpleTable}{SLCAN arguments meaning}{| l |  X |}
-Symbol & Meaning\\
-\fbox{i} & 	Hexadecimal digit of a CAN ID \\
-\fbox{d} & Hexadecimal DLC(Data Length Code) value \\ 
-\fbox{*} & Useful data, encoded as a hexadecimal string, e.g. \fbox{0110FF} for the following sequence: 1, 16, 255. \\
-\end{ZubaxSimpleTable}
+\subsubsection{Loopback mode}\label{sec:slcan_loopback_mode}
 
-\begin{ZubaxSimpleTable}{SLCAN command format}{| l |  l | l | X |}
-Block ID & Arguments & Purpose & Example \\
-\fbox{T} & \fbox{iiiiiiiid*} & Transmit 29-bit data frame & \fbox{T0123456780102030405060708$\backslash$r}\\
-\fbox{t} & \fbox{iiid*} & Transmit 11-bit data frame & \fbox{t7FF0$\backslash$r}\\
-\fbox{R} & \fbox{iiiiiiiid} & Transmit 29-bit RTR frame & \fbox{R1234f00d8$\backslash$r}(RTR frames have no payload)\\
-\fbox{r} & \fbox{iiid} & Transmit 11-bit RTR frame & \fbox{r008$\backslash$r}(RTR frames have no payload)\\
-\end{ZubaxSimpleTable}
+When the channel is open with loopback enabled,
+all transmitted frames will be immediately sent back to the host
+after they were successfully delivered to the CAN bus.
 
-All above listed commands may generate the following responses:
+If the SLCAN flags are enabled, loopback frames will be marked with an appropriate flag.
+More information on SLCAN flags is provided in the section \ref{sec:slcan_notifications}.
 
-\begin{ZubaxSimpleTable}{Possible responses}{| l |  X |}
-Response & Meaning \\
-\fbox{Z$\backslash$r} & The frame has been successfully scheduled for transmission (for 29-bit ID) \\
-\fbox{z$\backslash$r} & The frame has been successfully scheduled for transmission (for 11-bit ID) \\
-\fbox{$\backslash$a} & The adapter could not transmit the frame (e.g. malformed frame, CAN channel is not open, etc.)\\
+\subsection{CAN frame transmission commands}
+
+The following documentation uses the specified below notation to document the arguments of SLCAN commands:
+\begin{description}
+    \item[i] A hexadecimal digit that encodes the identifier of the current CAN frame.
+    \item[d] A hexadecimal digit that encodes the DLC (data length code) of the current CAN frame.
+    \item[*] An arbitrary sequence of useful bytes encoded as a hexadecimal string.
+             For example, the sequence \verb|0110FF| encodes the following sequence of three bytes:
+             1, 16, 255.
+\end{description}
+
+In SLCAN, hexadecimal digits can use both uppercase and lowercase Latin letters;
+therefore, the complete set of characters that may occur in a hexadecimal number is as follows:
+\verb|0123456789| \verb|abcdef| \verb|ABCDEF|.
+
+\begin{ZubaxTableWrapper}{CAN frame transmission commands}
+    \begin{ZubaxWrappedTable}{|l l l X|}
+        Block ID   & Argument format     & Transmitted frame & Example of a complete SLCAN block \\
+
+        \texttt{T} & \texttt{iiiiiiiid*} & Data frame with 29-bit ID
+                                         & \texttt{T0123456780102030405060708\textbackslash{}r}\\
+
+        \texttt{t} & \texttt{iiid*}      & Data frame with 11-bit ID
+                                         & \texttt{t7FF0\textbackslash{}r}\\
+
+        \texttt{R} & \texttt{iiiiiiiid}  & RTR frame with 29-bit ID\tnote{a}
+                                         & \texttt{R1234f00d8\textbackslash{}r}\\
+
+        \texttt{r} & \texttt{iiid}       & RTR frame with 11-bit ID\tnote{a}
+                                         & \texttt{r008\textbackslash{}r}\\
+    \end{ZubaxWrappedTable}
+    \begin{tablenotes}
+        \item[a] RTR frames don't carry payload data.
+    \end{tablenotes}
+\end{ZubaxTableWrapper}
+
+All of the above listed commands may generate the responses specified in the table 
+\ref{table:slcan_transmission_responses}.
+
+Note that if a frame could not be scheduled for transmission due to the TX buffer being full,
+the adapter still returns success.
+Use the SLCAN flags together with the loopback mode in order to be able to detect when outgoing frames are dropped
+by the adapter.
+
+\begin{ZubaxSimpleTable}{CAN frame transmission responses}{|l X|}\label{table:slcan_transmission_responses}
+    Response                    & Meaning \\
+
+    \texttt{Z\textbackslash{}r} & The frame has been processed successfully (for 29-bit ID). \\
+
+    \texttt{z\textbackslash{}r} & The frame has been processed successfully (for 11-bit ID). \\
+
+    \texttt{\textbackslash{}a}  & The adapter could not transmit the frame.
+                                  Some of the possible reasons include: a malformed SLCAN block,
+                                  the CAN channel is not open.\\
 \end{ZubaxSimpleTable}
 
 \subsection{Miscellaneous commands}
 
-\begin{ZubaxSimpleTable}{Miscellaneous commands}{| l |  l | X |}
-Block ID & Arguments & Purpose \\
-\fbox{U} & Decimal number, see below & Set UART baud rate \\ 
-\fbox{Z} & \fbox{0} or \fbox{1} & Enable (if 1) or disable (if 0) RX and loopback timestamping \\
-\fbox{F} & None & Get and clear status flags \\ 
-\fbox{V} & None & Get hardware and software version \\
-\fbox{N} & None & Get unique ID (conventional SLCAN adapters return the serial number, which Zubax products may not have) \\
+\begin{ZubaxSimpleTable}{Miscellaneous commands}{|l l X|}
+    Block ID   & Arguments & Purpose \\
+
+    \texttt{U} & Section \ref{sec:slcan_uart_baud_rate_configuration}
+               & Set the UART baud rate. The UART baud rate will be stored in the configuration parameter
+                 \CfgRef{uart.baudrate}. \\
+
+    \texttt{Z} & \texttt{0} or \texttt{1}
+               & Enable or disable the RX and loopback timestamping.
+                 The provided value will be stored in the configuration parameter \CfgRef{slcan.timestamping+on}.\\
+
+    \texttt{F} & None
+               & Get and clear the status flags. \\ 
+
+    \texttt{V} & None
+               & Get the hardware and software version numbers. \\
+
+    \texttt{N} & None
+               & Get the 128-bit unique ID of the device as a hexadecimal string
+                 (section \ref{sec:product_identification}). \\
 \end{ZubaxSimpleTable}
 
-The command \fbox{U} accepts a non-negative decimal number which represents the desired UART baud rate. Changes will take effect shortly after the command was executed (typically within 100 milliseconds), no reboot is necessary; therefore, the host should adjust the baud rate of the serial port immediately after execution of this command. The number is interpreted as follows:
+\subsubsection{UART baud rate configuration}\label{sec:slcan_uart_baud_rate_configuration}
 
-\begin{ZubaxSimpleTable}{Baudrate codes}{| l |  X |}
-Value & Interpretation, baud per second \\
-0 & 230400 \\ 
-1 & 115200 \\
-2 & 57600 \\
-3 & 38400 \\
-4 & 19200 \\
-5 & 9600 \\
-6 & 2400 \\
-Any other & The number is interpreted as-is, no additional conversion is performed.
+The command \verb|U| accepts a non-negative decimal number which represents the desired UART baud rate.
+
+The changes will take effect shortly after the command is executed (typically within 100 milliseconds),
+no reboot is necessary;
+therefore, the host should adjust the baud rate of the serial port immediately after this command is executed.
+
+The argument is interpreted as specified in the table \ref{table:slcan_uart_baud_rate_configuration}.
+
+\begin{ZubaxSimpleTable}{UART baud rate interpretation}{|l X|}\label{table:slcan_uart_baud_rate_configuration}
+    Value     & Interpretation, baud/s \\
+    0         & 230400 \\ 
+    1         & 115200 \\
+    2         & 57600 \\
+    3         & 38400 \\
+    4         & 19200 \\
+    5         & 9600 \\
+    6         & 2400 \\
+    Any other & The number is interpreted as-is, no additional conversion is performed.
 \end{ZubaxSimpleTable}
 
-The following baud rates are supported: 2400, 9600, 19200, 38400, 57600, 115200 (this is the default), 230400, 460800, 921600, 1000000, 3000000. Other baud rates may also work too.
+At least the following baud rates are supported by the UART interface:
+2400, 9600, 19200, 38400, 57600, 115200 (this is the default), 230400, 460800, 921600, 1\,000\,000, 3\,000\,000.
 
-The command \fbox{Z} can be used to enable and disable timestamping. Changes will take effect shortly after the command was executed (typically within 100 milliseconds), no reboot is necessary. More on timestamping is in the following sections.
+\subsubsection{CAN frame timestamping}
 
-The command \fbox{F} produces \fbox{F??$\backslash$r}, where \fbox{??} is a hexadecimal bitmask, where the bits are assigned the following meanings:
+The command \texttt{Z} can be used to enable and disable the CAN frame timestamping feature.
 
-\begin{ZubaxSimpleTable}{Command F bitmask meaning}{| l |  l | l | X |}
-Bit & $2^{Bit}$ & Name & Meaning \\
-3 & 8 & RX Overrun & The RX queue has overflowed at least once since the last invocation of the F command or since the channel was open. \\
-5 & 32 & Error Passive & The CAN error counters have exceeded the error passive limit (refer to the CAN bus specification for details). \\
-7 & 128 & Bus Off & The CAN controller is in the bus off mode (refer to the CAN bus specification for details).\\
+The state of the timestamping feature is kept in the configuration parameter \CfgRef{slcan.timestamping+on}.
+
+The changes will take effect shortly after the command was executed (typically within 100 milliseconds),
+no reboot is necessary.
+
+\subsubsection{Reading and clearing the status flags}
+
+The command \verb|F| produces the following response:
+\begin{minted}[linenos=0]{text}
+F??\r
+\end{minted}
+Where \verb|??| is a hexadecimal bit mask.
+The meaning of each bit in the bit mask is documented in the table \ref{table:slcan_status_bit_mask}.
+Bits that are not used should be ignored when processing the bit mask.
+
+\begin{ZubaxSimpleTable}{Bits of the F bit mask}{|l l l X|}\label{table:slcan_status_bit_mask}
+    Bit & $\text{2}^\text{Bit}$ & Name   & Meaning \\
+
+    0   & 1              &               & Not used. \\
+
+    1   & 2              &               & Not used. \\
+
+    2   & 4              &               & Not used. \\
+
+    3   & 8              & RX overrun    & The RX queue has overflowed at least once since the last
+                                           invocation of the F command or since the channel was open. \\
+
+    4   & 16             &               & Not used. \\
+
+    5   & 32             & Error passive & The CAN error counters have exceeded the error passive limit
+                                           (refer to the CAN bus specification for details). \\
+
+    6   & 64             &               & Not used. \\
+
+    7   & 128            & Bus off       & The CAN controller is in the bus off state
+                                           (refer to the CAN bus specification for details).\\
 \end{ZubaxSimpleTable}
 
-Other bits should be ignored. Note that the CAN interface recovers from bus-off and other error states automatically.
+\subsubsection{Requesting the version information}
 
-The command \fbox{V} produces \fbox{V????$\backslash$r}, where the fields are hexadecimal numbers with the following meanings, in that order:
-
+The command \verb|V| produces the following response:
+\begin{minted}[linenos=0]{text}
+V????\r
+\end{minted}
+Where the fields are one-digit hexadecimal numbers with the following meanings, in that order:
 \begin{itemize}
 \item Hardware version, major.
 \item Hardware version, minor.
@@ -699,7 +823,7 @@ The command \fbox{V} produces \fbox{V????$\backslash$r}, where the fields are he
 \item Software version, minor.
 \end{itemize}
  
-\section{SLCAN notifications}
+\section{SLCAN notifications}\label{sec:slcan_notifications}
 
 Zubax Babel may generate SLCAN notifications only in the following cases:
 \begin{itemize}
@@ -709,12 +833,12 @@ Zubax Babel may generate SLCAN notifications only in the following cases:
 
 The format of notifications is the same as for CAN transmission commands:
 
-\begin{ZubaxSimpleTable}{SLCAN notifications format}{| l | l | X |}
+\begin{ZubaxSimpleTable}{SLCAN notifications format}{|l l X|}
 Block ID & Arguments & Purpose \\
-\fbox{T} & \fbox{iiiiiiiid*} & Received or successfully transmitted a 29-bit data frame \\
-\fbox{t} & \fbox{iiid*} & Same, 11-bit data frame \\
-\fbox{R} & \fbox{iiiiiiiid} & Same, 29-bit RTR frame \\
-\fbox{r} & \fbox{iiid} & Same, 11-bit RTR frame \\
+\texttt{T} & \texttt{iiiiiiiid*} & Received or successfully transmitted a 29-bit data frame \\
+\texttt{t} & \texttt{iiid*} & Same, 11-bit data frame \\
+\texttt{R} & \texttt{iiiiiiiid} & Same, 29-bit RTR frame \\
+\texttt{r} & \texttt{iiid} & Same, 11-bit RTR frame \\
 \end{ZubaxSimpleTable}
 
 Additionally, frame notification blocks may be extended with timestamp information and/or with flags, depending on the configuration.
@@ -723,26 +847,26 @@ When timestamping is enabled, frame notification blocks will be extended with fo
 
 When SLCAN flags are enabled, frame notifications will be amended as follows:\
 \begin{itemize}
-\item Loopback frames will be appended the character \fbox{L} at the end of the block. This option allows the host to distinguish between received frames and the frames that were received from the bus.
+\item Loopback frames will be appended the character \texttt{L} at the end of the block. This option allows the host to distinguish between received frames and the frames that were received from the bus.
 \end{itemize}
 
-For example, a frame \fbox{T12345678401234568} will be returned back as follows, depending on the configuration:
+For example, a frame \texttt{T12345678401234568} will be returned back as follows, depending on the configuration:
 
-\begin{ZubaxSimpleTable}{SLCAN notification example}{| l |  l | X |}
+\begin{ZubaxSimpleTable}{SLCAN notification example}{|l l X|}
 Flags enabled & Timestamping enabled	& Representation \\
-No & No & \fbox{T12345678401234568$\backslash$r} (no changes) \\
-No & Yes & \fbox{T123456784012345680BED$\backslash$r} (transmission timestamp 3053 milliseconds) \\
-Yes & No & \fbox{T12345678401234568L$\backslash$r} (added flag \fbox{L})\\
-Yes & Yes & \fbox{T123456784012345680BEDL$\backslash$r} (both of the above) \\
+No & No & \texttt{T12345678401234568$\backslash$r} (no changes) \\
+No & Yes & \texttt{T123456784012345680BED$\backslash$r} (transmission timestamp 3053 milliseconds) \\
+Yes & No & \texttt{T12345678401234568L$\backslash$r} (added flag \texttt{L})\\
+Yes & Yes & \texttt{T123456784012345680BEDL$\backslash$r} (both of the above) \\
 \end{ZubaxSimpleTable}
 
 \section{CLI extensions}\label{sec:slcan_cli_extensions}
 
 Zubax Babel implements an extension of the SLCAN protocol that allows it to run a conventional CLI shell over the same serial port that is used for SLCAN communications, while maintaining full compatibility with SLCAN.
 
-A CLI command is a sequence of printable ASCII characters terminated with \fbox{$\backslash$r$\backslash$n} (ASCII codes 13, 10); the sequence must not be also a valid SLCAN command. Every CLI command returns a response that begins with the exact copy of the received command, terminated with \fbox{$\backslash$r$\backslash$n}, then followed by an arbitrary number of lines, each terminated with \fbox{$\backslash$r$\backslash$n}, and finalized with the ASCII END-OF-TEXT character (code 3) immediately followed by the final \fbox{$\backslash$r$\backslash$n}.
+A CLI command is a sequence of printable ASCII characters terminated with \texttt{$\backslash$r$\backslash$n} (ASCII codes 13, 10); the sequence must not be also a valid SLCAN command. Every CLI command returns a response that begins with the exact copy of the received command, terminated with \texttt{$\backslash$r$\backslash$n}, then followed by an arbitrary number of lines, each terminated with \texttt{$\backslash$r$\backslash$n}, and finalized with the ASCII END-OF-TEXT character (code 3) immediately followed by the final \texttt{$\backslash$r$\backslash$n}.
 
-For example, a command \fbox{cfg   list} (the excessive spaces were added for demonstrational purposes) may produce the following response (non-printable characters are shown with escape sequences, e.g. \fbox{$\backslash$r}):
+For example, a command \texttt{cfg   list} (the excessive spaces were added for demonstrational purposes) may produce the following response (non-printable characters are shown with escape sequences, e.g. \texttt{$\backslash$r}):
 
 \begin{minted}[linenos = false]{yaml}
 cfg   list  \r\n
@@ -755,9 +879,9 @@ uart.baudrate         = 115200      [2400, 3000000] (115200)\r\n
 \x03\r\n
 \end{minted}
 
-Where \fbox{$\backslash$x03} is the ASCII END-OF-TEXT character.
+Where \texttt{$\backslash$x03} is the ASCII END-OF-TEXT character.
 
-The facts that CLI commands and their responses are terminated with \fbox{$\backslash$r$\backslash$n} rather than plain \fbox{$\backslash$r}, and that a valid SLCAN command cannot be also a valid CLI command, can be used to distinguish SLCAN data from CLI data in real time. A compliant SLCAN driver that is capable of dealing with CLI extensions with virtually zero performance penalty can be found in the \href{http://uavcan.org/Implementations/Pyuavcan/}{PyUAVCAN library}.
+The facts that CLI commands and their responses are terminated with \texttt{$\backslash$r$\backslash$n} rather than plain \texttt{$\backslash$r}, and that a valid SLCAN command cannot be also a valid CLI command, can be used to distinguish SLCAN data from CLI data in real time. A compliant SLCAN driver that is capable of dealing with CLI extensions with virtually zero performance penalty can be found in the \href{http://uavcan.org/Implementations/Pyuavcan/}{PyUAVCAN library}.
 
 CLI commands can be executed manually if the SLCAN port is open in a terminal emulator program (it is recommended to enable local echo, since SLCAN does not provide remote echo). Read this article for more info: \href{https://docs.zubax.com/usb}{USB command line interface}.
 
@@ -765,18 +889,18 @@ CLI commands can be executed manually if the SLCAN port is open in a terminal em
 
 This section documents what CLI commands are implemented and how to use them.
 
-\fbox{cfg}
+\texttt{cfg}
 
 This command allows to manage the configuration parameters. Execute without arguments to see usage info. More detailed description of configuration parameters is provided in a dedicated section. The following use cases are the most important:
 
 \begin{itemize}
-\item \fbox{cfg list} - list all configuration parameters, one per line, each line is formatted as follows:\\ \fbox{name = value [min, max] (default)}. Floating point parameters are rendered with explicit decimal separator, e.g.  \fbox{1.0} rather than \fbox{1}.
-\item \fbox{cfg set <name> <value>} - assign the parameter a new value. The response may contain \fbox{Error:} followed by the description of the error in case of failure. It is recommended to execute \fbox{cfg list} afterwards to check if the value was updated.
-\item \fbox{cfg save} - save the current configuration into the non-volatile memory. With firmware v1.1 this command became redundant and it should no longer be invoked manually,  because configuration parameters are saved into the non-volatile memory automatically upon modification.
-\item \fbox{cfg erase} - remove the stored configuration from the non-volatile memory. Next restart will reset all parameters to defaults.
+\item \texttt{cfg list} - list all configuration parameters, one per line, each line is formatted as follows:\\ \texttt{name = value [min, max] (default)}. Floating point parameters are rendered with explicit decimal separator, e.g.  \texttt{1.0} rather than \texttt{1}.
+\item \texttt{cfg set <name> <value>} - assign the parameter a new value. The response may contain \texttt{Error:} followed by the description of the error in case of failure. It is recommended to execute \texttt{cfg list} afterwards to check if the value was updated.
+\item \texttt{cfg save} - save the current configuration into the non-volatile memory. With firmware v1.1 this command became redundant and it should no longer be invoked manually,  because configuration parameters are saved into the non-volatile memory automatically upon modification.
+\item \texttt{cfg erase} - remove the stored configuration from the non-volatile memory. Next restart will reset all parameters to defaults.
 \end{itemize}
 
-\fbox{zubax\textunderscore id}
+\texttt{zubax\textunderscore id}
 
 When executed without arguments, returns the device identification information formatted as a YAML dictionary, such as name, version, unique ID, and so on. Example output:
 
@@ -796,7 +920,7 @@ H397RlSNc0TtWDPOyA713z0k+v+ZY5PGXkRFiUfspnU/EJ8+r0url2dYp7NApx4lOklOgNgHrGCA6lPx
 
 This command may also accept one argument, which must be the Base64 encoded RSA-1024 Certificate of Authenticity of the device. This use case does not serve any useful purpose during normal use of the device.
 
-\fbox{stat}
+\texttt{stat}
 
 Returns a YAML dictionary containing the immediate state information of the adapter. Example output:
 
@@ -821,11 +945,11 @@ bus_voltage           : 4.8
 
 The statistics is reset every time the channel is open. Note that it is kept intact after the channel is closed.
 
-\fbox{bootloader}
+\texttt{bootloader}
 
 Reboots the device into the bootloader, where it will wait forever for commands. What the bootloader is needed for and how to use it is documented in the dedicated section below.
 
-\fbox{reboot}
+\texttt{reboot}
 
 Reboots the device.
 
@@ -920,30 +1044,30 @@ DCD port (UART) & 115200-8N1 (fixed) & Same as USB CDC ACM & 	Available only whi
 
 \section{CLI commands}
 
-\fbox{reboot}
+\texttt{reboot}
 
 Restarts the bootloader.
 
-\fbox{zubax\textunderscore id}
+\texttt{zubax\textunderscore id}
 
 Same as if it was executed in the application’s CLI, with the addition of at least the following fields:
 \begin{itemize}
-\item \fbox{bl\textunderscore version} - bootloader version, major and minor.
-\item \fbox{bl\textunderscore vcs\textunderscore commit} - git commit hash of the bootloader sources.
-\item \fbox{mode} -  set to the string \fbox{bootloader} to indicate that the bootloader is running.
+\item \texttt{bl\textunderscore version} - bootloader version, major and minor.
+\item \texttt{bl\textunderscore vcs\textunderscore commit} - git commit hash of the bootloader sources.
+\item \texttt{mode} -  set to the string \texttt{bootloader} to indicate that the bootloader is running.
 \end{itemize}
 
-\fbox{state}
+\texttt{state}
 
 Prints the bootloader state, which can be one of the following:
 
 \begin{ZubaxSimpleTable}{Bootloader states}{| l |  l | X |}
 State ID & State name & Comment \\
-0 & \fbox{NoAppToBoot} & There is no valid application to boot; the bootloader will be waiting for commands forever. \\
-1 & \fbox{BootDelay} & 	The bootloader will start the application in a few seconds, unless the boot is cancelled or a firmware update is requested. \\
-2 & \fbox{BootCancelled} & There is a valid application to boot, however, boot was cancelled by an external command. \\
-3 & \fbox{AppUpgradeInProgress} & Application is currently being upgraded. If interrupted, the bootloader will go into \fbox{NoAppToBoot}. \\
-4 & \fbox{ReadyToBoot} & The application is already booting. This state is very transient and is left automatically as soon as possible. \\ 
+0 & \texttt{NoAppToBoot} & There is no valid application to boot; the bootloader will be waiting for commands forever. \\
+1 & \texttt{BootDelay} & 	The bootloader will start the application in a few seconds, unless the boot is cancelled or a firmware update is requested. \\
+2 & \texttt{BootCancelled} & There is a valid application to boot, however, boot was cancelled by an external command. \\
+3 & \texttt{AppUpgradeInProgress} & Application is currently being upgraded. If interrupted, the bootloader will go into \texttt{NoAppToBoot}. \\
+4 & \texttt{ReadyToBoot} & The application is already booting. This state is very transient and is left automatically as soon as possible. \\ 
 \end{ZubaxSimpleTable}
 
 \begin{figure}[H]
@@ -951,19 +1075,19 @@ State ID & State name & Comment \\
 	\caption{Bootloader state machine.\label{bootloader_state_machine}}
 \end{figure}
 
-\fbox{wait}
+\texttt{wait}
 
 Do not boot the application.
 
-\fbox{download}
+\texttt{download}
 
-Start the serial receiver and prepare to receive the new firmware image as a flat binary via the serial link using either YMODEM, XMODEM, or XMODEM-1K. There are heaps of software products and scripts that support these protocols. For instance, the standard program \fbox{sz} can be used as follows:
+Start the serial receiver and prepare to receive the new firmware image as a flat binary via the serial link using either YMODEM, XMODEM, or XMODEM-1K. There are heaps of software products and scripts that support these protocols. For instance, the standard program \texttt{sz} can be used as follows:
 
 \begin{minted}[linenos = false]{yaml}
 sz -vv --ymodem --1k $file > $port < $port
 \end{minted}
 
-If the application was successfully received and CRC verification confirmed that it is not damaged, the bootloader will automatically transition into the state \fbox{BootDelay}.
+If the application was successfully received and CRC verification confirmed that it is not damaged, the bootloader will automatically transition into the state \texttt{BootDelay}.
 
 \iffalse
 
