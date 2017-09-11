@@ -822,42 +822,71 @@ Where the fields are one-digit hexadecimal numbers with the following meanings, 
 \item Software version, major.
 \item Software version, minor.
 \end{itemize}
- 
+
 \section{SLCAN notifications}\label{sec:slcan_notifications}
 
-Zubax Babel may generate SLCAN notifications only in the following cases:
+Babel emits SLCAN notifications in the following cases:
 \begin{itemize}
-\item A CAN frame is received.
-\item If loopback is enabled: a CAN frame has been successfully transmitted.
+    \item A CAN frame is received.
+    \item If loopback is enabled: a CAN frame has been successfully delivered to the bus.
 \end{itemize}
 
-The format of notifications is the same as for CAN transmission commands:
+The format of notifications is the same as for CAN transmission commands.
 
-\begin{ZubaxSimpleTable}{SLCAN notifications format}{|l l X|}
-Block ID & Arguments & Purpose \\
-\texttt{T} & \texttt{iiiiiiiid*} & Received or successfully transmitted a 29-bit data frame \\
-\texttt{t} & \texttt{iiid*} & Same, 11-bit data frame \\
-\texttt{R} & \texttt{iiiiiiiid} & Same, 29-bit RTR frame \\
-\texttt{r} & \texttt{iiid} & Same, 11-bit RTR frame \\
+\begin{ZubaxSimpleTable}{SLCAN notifications}{|l l X|}
+    Block ID   & Argument format     & Purpose \\
+    \texttt{T} & \texttt{iiiiiiiid*} & Received or successfully transmitted a 29-bit data frame.  \\
+    \texttt{t} & \texttt{iiid*}      & Received or successfully transmitted an 11-bit data frame. \\
+    \texttt{R} & \texttt{iiiiiiiid}  & Received or successfully transmitted a 29-bit RTR frame.   \\
+    \texttt{r} & \texttt{iiid}       & Received or successfully transmitted an 11-bit RTR frame.  \\
 \end{ZubaxSimpleTable}
 
-Additionally, frame notification blocks may be extended with timestamp information and/or with flags, depending on the configuration.
+Obviously, notifications for transmitted frames will be emitted only if the channel is open in the loopback mode.
 
-When timestamping is enabled, frame notification blocks will be extended with four more hexadecimal characters, containing the time, in milliseconds, when they were received. The millisecond timestamp overflows every 60000 milliseconds (once a minute), so the valid values lie in the range from 0 to 59999, inclusive. The frame timestamp can be converted into the target clock domain, e.g. monotonic clock of the host system, using the \href{https://april.eecs.umich.edu/pdfs/olson2010.pdf}{Olson algorithm} (timestamp synchronization in PyUAVCAN is based on the Olson algorithm too). In loopback mode with timestamping enabled, the loopback frames will have the timestamp of the moment when they were delivered to the bus.
+Frame notifications may be extended with the timestamp information and/or with flags,
+depending on the values of the configuration parameters \CfgRef{slcan.timestamping+on}
+and \CfgRef{slcan.flags+on}, respectively.
 
-When SLCAN flags are enabled, frame notifications will be amended as follows:\
+When timestamping is enabled, every emitted CAN frame notification will be extended with
+four more hexadecimal characters containing the time, in milliseconds, when the frame was received.
+The millisecond timestamp overflows every 60\,000 milliseconds (once a minute),
+so the valid values lie in the range from 0 to 59\,999, inclusive.
+
+The frame timestamp can be converted into the target clock domain, e.g. the monotonic clock of the host system,
+using the Olson algorithm\footnote{
+\href{https://files.zubax.com/products/com.zubax.babel/olson_sensor_synchronization.pdf}
+{``A Passive Solution to the Sensor Synchronization Problem'', Edwin Olson, 2010}.}
+(the timestamp synchronization feature in PyUAVCAN is based on the Olson algorithm as well).
+
+In the loopback mode with timestamping enabled the loopback frame notifications will carry the timestamp of
+the moment when they were delivered to the bus.
+
+When SLCAN flags are enabled, frame notifications will be amended as listed below.
+Note that flags are always added at the end of the block.
 \begin{itemize}
-\item Loopback frames will be appended the character \texttt{L} at the end of the block. This option allows the host to distinguish between received frames and the frames that were received from the bus.
+    \item Loopback frames will be appended with the character \verb|L| at the end of the block.
+          This flag allows the host to distinguish the frames received from the bus from the
+          transmitted frames that were looped back.
+
+    \item Other flags may be added in future revisions of the protocol.
 \end{itemize}
 
-For example, a frame \texttt{T12345678401234568} will be returned back as follows, depending on the configuration:
+For example, an outgoing frame \texttt{T12345678401234568} will be looped back as shown in the table
+\ref{table:slcan_notification_examples}, depending on the configuration.
 
-\begin{ZubaxSimpleTable}{SLCAN notification example}{|l l X|}
-Flags enabled & Timestamping enabled	& Representation \\
-No & No & \texttt{T12345678401234568$\backslash$r} (no changes) \\
-No & Yes & \texttt{T123456784012345680BED$\backslash$r} (transmission timestamp 3053 milliseconds) \\
-Yes & No & \texttt{T12345678401234568L$\backslash$r} (added flag \texttt{L})\\
-Yes & Yes & \texttt{T123456784012345680BEDL$\backslash$r} (both of the above) \\
+\begin{ZubaxSimpleTable}{SLCAN notification example}{|l l l X|}\label{table:slcan_notification_examples}
+    Flags? & Timestamping? & Representation & Comment \\
+    No     & No            & \texttt{T12345678401234568\textbackslash{}r}
+                           & No changes. \\
+
+    No     & Yes           & \texttt{T123456784012345680BED\textbackslash{}r}
+                           & Transmission timestamp 3053 milliseconds. \\
+
+    Yes    & No            & \texttt{T12345678401234568L\textbackslash{}r}
+                           & Added flag \texttt{L}.\\
+
+    Yes    & Yes           & \texttt{T123456784012345680BEDL\textbackslash{}r}
+                           & Both of the above two, flag after the timestamp. \\
 \end{ZubaxSimpleTable}
 
 \section{CLI extensions}\label{sec:slcan_cli_extensions}
