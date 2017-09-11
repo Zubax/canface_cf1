@@ -299,7 +299,8 @@ If redundancy is desired, multiple Babels should be used in parallel, one per bu
 		                                                    & $V_\text{supply}-$0.3
 		                                                    & $V_\text{supply}$
 		                                                    & V \\
-		        & CAN bus power output current              & -1   &      & 0.3  & mA
+		        & CAN bus power output current              & -1   &      & 0.3  & mA \\
+		        & Resistance of the embedded CAN terminator & 113  & 120  & 127  & $\Omega$ \\
 	\end{ZubaxWrappedTable}
 	\begin{tablenotes}
 	    \item[a] The limit is imposed by the PCB.
@@ -1170,9 +1171,45 @@ Custom applications can be loaded either directly via SWD, in which case great c
 
 \chapter{Configuration parameters}\label{sec:configuration_parameters}
 
-Configuration parameters are stored in the non-volatile memory on the adapter. Stored parameters will be re-initialized to the saved values automatically every time the adapter is turned on. Changes in adapter configuration take effect shortly after the corresponding command changing them is executed, typically within 100 milliseconds, unless stated otherwise elsewhere. Some configuration parameters are aliased via dedicated standard SLCAN commands.
+Configuration parameters are stored in a non-volatile memory on the adapter.
 
-Starting from firmware version v1.1, configuration parameters are stored into the non-volatile memory automatically after modification.
+Some configuration parameters can be modified via dedicated SLCAN commands,
+as described in the section \ref{sec:slcan}.
+
+\section{Non-volatile configuration storage}
+
+All configuration parameters are stored in a non-volatile memory
+that retains its contents across power cycles.
+
+Modification of any single parameter will trigger the device to commit all of them into the non-volatile
+memory.\footnote{The auto-save feature is available since firmware v1.1.}
+
+If the device is turned off while the configuration storage is being updated,
+the stored configuration data may get damaged.
+
+The stored configuration is read from the non-volatile memory once upon boot-up.
+If the device detects that the stored configuration data has been damaged,
+it will automatically revert to the factory default configuration.
+Babel can always reliably detect damage of the stored configuration data,
+so it is guaranteed that an invalid configuration can never be loaded.
+
+\section{Firmware update considerations}
+
+The configuration parameter sets of different firmware revisions may be incompatible with each other.
+For instance, some configuration parameters may be added, removed, or their value intervals may be changed.
+
+Babel always checks whether the stored configuration data is compatible with the current
+firmware revision.
+If it is detected that the stored configuration cannot be applied to the current version of the firmware,
+the device will automatically revert to the factory default configuration.
+
+Keep these considerations in mind when updating the firmware.
+
+\section{Configuration parameter index}
+
+The minimum, maximum, and default values provided in the table are shown for exemplary purposes only,
+and they are \emph{not expected to be valid} for all firmware revisions that this document applies to.
+Intervals and default values may change in newer revisions of the firmware or the hardware.
 
 % name, SLCAN alias, takes effect at, min, max, default, note
 \newcommand\CfgParamIndexEntry[7]{%
