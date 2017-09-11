@@ -891,11 +891,30 @@ For example, an outgoing frame \texttt{T12345678401234568} will be looped back a
 
 \section{CLI extensions}\label{sec:slcan_cli_extensions}
 
-Zubax Babel implements an extension of the SLCAN protocol that allows it to run a conventional CLI shell over the same serial port that is used for SLCAN communications, while maintaining full compatibility with SLCAN.
+Babel implements a proprietary extension of the SLCAN protocol that allows it to run a conventional
+CLI\footnote{Command line interface.} shell over the same serial port that is used for SLCAN communications,
+while maintaining full compatibility with SLCAN.
 
-A CLI command is a sequence of printable ASCII characters terminated with \texttt{\textbackslash{}r\textbackslash{}n} (ASCII codes 13, 10); the sequence must not be also a valid SLCAN command. Every CLI command returns a response that begins with the exact copy of the received command, terminated with \texttt{\textbackslash{}r\textbackslash{}n}, then followed by an arbitrary number of lines, each terminated with \texttt{\textbackslash{}r\textbackslash{}n}, and finalized with the ASCII END-OF-TEXT character (code 3) immediately followed by the final \texttt{\textbackslash{}r\textbackslash{}n}.
+A CLI command is a sequence of printable ASCII characters terminated with the
+\verb|\r\n| sequence (ASCII codes 13, 10).
+The first non-whitespace character of a CLI command sequence cannot be also a valid
+SLCAN block ID\footnote{For example, ``\texttt{T12345678401234568}'' is not a valid CLI command,
+but ``\texttt{fooT12345678401234568}'' is acceptable.}.
+The last limitation is necessary to ensure that the adapter can unambiguously distinguish between
+a CLI command and an SLCAN block at the time of reception of the first character.
+The early detection of SLCAN blocks allows the protocol state machine to dispatch CAN frames with
+minimal latencies.
 
-For example, a command \texttt{cfg   list} (the excessive spaces were added for demonstrational purposes) may produce the following response (non-printable characters are shown with escape sequences, e.g. \texttt{\textbackslash{}r}):
+Every CLI command returns a response that begins with the exact copy of the received command terminated with
+\verb|\r\n|,
+then followed by an arbitrary number of lines of text,
+each terminated with \verb|\r\n|,
+and finalized with the ASCII END-OF-TEXT character (code 3) immediately followed by the final
+\verb|\r\n|.
+
+For example, a command ``\verb|cfg   list  |'' (the excessive spaces were added for the purposes of demonstration)
+may produce the following response (in this example, the non-printable characters are shown with escape sequences,
+e.g. \verb|\r|):
 
 \begin{minted}[linenos = false]{yaml}
 cfg   list  \r\n
@@ -908,31 +927,88 @@ uart.baudrate         = 115200      [2400, 3000000] (115200)\r\n
 \x03\r\n
 \end{minted}
 
-Where \texttt{\textbackslash{}x03} is the ASCII END-OF-TEXT character.
+Where \verb|\x03| is the ASCII END-OF-TEXT character.
 
-The facts that CLI commands and their responses are terminated with \texttt{\textbackslash{}r\textbackslash{}n} rather than plain \texttt{\textbackslash{}r}, and that a valid SLCAN command cannot be also a valid CLI command, can be used to distinguish SLCAN data from CLI data in real time. A compliant SLCAN driver that is capable of dealing with CLI extensions with virtually zero performance penalty can be found in the \href{http://uavcan.org/Implementations/Pyuavcan/}{PyUAVCAN library}.
+The following properties of the protocol allow both the adapter and the host
+distinguish SLCAN data from CLI data in real time:
+\begin{itemize}
+    \item CLI commands and their responses are terminated with \verb|\r\n| rather than plain \verb|\r|.
+    \item A valid SLCAN command cannot be also a valid CLI command.
+\end{itemize} 
+A compliant SLCAN driver that is capable of dealing with CLI extensions with virtually zero performance penalty
+can be found in the PyUAVCAN library.
 
-CLI commands can be executed manually if the SLCAN port is open in a terminal emulator program (it is recommended to enable local echo, since SLCAN does not provide remote echo). Read this article for more info: \href{https://docs.zubax.com/usb}{USB command line interface}.
+CLI commands can be executed manually by connecting to the SLCAN port using a terminal emulator program.
+In this case it is recommended to enable local echo in the terminal emulator program,
+because the SLCAN protocol does not provide remote echo.
 
 \subsection{CLI commands}
 
-This section documents what CLI commands are implemented and how to use them.
+This section documents the implemented CLI commands and provides usage instructions for them.
 
-\texttt{cfg}
+\subsubsection{cfg}
 
-This command allows to manage the configuration parameters. Execute without arguments to see usage info. More detailed description of configuration parameters is provided in a dedicated section. The following use cases are the most important:
+This command provides access to the configuration parameter storage.
+The configuration parameters and their non-volatile storage are described in detail in the chapter
+\ref{sec:configuration_parameters}.
 
+Syntax:
 \begin{itemize}
-\item \texttt{cfg list} - list all configuration parameters, one per line, each line is formatted as follows:\\ \texttt{name = value [min, max] (default)}. Floating point parameters are rendered with explicit decimal separator, e.g.  \texttt{1.0} rather than \texttt{1}.
-\item \texttt{cfg set <name> <value>} - assign the parameter a new value. The response may contain \texttt{Error:} followed by the description of the error in case of failure. It is recommended to execute \texttt{cfg list} afterwards to check if the value was updated.
-\item \texttt{cfg save} - save the current configuration into the non-volatile memory. With firmware v1.1 this command became redundant and it should no longer be invoked manually,  because configuration parameters are saved into the non-volatile memory automatically upon modification.
-\item \texttt{cfg erase} - remove the stored configuration from the non-volatile memory. Next restart will reset all parameters to defaults.
+    \item \verb|cfg list| - list all configuration parameters, their current values,
+          acceptable value intervals, and default values.
+
+    \item \verb|cfg save| - save the current configuration into the non-volatile storage.
+          This command is redundant and normally need not be used,
+          because firmware revisions starting from v1.1 commit all configuration
+          into the non-volatile storage automatically upon modification.
+
+    \item \verb|cfg erase| - erase the current configuration and reset the non-volatile memory to
+          the factory defaults.
+
+    \item \verb|cfg set <name> <value>| - assign the configuration parameter named \verb|<name>| the value
+          \verb|<value>|. For example: \verb|cfg set foo 42|.
+          The non-volatile storage will be updated automatically.
 \end{itemize}
 
-\texttt{zubax\textunderscore id}
+The syntax \verb|cfg list| prints one parameter per line, where the line is formatted as follows:
 
-When executed without arguments, returns the device identification information formatted as a YAML dictionary, such as name, version, unique ID, and so on. Example output:
+\verb|name = value [min, max] (default)|
 
+The number of whitespaces between tokens may vary.
+
+Floating point parameters are always reported with the point symbol (\verb|.|),
+which allows one to distinguish them from integer and boolean typed parameters.
+
+Boolean parameters are reported as integers, where 1 represents the logical true and
+0 represents the logical false.
+They can be distinguished from integer parameters by their minimum and maximum values being 0 and 1,
+respectively.
+
+Whenever a parameter is assigned a new value, the device verifies if the new value is within the
+acceptable limits.
+If it is, the new value is assigned. Otherwise, the old value is retained.
+Afterwards the device prints out the resulting value of the parameter in the following format:
+
+\verb|name = value|
+
+The number of whitespaces between tokens may vary.
+
+The response can be used to check whether the new value was accepted by the device or not.
+
+\subsubsection{zubax\textunderscore{}id}
+
+This command is available in all Zubax products that implement a command-line interface.
+It reports the complete information identifying this particular product:
+type, version information, make and model.
+The information is printed in a machine-readable yet human-friendly
+YAML\footnote{\url{https://en.wikipedia.org/wiki/YAML}} format.
+
+An example output is shown in the following listing.
+The meaning of each well-defined field is explained in the table \ref{zubax_id_fields_table}.
+Note that the ordering of the fields is not guaranteed to be constant;
+furthermore, additional fields may be added in future firmware revisions.
+
+\begin{minipage}{0.9\textwidth} % A minipage is needed to avoid line breaks in the listing
 \begin{minted}[linenos = false]{yaml}
 product_id   : 'com.zubax.babel'
 product_name : 'Zubax Babel'
@@ -946,12 +1022,86 @@ hw_signature : 'SknsmA7XugU9pF/+NNOoU26Gdq9VvhO3O1Cw2qim17RXsU8yOISoKOdMIh4QIHtX
 H397RlSNc0TtWDPOyA713z0k+v+ZY5PGXkRFiUfspnU/EJ8+r0url2dYp7NApx4lOklOgNgHrGCA6lPxA8UqoW
 9jdqaASuqpFZKg='
 \end{minted}
+\end{minipage}
 
-This command may also accept one argument, which must be the Base64 encoded RSA-1024 Certificate of Authenticity of the device. This use case does not serve any useful purpose during normal use of the device.
+\begin{ZubaxSimpleTable}{Zubax ID fields}{|l X|}\label{zubax_id_fields_table}
+Field name              & Meaning \\
+\texttt{product\_id}    & Product type identifier string.
+                          The same string is reported via UAVCAN as the node name string. \\
+\texttt{product\_name}  & Human-readable product name. \\
+\texttt{sw\_version}    & Firmware version number in the form ``major.minor''. \\
+\texttt{sw\_vcs\_commit}& Firmware version short commit identifier (e.g. short git commit hash).
+                          The abbreviation VCS stands for ``version control system''.
+                          This number allows to pinpoint the exact revision of the firmware
+                          that is currently running. \\
+\texttt{sw\_build\_date}& Firmware build date in the form ``\texttt{mmm dd yyyy}''. \\
+\texttt{hw\_version}    & Hardware version number in the form ``major.minor''. \\
+\texttt{hw\_unique\_id} & The 128-bit unique ID of this specific hardware instance
+                          (section \ref{sec:product_identification}).
+                          The UID is represented either as a hexadecimal string, or as a Base64 encoded string.\\
+\texttt{hw\_signature}  & The certificate of authenticity (CoA) of this specific hardware instance
+                          encoded in a Base64 string.
+                          If this data is missing, please inform Zubax Robotics as soon as possible. \\
+\texttt{hw\_info\_url}  & Link to the web page that contains the test report, origin information,
+                         traceability data, and other important information about this specific hardware
+                         instance provided by the vendor.
+                         If this data is missing, or if the linked web page is unreachable, please inform
+                         Zubax Robotics as soon as possible. \\
+\end{ZubaxSimpleTable}
 
-\texttt{stat}
+\subsubsection{stat}
 
-Returns a YAML dictionary containing the immediate state information of the adapter. Example output:
+Returns a YAML dictionary containing the immediate state information of the adapter.
+
+The statistic counters are reset every time the channel is opened.
+Note that the statistics are kept intact after the channel is closed.
+
+At least the following fields are reported in the output:
+\begin{description}
+    \item[open] Whether the CAN channel is open, either \verb|true| or \verb|false|.
+
+    \item[state] One of the following: \verb|error_active|, \verb|error_passive|, \verb|bus_off|.
+                 Please refer to the CAN protocol specification for the description of each state.
+
+    \item[receive\_error\_counter] CAN receive error counter.
+                                   Refer to the CAN protocol specification for more information.
+
+    \item[transmit\_error\_counter] CAN transmit error counter.
+                                    Refer to the CAN protocol specification for more information.
+
+    \item[errors] The number of CAN protocol errors reported by the CAN controller hardware.
+
+    \item[bus\_off\_events] The number of registered bus off events.
+
+    \item[sw\_rx\_queue\_overruns] The number of overruns of the software RX queue.
+                                   The software RX queue is positioned after the hardware RX queue.
+
+    \item[hw\_rx\_queue\_overruns] The number of overruns of the hardware RX queue.
+                                   The hardware RX queue is positioned before the software RX queue.
+
+    \item[frames\_tx] The number of CAN frames successfully delivered to the bus.
+                      Frames that were dropped due to overruns of the TX queue do not affect this statistic.
+
+    \item[frames\_rx] The number of CAN frames received from the bus.
+                      This statistic also includes frames that were lost due to overruns of the software RX queue.
+                      Frames that were lost due to overruns of the hardware RX queue do not affect this statistic.
+
+    \item[tx\_queue\_capacity] The capacity of the TX queue.
+
+    \item[tx\_queue\_peak\_usage] The peak usage of the TX queue.
+
+    \item[rx\_queue\_capacity] The capacity of the RX queue.
+
+    \item[rx\_queue\_peak\_usage] The peak usage of the RX queue.
+
+    \item[tx\_mailbox\_peak\_usage] The maximum number of TX mailboxes that were used simultaneously by the driver.
+                                    The adapter uses an advanced algorithm of TX mailbox assignment in order to
+                                    eliminate the inner priority inversion problem.
+
+    \item[bus\_voltage] The voltage of the CAN bus power supply line, in volts.
+\end{description}
+
+An example output of this command is shown below:
 
 \begin{minted}[linenos = false]{yaml}
 open                  : true
@@ -972,15 +1122,16 @@ tx_mailbox_peak_usage : 0
 bus_voltage           : 4.8
 \end{minted}
 
-The statistics is reset every time the channel is open. Note that it is kept intact after the channel is closed.
+\subsubsection{bootloader}
 
-\texttt{bootloader}
+Reboots the device into the bootloader, where it will wait forever for commands.
 
-Reboots the device into the bootloader, where it will wait forever for commands. What the bootloader is needed for and how to use it is documented in the dedicated section below.
+This command reboots the device into the bootloader mode, described in the section \ref{sec:bootloader}.
+It can be used to initiate a firmware update procedure over USB or UART.
 
-\texttt{reboot}
+\subsubsection{reboot}
 
-Reboots the device.
+Unconditionally reboots the device.
 
 \chapter{OEM applications}\label{sec:oem_applications}
 
