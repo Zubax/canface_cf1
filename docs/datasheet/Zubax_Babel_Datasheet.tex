@@ -1141,38 +1141,53 @@ Unconditionally reboots the device.
 
 \chapter{OEM applications}\label{sec:oem_applications}
 
-Besides the primary role as a USB/UART-CAN adapter tool, Zubax Babel can be effectively applied as an integral part of a larger system or device, either as a CAN adapter or, if loaded with a user-developed firmware, in a completely different role. These use cases are referred to as OEM applications.
+Besides its primary role of a USB-CAN or UART-CAN adapter tool,
+Babel can be effectively used as an integral part of a larger system or a device:
+either as a CAN adapter or, if loaded with a custom user-developed firmware,
+in a completely different role.
+These use cases are referred to as OEM applications.
 
-Additionally, Zubax Babel can be used as a prototyping platform for quick development of CAN (especially UAVCAN) dependent applications.
+Additionally, Babel can be used as a prototyping platform for quick development of CAN-dependent
+(and especially UAVCAN-centric) applications.
+
+More information about development of custom applications for Babel is available in the
+Zubax Knowledge Base\footnote{\url{https://kb.zubax.com}}.
 
 \section{SMD pads}
 
-It is expected that OEM applications may require the adapter to be installed onto the custom PCB. For this reason, Zubax Babel is given SMD pads spaced at the standard 2.54 mm pitch. Soldering 0.1" pin connectors to the SMD pads will also enable easy integration with standard breadboards, as shown on the picture on the right.
+It is expected that OEM applications may require Babel to be installed on a custom PCB.
+For this reason, Babel is given SMD pads spaced at the standard 2.54\,mm pitch.
+Standard 2.54\,mm pin connectors can be soldered to the SMD pads in order to enable easy integration
+with standard breadboards.
 
-The signals that are routed to the pads are shown on the diagram in the beginning of this document.
+The signals that are routed to the pads are shown on the figure \ref{fig:pinout}.
 
 \section{Custom applications}
 
-Please refer to the dedicated tutorial for detailed information about development of custom applications.
+Please refer to Zubax Knowledge Base for detailed information about development of custom applications.
 
-Zubax Babel is based on the microcontroller STM32F373CBT6; its main characteristics are outlined below:
+Zubax Babel is based on the microcontroller STM32F373CBT6; its main characteristics are outlined below.
 
 \begin{itemize}
-\item Core: ARM Cortex-M4F (with hardware floating point unit) at 72 MHz.
-\item Flash memory capacity: 128 KB.
-\begin{itemize}
-\item First 32 KB are occupied by the bootloader and some auxiliary persistent data.
-\item Following 94 KB are available for the user application.
-\item Last 2 KB are reserved for non-volatile configuration storage.
-\end{itemize}
-\item RAM capacity: 24 KB.
-\begin{itemize}
-\item First 256 bytes are reserved for the bootloader operation.
-\item Remaining 24320 bytes are available for the user application.
-\end{itemize}
+    \item Core: ARM Cortex-M4F (with a hardware floating point unit) clocked at 72 MHz.
+    \item Flash memory capacity: 128 KB.
+    \begin{itemize}
+        \item First 32 KB are occupied by the bootloader and some auxiliary persistent data.
+        \item The following 94 KB are available for the user's application.
+        \item Last 2 KB are reserved for non-volatile configuration storage.
+    \end{itemize}
+    \item RAM capacity: 24 KB.
+    \begin{itemize}
+        \item First 256 bytes are reserved for the bootloader.
+        \item Remaining 24320 bytes are available for the user's application.
+    \end{itemize}
 \end{itemize}
 
-Custom applications can be loaded either directly via SWD, in which case great care should be taken to not accidentally erase the bootloader; or via the bootloader itself. More information about the bootloader can be gathered in the dedicated section.
+Custom applications can be loaded either directly via the
+SWD interface\footnote{We recommend Zubax Dronecode Probe for this task.},
+in which case great care should be taken to not accidentally erase the bootloader;
+or via the bootloader itself.
+More information about the bootloader can be gathered in the section \ref{sec:bootloader}.
 
 \chapter{Configuration parameters}\label{sec:configuration_parameters}
 
@@ -1284,6 +1299,8 @@ The details about the supported communication interfaces are summarized in the t
 Observe that this bootloader does not make use of the CAN bus interface.
 As long as the bootloader is running, the CAN controller remains inactive
 in order to avoid any interference with the CAN bus the device may be connected to.
+
+The CAN power supply output and the CAN termination resistor remain inactive while the bootloader is running.
 
 The bootloader is fully fault-tolerant.
 If the update process fails at any point for any reason
