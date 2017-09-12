@@ -513,24 +513,29 @@ The bootloader is documented separately in the section \ref{sec:bootloader}.
     Status & LED pattern (step 50 ms) & LED behavior \\
 
     Bootloader is running
-    & \LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX
+    & {\color{blue}
+       \LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX}
     & Glowing continuously.
       In this mode, the CAN traffic LED behaves as described in the section \ref{sec:bootloader}. \\
 
     CAN channel closed
-    & \LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO
+    & {\color{blue}
+       \LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO}
     & Turned OFF \\
 
     CAN channel open, normal operation
-    & \LEDX\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO
+    & {\color{blue}
+       \LEDX\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO}
     & Blinking 1 Hz \\
 
     CAN channel open, error passive
-    & \LEDX\LEDO\LEDO\LEDO\LEDO\LEDX\LEDO\LEDO\LEDO\LEDO\LEDX\LEDO\LEDO\LEDO\LEDO\LEDX\LEDO\LEDO\LEDO\LEDO
+    & {\color{blue}
+       \LEDX\LEDO\LEDO\LEDO\LEDO\LEDX\LEDO\LEDO\LEDO\LEDO\LEDX\LEDO\LEDO\LEDO\LEDO\LEDX\LEDO\LEDO\LEDO\LEDO}
     & Blinking 4 Hz \\
 
     CAN channel open, bus off
-    & \LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO
+    & {\color{blue}
+       \LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO}
     & Blinking 10 Hz \\
 \end{ZubaxSimpleTable}
 
@@ -996,7 +1001,7 @@ The number of whitespaces between tokens may vary.
 
 The response can be used to check whether the new value was accepted by the device or not.
 
-\subsubsection{zubax\textunderscore{}id}
+\subsubsection{zubax\textunderscore{}id}\label{sec:cli_command_zubax_id}
 
 This command is available in all Zubax products that implement a command-line interface.
 It reports the complete information identifying this particular product:
@@ -1259,84 +1264,341 @@ Intervals and default values may change in newer revisions of the firmware or th
 
 \chapter{Embedded bootloader}\label{sec:bootloader}
 
-The embedded bootloader enables firmware update via the following protocols and interfaces:
+\section{Introduction}
 
-\begin{ZubaxSimpleTable}{Bootloader protocols and interfaces}{| X[2] | X[2] | X[7] | X[5] |}
-Interface & Parameters & Protocol & Note \\
-USB & CDC ACM & YMODEM, XMODEM, XMODEM-1K (autodetect) & When connected, DCD Port is inactive \\
-DCD port (UART) & 115200-8N1 (fixed) & Same as USB CDC ACM & 	Available only while USB is disconnected \\
+Babel employs the Zubax Embedded Bootloader --
+a highly robust open source bootloader designed for deeply embedded systems
+that can update firmware over USB and serial port.
+The bootloader also offers advanced integrity checking capabilities.
+
+The bootloader starts immediately after the device has been powered on.
+Having started, the bootloader checks if there is a valid application (i.e. firmware) that can be executed.
+If there is one, the bootloader measures a 5 second timeout since the point of its initialization,
+and once the timeout has expired, the bootloader starts the application,
+unless an external entity has requested it to download a new application image or to wait longer.
+If there is no valid application found (i.e. nothing to boot),
+the bootloader will wait forever for commands.
+
+The details about the supported communication interfaces are summarized in the table
+\ref{table:bootloader_interfaces}.
+Observe that this bootloader does not make use of the CAN bus interface.
+As long as the bootloader is running, the CAN controller remains inactive
+in order to avoid any interference with the CAN bus the device may be connected to.
+
+The bootloader is fully fault-tolerant.
+If the update process fails at any point for any reason
+(e.g. communication failure, power supply failure, and so on),
+the device may end up with a damaged application.
+The bootloader is able to recognize this condition and refuse to start the invalid application.
+In order to recover from this state, the update process simply needs to be restarted.
+
+As an additional safety measure, the bootloader uses a hardware watchdog timer that
+allows it to abort applications that do not start properly.
+This minimizes the chances of permanently incapacitating the device\footnote{Bricking.}
+by uploading a dysfunctional application image.
+
+\begin{ZubaxSimpleTable}{Bootloader communication interfaces}{| l | X | X[2] | X[2] |}
+\label{table:bootloader_interfaces}
+    Interface& Parameters                              & Protocol     & Note\\
+
+    USB      & CDC ACM (virtual serial port)           & YMODEM, XMODEM, XMODEM-1K (autodetect)
+                                                       & When USB is connected, the UART interface is inactive.\\
+
+    UART     & 115200-8N1 (fixed)                      & Same as USB
+                                                       & Available only while USB is disconnected.\\
 \end{ZubaxSimpleTable}
 
-\section{CLI commands}
+\section{State machine}\label{sec:bootloader_state_machine}
 
-\texttt{reboot}
+The behavior of the bootloader if defined by a simple state machine documented on the figure
+\ref{bootloader_state_machine}.
+The table \ref{table:bootloader_states} summarizes the states.
 
-Restarts the bootloader.
-
-\texttt{zubax\textunderscore id}
-
-Same as if it was executed in the application’s CLI, with the addition of at least the following fields:
-\begin{itemize}
-\item \texttt{bl\textunderscore version} - bootloader version, major and minor.
-\item \texttt{bl\textunderscore vcs\textunderscore commit} - git commit hash of the bootloader sources.
-\item \texttt{mode} -  set to the string \texttt{bootloader} to indicate that the bootloader is running.
-\end{itemize}
-
-\texttt{state}
-
-Prints the bootloader state, which can be one of the following:
-
-\begin{ZubaxSimpleTable}{Bootloader states}{| l |  l | X |}
-State ID & State name & Comment \\
-0 & \texttt{NoAppToBoot} & There is no valid application to boot; the bootloader will be waiting for commands forever. \\
-1 & \texttt{BootDelay} & 	The bootloader will start the application in a few seconds, unless the boot is cancelled or a firmware update is requested. \\
-2 & \texttt{BootCancelled} & There is a valid application to boot, however, boot was cancelled by an external command. \\
-3 & \texttt{AppUpgradeInProgress} & Application is currently being upgraded. If interrupted, the bootloader will go into \texttt{NoAppToBoot}. \\
-4 & \texttt{ReadyToBoot} & The application is already booting. This state is very transient and is left automatically as soon as possible. \\ 
-\end{ZubaxSimpleTable}
-
-\begin{figure}[H]
-	\centerline{\includegraphics[width=1\textwidth]{bootloader_state_machine}}
+\begin{figure}[!hbt]
+	\centerline{\includegraphics[width=\textwidth]{bootloader_state_machine}}
 	\caption{Bootloader state machine.\label{bootloader_state_machine}}
 \end{figure}
 
-\texttt{wait}
+\begin{ZubaxSimpleTable}{Bootloader states}{|c l X|}\label{table:bootloader_states}
+    ID & Name                 & Description \\
 
-Do not boot the application.
+    0  & NoAppToBoot          & There is no valid application to boot;
+                                the bootloader will be waiting for commands forever.\\
 
-\texttt{download}
+    1  & BootDelay            & The bootloader will start the application in a few seconds,
+                                unless booting is canceled or an application update is requested.\\
 
-Start the serial receiver and prepare to receive the new firmware image as a flat binary via the serial link using either YMODEM, XMODEM, or XMODEM-1K. There are heaps of software products and scripts that support these protocols. For instance, the standard program \texttt{sz} can be used as follows:
+    2  & BootCancelled        & There is a valid application to boot; however,
+                                booting was canceled by an external command.\\
 
-\begin{minted}[linenos = false]{yaml}
-sz -vv --ymodem --1k $file > $port < $port
+    3  & AppUpgradeinProgress & The application is currently being updated.
+                                If interrupted, the bootloader will switch into
+                                \textbf{NoAppToBoot} or \textbf{BootCancelled},
+                                depending on whether there is a valid image after the interruption.\\
+    
+    4  & ReadyToBoot          & The application is about to be booted.
+                                This state is very transient and is left automatically as soon as possible.\\
+\end{ZubaxSimpleTable}
+
+\section{LED indication}
+
+While the bootloader is running, the LED indicators behave as described in this section.
+
+The status LED (blue \ShowColor{blue}) is always on, which is the main indicator that the bootloader,
+rather than the application (firmware), is currently running.
+
+The CAN traffic LED (green \ShowColor{green}) displays one of the blinking patterns shown in the table 
+\ref{table:bootloader_can2_led_behavior}, depending on which state the bootloader is in.
+
+\begin{ZubaxSimpleTable}{Bootloader state indicated via the CAN traffic LED indicator}{|l l X|}
+\label{table:bootloader_can2_led_behavior}
+    Bootloader state         & LED pattern (step 50 ms) & LED behavior \\
+
+    NoAppToBoot
+    & {\color{green}
+       \LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO\LEDX\LEDO}
+    & Blinking 10 Hz (very quickly) \\
+
+    BootDelay, ReadyToBoot
+    & {\color{green}
+       \LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO}
+    & Turned off\\
+
+    BootCancelled
+    & {\color{green}
+       \LEDX\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO}
+    & Blinking 1 Hz, short pulses (50 ms)\\
+
+    AppUpgradeInProgress
+    & {\color{green}
+       \LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDX\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO\LEDO}
+    & Blinking 1 Hz, long pulses (500 ms)\\
+\end{ZubaxSimpleTable}
+
+\section{Error codes}
+
+The table \ref{table:bootloader_error_codes} provides descriptions for the well defined error codes
+that can be reported by the bootloader.
+
+\begin{ZubaxSimpleTable}{Bootloader error codes}{|r X|}\label{table:bootloader_error_codes}
+    Code  & Description \\
+        0 & Success.\\
+        1 & Unknown error.\\
+     9001 & Application ROM driver error: erase failed.\\
+     9002 & Application ROM driver error: write failed.\\
+    10001 & The current state of the bootloader does not permit the requested operation.\\
+    10002 & Application image is too large for the device. Download has been aborted.\\
+    10003 & Failed to write the next downloaded chunk of the application image into the ROM.\\
+    20001 & X/YMODEM interface write has timed out.\\
+    20002 & X/YMODEM retries exhausted.\\
+    20003 & X/YMODEM protocol error.\\
+    20004 & X/YMODEM transfer has been canceled by the remote.\\
+    20005 & X/YMODEM remote has refused to provide the file.\\
+    32767 & Unknown error.
+\end{ZubaxSimpleTable}
+
+\section{Interface selection}
+
+Once started, the bootloader launches a CLI\footnote{Command line interface.} instance on the UART port.
+If the bootloader detects that the USB interface became active (by virtue of being connected to a USB host),
+it disconnects the CLI from UART, rendering the latter silent and unresponsive,
+and connects the same CLI instance to the USB virtual serial port.
+The CLI will remain available on the USB virtual serial port as long as the USB interface is active.
+Shall the USB port become disconnected, the bootloader will switch the CLI back to UART.
+The switching between USB and UART is fully automatic and happens on the fly.
+
+\section{USB interface properties}
+
+The USB interface will be detected by the host as CDC ACM (also known as virtual serial port).
+This is a standard USB class that is supported by vast majority of operating systems out of the box,
+no special drivers are required.
+
+The bootloader reports the following properties to the USB host:
+\begin{itemize}
+    \item Vendor ID -- 0x1D50
+    \item Product ID -- 0x60C7
+    \item Vendor string -- \verb|Zubax Robotics|
+    \item Device description string -- \verb|Zubax Babel Bootloader|
+    \item Device ID -- the 128-bit globally unique device ID (section \ref{sec:product_identification})
+                       as a hexadecimal string
+\end{itemize}
+
+\section{UART interface properties}
+
+The UART interface has the following properties that cannot be changed:
+\begin{itemize}
+    \item Baud rate -- 115200
+    \item Word size -- 8 bit
+    \item Parity control -- none
+    \item Stop bits -- 1
+\end{itemize}
+
+\section{CLI properties}
+
+The CLI uses the CR-LF line ending sequence (\verb|\r\n|).
+In order to avoid unintended side effects of exposing the bootloader's CLI when the
+outer hardware expects an SLCAN interface,
+the bootloader's CLI does not return any echo until the input of a valid command has been completed.
+
+For example, entering a command \verb|zubax_id| will not produce any echo, until the command has been completed
+with the \verb|\r\n| sequence.
+As such, entering \verb|zubax_id\r\n| will return the echo followed by the command output.
+Echo for invalid commands is never returned.
+
+The delayed echo allows the bootloader to silently ignore all SLCAN traffic and other data it doesn't recognize.
+Otherwise, the echo emitted by the bootloader could be misinterpreted by the connected hardware
+as valid SLCAN data.
+
+Due to the above considerations, the CLI does not offer any prompt.
+
+\section{CLI commands}
+
+This section documents the CLI commands that can be of interest to the end user.
+Some commands that are not intended for use in production are intentionally omitted from this reference.
+
+\subsection{reboot}
+
+Restarts the bootloader normally.
+
+\subsection{wait}
+
+Instructs the bootloader to not boot the application automatically.
+
+If the current state is \verb|BootDelay|, the state will be switched to \verb|BootCancelled|.
+In all other states the command will have no effect.
+
+\subsection{download}
+
+Instructs the bootloader to start an YMODEM/XMODEM/XMODEM-1K receiver on the current serial link
+and await for the remote host to begin transmission of the new application image file.
+
+The bootloader will automatically detect which file transfer protocol to use.
+
+According to the YMODEM specification, if no transfer was initiated by the host within one minute,
+the command will exit with an error.
+Possible error codes are defined in the table \ref{table:bootloader_error_codes}.
+
+Note that while this command is running, the CLI will be unavailable,
+because the same serial link will be temporarily occupied by the file transfer protocol.
+Automatic switching between USB and UART is not available while the command is running.
+
+See the section \ref{sec:bootloader_ymodem_implementation} for the detailed information about the implementation.
+
+\subsection{zubax\textunderscore{}id}
+
+This is a standard command documented in the section \ref{sec:cli_command_zubax_id}.
+Its implementation in the bootloader, however, has a number of additional features.
+
+The software version information provided in the output is obtained from the application that is
+currently installed on the device.
+If the bootloader could not find any installed application,
+the software version fields will be omitted from the
+output.\footnote{Version 1.0 of the bootloader used to employ a different convention where the application
+version fields were using a different prefix: \texttt{fw\_} rather than \texttt{sw\_}.}
+
+The version of the bootloader itself is reported via the following set of dedicated fields:
+\begin{itemize}
+    \item \verb|bl_version| -- bootloader version, major and minor, formatted as \verb|<major>.<minor>|
+    \item \verb|bl_vcs_commit| -- bootloader version control system commit identifier as an integer number.
+    \item \verb|bl_build_date| -- the build date of the bootloader.
+\end{itemize}
+
+An additional field named ``\verb|mode|'' is set to the string ``\verb|bootloader|''
+to indicate that the bootloader is currently running rather than the application.
+
+The table \ref{table:bootloader_zubax_id_fields} summarizes the fields reported by the bootloader.
+Some extra fields may be reported as well,
+which are not documented here because they are not designed for production use.
+
+\begin{ZubaxSimpleTable}{Zubax ID fields}{|l X|}\label{table:bootloader_zubax_id_fields}
+Field name              & Meaning \\
+
+\texttt{product\_id}    & Product type identifier string.
+                          The same string is reported via UAVCAN as the node name string. \\
+
+\texttt{product\_name}  & Human-readable product name. \\
+
+\texttt{mode}           & Set to the string ``\texttt{bootloader}'' to indicate that the bootloader is running. \\
+
+\texttt{sw\_version}    & Application version number in the form ``major.minor''.
+                          Omitted if the application could not be found. \\
+
+\texttt{sw\_vcs\_commit}& Application version control system commit identifier.
+                          Omitted if the application could not be found. \\
+
+\texttt{hw\_version}    & Hardware version number in the form ``major.minor''. \\
+
+\texttt{hw\_unique\_id} & The 128-bit unique ID of this specific hardware instance
+                          (section \ref{sec:product_identification}).\\
+
+\texttt{hw\_signature}  & The certificate of authenticity (CoA) of this specific hardware instance
+                          encoded in a Base64 string.
+                          If this data is missing, please inform Zubax Robotics as soon as possible. \\
+
+\texttt{bl\_version}    & Bootloader version number in the form ``major.minor''. \\
+
+\texttt{bl\_vcs\_commit}& Bootloader version control system commit identifier. \\
+\end{ZubaxSimpleTable}
+
+\subsection{state}
+
+Prints the current state of the bootloader in the following form:
+\begin{minted}[linenos=false]{text}
+StateName (StateID)
+\end{minted}
+Where \verb|StateName| is the name of the current state as specified in the table \ref{table:bootloader_states},
+and \verb|StateID| is the numerical identifier of the current state.
+
+An example output is shown below:
+\begin{minted}[linenos=false]{text}
+BootCancelled (2)
 \end{minted}
 
-If the application was successfully received and CRC verification confirmed that it is not damaged, the bootloader will automatically transition into the state \texttt{BootDelay}.
+\section{YMODEM/XMODEM/XMODEM-1K implementation details}\label{sec:bootloader_ymodem_implementation}
 
-\iffalse
+YMODEM, XMODEM, and XMODEM-1K are simple and popular file transfer protocols designed by
+Ward Christensen and Chuck Forsberg.
+You can learn more about these protocols in the Zubax Knowledge Base at \url{https://kb.zubax.com/x/ZwAz}.
+This section elaborates on the noteworthy implementation details specific to this application.
 
-\chapter{Accessories}
+The \verb|download| command starts a multi-protocol receiver.
+The receiver enters a loop where it emits the ASCII NAK character to the host,
+prompting it to begin transmission of the application image file.
+The receiver will emit NAK every 5 seconds until the host begins the transmission,
+until the transfer initialization times out,
+or until the host cancels the transmission, whichever happens first.
+The transfer initialization timeout is set to 1 minute.
 
-Zubax Babel can be used with the following accesories:
+The receiver always uses the NAK character to initiate transfers rather than ``\verb|C|'',
+which instructs the remote host to use the plain 8-bit checksum for data integrity checking
+rather than CRC-16.
+The data integrity guarantees offered by the plain 8-bit checksum algorithm are deemed sufficient,
+because the data links are considered reliable enough,
+and the application image itself is always protected by a strong CRC function.
+
+Being compatible with three different protocols, the receiver supports the following options:
 \begin{itemize}
-\item \href{https://github.com/Zubax/zubax_babel/tree/master/hardware/enclosure}{Enclosure (suitable for 3D printing)}
-\item \href{https://docs.zubax.com/uavcan#UAVCAN_Micro_Patch_Cable}{UAVCAN Micro Patch Cable}
-\item \href{https://docs.zubax.com/uavcan#UAVCAN_Micro_to_DF13_Adapter_Cable}{UAVCAN Micro to DF13 Adapter Cable}
-\item \href{https://docs.zubax.com/zubax_babel#UAVCAN_Micro_to_D-SUB_DB9F_CAN_Adapter_Cable}{UAVCAN Micro to D-SUB DB9F CAN Adapter Cable}
+    \item The host is free to send the zero block with the file metadata, as defined by YMODEM.
+          The receiver will collect the file size information from the metadata packet and ignore the rest.
+    
+    \item The host is free to use either 256-byte or 1024-byte sized blocks, the receiver supports both.
+          The former are defined by YMODEM and XMODEM, the latter are defined by YMODEM and XMODEM-1K.
 \end{itemize}
 
-The acessories can be purchased from \href{https://zubax.com/sales-network}{our distributors}.
+Note that if the size of the application image file has not been provided,
+the written image will be padded up to the size of the last data block.
+This is acceptable, because the trailing bytes after the application image are
+not used by any part of the system, and as such their contents can be arbitrary.
+It is recommended, however, to fill the padding bytes with 0xFF,
+in order to match the initial state of the ROM.
 
-\chapter{Links}
-
-\begin{itemize}
-\item \href{http://shop.titaneliteinc.com/index.php?route=product/product&product_id=1004}{Purchase}
-\item \href{https://github.com/Zubax/zubax_babel}{Source repository (includes 3D printable enclosure models)}
-\item \href{http://zubax.com/product/zubax-babel}{Product description}
-\end{itemize}
-
-\fi
+There is a large number of software products and scripts that support these file transfer protocols.
+For instance, the popular program \verb|sz| (available on most GNU/Linux distributions) can be used as follows
+(where \verb|$file| is the name of the application image file, and \verb|$port| is the name of the serial port):
+\begin{minted}[linenos = false]{bash}
+sz -vv --ymodem --1k \$file > \$port < \$port
+\end{minted}
+There are various GUI-based alternatives for Windows and Mac OS as well.
 
 %
 % BEGIN APPENDICES
