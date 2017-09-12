@@ -115,7 +115,7 @@ general-purpose desktop CAN adapter tool.
 
 Please contact your supplier for the ordering information;
 alternatively, visit the website at \mbox{\url{https://github.com/Zubax/zubax_babel}} to download
-3D-printable enclosure models suitable for in-house manufacturing.
+the 3D-printable enclosure models suitable for in-house manufacturing.
 
 \section{Quality assurance}
 
@@ -123,7 +123,7 @@ Every manufactured Babel undergoes an automated testing procedure that validates
 the device is functioning as designed.
 The test log for every manufactured device is available on the web at
 \url{https://device.zubax.com/device_info}.
-This feature can be used to facilitate traceability of purchased devices and
+This feature can be used to facilitate the traceability of purchased devices and
 provide additional safety assurances.
 
 Every manufactured device has a strong digital signature stored in its non-volatile memory
@@ -144,8 +144,8 @@ Proper operation of the device within the limits specified in this section is no
     Symbol            & Parameter                & Min  & Max & Unit \\
     $V_\text{supply}$ & Supply voltage           & -0.3 & 6   & V \\
     $T_\text{oper}$   & Operating temperature    & -40  & 85  & \degree{}C \\
-	              & UART RX input voltage    & -0.3 & 6   & V\\
-	              & CAN H/L input voltage    & -4   & 16  & V\\
+                      & UART RX input voltage    & -0.3 & 6   & V\\
+                      & CAN H/L input voltage    & -4   & 16  & V\\
 \end{ZubaxSimpleTable}
 
 \section{Environmental conditions}
@@ -174,7 +174,7 @@ The CAN power output has a solid state switch that can be enabled and disabled
 by setting the configuration parameter \CfgRef{can.power+on}.
 The device can always be powered from the CAN bus regardless of the state of the power switch.
 
-An additional +3.3 V DC output on the SMD pads can be used to power an external circuitry when the device
+An additional +3.3 V DC output on the SMD pads can be used to power any external circuitry when the device
 is used as a development board or in OEM applications.
 The pinout specification for the SMD pads is provided in the section \ref{sec:smd_pads}.
 
@@ -197,24 +197,26 @@ Power input and output capabilities per interface are summarized in the table \r
 
 \begin{ZubaxTableWrapper}{Power supply characteristics}
     \begin{ZubaxWrappedTable}{|c X| c c c | c|}\label{table:power}
-        Symbol            & Parameter                 & Min & Typ & Max & Unit \\
-        $V_\text{supply}$ & Supply voltage\tnote{a}   & 4.0 & 5.0 & 5.5 & V  \\
-        $I_\text{supply}$ & Supply current\tnote{b}   & 30  & 50  & 80  & mA \\
-                          & 3.3 V rail output voltage & 3.2 & 3.3 & 3.4 & V  \\
-                          & 3.3 V rail external load  &     &     & 100 & mA \\
+        Symbol            & Parameter                       & Min & Typ & Max & Unit \\
+        $V_\text{supply}$ & Supply voltage\tnote{a}         & 4.0 & 5.0 & 5.5 & V  \\
+        $I_\text{supply}$ & Self power consumption\tnote{b} & 30  & 50  & 80  & mA \\
+        $I_\text{total}$  & Total power consumption\tnote{c}&     &     & 500 & mA \\
+                          & 3.3 V rail output voltage       & 3.2 & 3.3 & 3.4 & V  \\
+                          & 3.3 V rail external load        &     &     & 100 & mA \\
     \end{ZubaxWrappedTable}
     \begin{tablenotes}
         \item[a] Any power input.
         \item[b] SMD pads floating, Dronecode port disconnected.
+        \item[c] Maximum power that the device can consume, including all dependent power consumers,
+                 such as the CAN bus power line or external loads connected via the SMD pads.
     \end{tablenotes}
 \end{ZubaxTableWrapper}
 
 \section{Communication interfaces}
 
-Zubax Babel features a variety of communication interfaces that facilitate easy integration into various
-applications:
+Babel implements the following set of communication interfaces:
 \begin{itemize}
-    \item CAN 2.0A/B (ISO 11898).
+    \item CAN 2.0A/B (ISO 11898-2).
     \item USB port (CDC ACM, virtual serial port).
     \item Dronecode debug port.
     \item SMD pads for OEM applications.
@@ -222,9 +224,9 @@ applications:
 
 \subsection{CAN bus}\label{sec:can_bus}
 
-Zubax Babel implements the ISO 11898 CAN 2.0 A/B bus physical layer standard, also known as high-speed CAN.
+Babel implements the ISO 11898-2 CAN 2.0 A/B bus physical layer standard, also known as high-speed CAN.
 The CAN bus interface is equipped with two standard
-UAVCAN Micro connectors (JST GH)\footnote{\url{https://kb.zubax.com/x/EoAh}}
+UAVCAN Micro connectors (JST~GH)\footnote{\url{https://kb.zubax.com/x/EoAh}}
 electrically parallel to each other,
 which facilitates easy integration of the device into the end application without the need to use T-connectors.
 
@@ -247,7 +249,7 @@ by setting the configuration parameter \CfgRef{can.terminator+on}.
 Changes to this configuration parameter take effect immediately.
 
 The power switch, when turned on, delivers a +5 V DC supply to the CAN bus,
-which can be used to power other CAN bus nodes from Zubax Babel
+which can be used to power other CAN bus nodes from Babel
 (section \ref{sec:power}).
 The power switch is controlled by the configuration parameter \CfgRef{can.power+on}.
 Changes to this configuration parameter take effect immediately.
@@ -282,20 +284,20 @@ If redundancy is desired, multiple Babels should be used in parallel, one per bu
         4       & Ground          & Power \& signal ground\\
     \end{ZubaxWrappedTable}
 	\begin{tablenotes}
-	    \item[a] Power output be enabled/disabled by setting the configuration parameter \CfgRef{can.power+on}.
+	    \item[a] Power output can be enabled/disabled by setting the configuration parameter \CfgRef{can.power+on}.
 	\end{tablenotes}
 \end{ZubaxTableWrapper}
 
 \begin{ZubaxTableWrapper}{CAN bus interface characteristics}
 	\begin{ZubaxWrappedTable}{|c X|c c c|c|}
 		Symbol  & Parameter                                 & Min  & Typ  & Max  & Unit \\
-		        & Bit rate                                  &      &      & 1000 & Kbps \\
+		        & Bit rate                                  & 20   &      & 1000 & Kbps \\
 		        & Positive-going input threshold voltage    &      & 750  & 900  & mV \\
 		        & Negative-going input threshold voltage    & 500  & 600  &      & mV \\
 		        & Differential output voltage, dominant     & 1.5  & 2.0  & 3.0  & V \\
 		        & Differential output voltage, recessive    & -120 & 0    & 12   & mV \\
 		        & Inter-connector current pass-through\tnote{a}& -1&      & 1    & A \\
-		        & Connector resistance during device lifetime &    & 30   & 50   & $\text{m}\Omega$ \\
+		        & Connector resistance during the device's lifetime && 30 & 50   & $\text{m}\Omega$ \\
 		        & CAN bus power output voltage\tnote{b}     & $V_\text{supply}-$0.4
 		                                                    & $V_\text{supply}-$0.3
 		                                                    & $V_\text{supply}$
@@ -347,6 +349,8 @@ the latter is mostly useful for OEM applications and for using Babel as a develo
 \subsubsection{UART interface}
 
 The baud rate can be changed by setting the configuration parameter \CfgRef{uart.baudrate}.
+New baud rate settings take effect immediately.
+
 The following parameters of the UART interface are fixed and cannot be changed by the user:
 \begin{itemize}
     \item Word size -- 8 bit
