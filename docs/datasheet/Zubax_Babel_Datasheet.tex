@@ -291,7 +291,7 @@ If redundancy is desired, multiple Babels should be used in parallel, one per bu
 \begin{ZubaxTableWrapper}{CAN bus interface characteristics}
 	\begin{ZubaxWrappedTable}{|c X|c c c|c|}
 		Symbol  & Parameter                                 & Min  & Typ  & Max  & Unit \\
-		        & Bit rate                                  & 20   &      & 1000 & Kbps \\
+		        & Bit rate                                  & 10   &      & 1000 & Kbps \\
 		        & Positive-going input threshold voltage    &      & 750  & 900  & mV \\
 		        & Negative-going input threshold voltage    & 500  & 600  &      & mV \\
 		        & Differential output voltage, dominant     & 1.5  & 2.0  & 3.0  & V \\
@@ -454,22 +454,21 @@ The pinout of the SMD pads and other connectors is shown on the figure \ref{fig:
 
 Babel keeps its CAN controller disabled by default in order to ensure that no unnecessary
 interference with the CAN bus is introduced.
-The CAN controller can be enabled, which is referred to as \emph{opening the channel}.
-In this context, ``channel'' refers to the data tunnel between the CAN bus and a high-side
-interface (either USB or UART).
+The CAN controller is enabled only if the host has requested Babel to open the data tunnel.
+This is reviewed in more detail in the section \ref{sec:slcan}.
 
-When opening the channel, it is possible to explicitly specify the desired bit rate of the CAN bus.
+When opening the data tunnel, it is possible to explicitly specify the desired bit rate of the CAN bus.
 If the CAN bit rate was not specified explicitly, Babel will use the value stored in the parameter
 \CfgRef{can.bitrate}.
 If the bit rate was specified explicitly, the parameter value will be automatically updated.
 
-When the channel is opened, all of the buffers become flushed (i.e. cleared)
+When the tunnel is opened, all of the buffers become flushed (i.e. cleared)
 and the interface statistic counters get reset.
-An attempt to open the channel when it is already opened is interpreted as if there was an implicit
-close command before the channel is re-opened again.
+An attempt to open the tunnel when it is already opened is interpreted as if there was an implicit
+close command before the tunnel is re-opened again.
 
 Babel runs a single instance of an SLCAN protocol handler that can be attached either to the
-USB CDC ACM interface (virtual serial port) or the physical UART interface.
+USB CDC ACM interface (virtual serial port) or to the physical UART interface.
 By default, the UART interface is used.
 If Babel detects that the USB interface is connected to a USB host,
 it disconnects the SLCAN protocol handler from the UART port and attaches it to the USB CDC ACM port.
@@ -481,7 +480,7 @@ It is therefore impossible to use both USB and UART interfaces at the same time 
 Immediately after powering on, the device starts the embedded bootloader (described in detail in the section
 \ref{sec:bootloader}).
 The bootloader awaits for external commands for a few seconds.
-If no commands requesting it to download a new firmware image or wait longer were received,
+If no commands requesting it to download a new firmware image or to wait longer were received,
 and if a valid application (i.e. firmware) was found in the ROM,
 the bootloader starts the application.
 If no valid application is found in the ROM, the bootloader will wait for commands forever.
@@ -578,8 +577,8 @@ The protocol defines three types of data blocks:
 \end{description}
 
 All commands and notifications are always terminated with the ACK character (\verb|\r|).
-A response will be terminated with ACK if the corresponding command was executed successfully,
-and with NACK if the command has failed or if the command ID could not be understood by the adapter.
+A response will be terminated with ACK if the corresponding command has been executed successfully,
+and with NACK if the command has failed or if the command could not be understood by the adapter.
 
 Babel also implements an extension on top of the SLCAN protocol that allows the host to execute
 arbitrary CLI commands over the same serial link that is used by SLCAN.
@@ -609,14 +608,16 @@ A high quality host-side implementation of the SLCAN protocol in Python can be f
                                            & Set the CAN bit rate. The CAN bit rate will be stored in the
                                              configuration parameter \CfgRef{can.bitrate}. \\
 
-    \texttt{O} & None                      & Open CAN channel in normal mode; re-open if already open.
+    \makecell[lt]{\texttt{O}\\\footnotesize{(capital o)}}
+               & None                      & Open CAN channel in normal mode; re-open if already open.
                                              The bit rate value will be taken from \CfgRef{can.bitrate}. \\
 
     \texttt{L} & None                      & Open CAN channel in silent mode (listen only); re-open if already open.
                                              The bit rate value will be taken from \CfgRef{can.bitrate}.
                                              Section \ref{sec:slcan_silent_mode}. \\
 
-    \texttt{l} & None                      & Open CAN channel in normal mode with loopback enabled;
+    \makecell[lt]{\texttt{l}\\\footnotesize{(lowercase L)}}
+               & None                      & Open CAN channel in normal mode with loopback enabled;
                                              re-open if already open.
                                              The bit rate value will be taken from \CfgRef{can.bitrate}. 
                                              Section \ref{sec:slcan_loopback_mode}. \\
@@ -631,7 +632,7 @@ A high quality host-side implementation of the SLCAN protocol in Python can be f
 \end{ZubaxSimpleTable}
 
 All commands return ACK (\verb|\r|) on success and NACK (\verb|\a|) on failure.
-Commands that are implemented only for compatibility reasons always report success.
+Commands that are implemented only for compatibility always report success.
 
 \subsubsection{CAN bit rate configuration}\label{sec:slcan_can_bit_rate_interpretation}
 
@@ -639,7 +640,7 @@ The command \verb|S| accepts a non-negative decimal number which represents the 
 If the channel is open, changes in the bit rate configuration will not take effect until it is re-opened again.
 The values are interpreted as specified in the table \ref{table:slcan_can_bit_rate_interpretation}.
 
-\begin{ZubaxSimpleTable}{CAN bit rate interpretation}{|l X|}\label{table:slcan_can_bit_rate_interpretation}
+\begin{ZubaxSimpleTable}{CAN bit rate setting interpretation}{|l X|}\label{table:slcan_can_bit_rate_interpretation}
     Value     & Interpretation, bit/s \\ 
     0         & 10000 \\
     1         & 20000 \\
