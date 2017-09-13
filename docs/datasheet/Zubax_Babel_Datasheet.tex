@@ -34,7 +34,7 @@ There is a wide selection of software products that can communicate with SLCAN-c
 \begin{itemize}
     \item Very low latency -- the cumulative latency between the host system
           and the CAN bus is under 1 millisecond.\footnote{Tested via USB on Linux 3.13
-          using the low-latency SLCAN driver from the PyUAVCAN library.}
+          using a low-latency SLCAN driver from the PyUAVCAN library.}
 
     \item Very high throughput -- the device handles more than 5000 frames per second in either direction
           continuously.\footnote{Tested via USB on Linux 3.13.
@@ -91,7 +91,7 @@ OEM.
 
 \section{Accessories}
 
-Zubax Babel can be used with the following accessories:
+Babel can be used with the following accessories:
 \begin{itemize}
     \item Plastic enclosure described in the section \ref{sec:enclosure}.
     \item UAVCAN cabling and related items.
@@ -103,7 +103,7 @@ Please contact your supplier for the ordering information.
 
 \subsection{Enclosure}\label{sec:enclosure}
 
-Zubax Babel can be enclosed into a plastic enclosure pictured on the figure \ref{fig:enclosure}.
+Babel can be enclosed in a plastic enclosure pictured on the figure \ref{fig:enclosure}.
 The enclosure provides a mechanical protection that makes the device more suitable for use as a
 general-purpose desktop CAN adapter tool.
 
@@ -259,7 +259,7 @@ The physical locations of the CAN connectors are documented in the section \ref{
 \subsubsection{Device interconnection}
 
 The figure \ref{can_daisy_chain} shows a typical CAN bus topology.
-Observe that if Babel is a last device on the bus, a separate termination resistor would not be necessary,
+Observe that if Babel is a last device on the bus, a separate termination resistor would not be required,
 since Babel has an embedded termination resistor that can be enabled by setting the configuration
 parameter \CfgRef{can.terminator+on}.
 
