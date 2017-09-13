@@ -714,7 +714,7 @@ All of the above listed commands may generate the responses specified in the tab
 \ref{table:slcan_transmission_responses}.
 
 Note that if a frame could not be scheduled for transmission due to the TX buffer being full,
-the adapter still returns success.
+the adapter would still return success.
 Use the SLCAN flags together with the loopback mode in order to be able to detect when outgoing frames are dropped
 by the adapter.
 
@@ -764,7 +764,8 @@ therefore, the host should adjust the baud rate of the serial port immediately a
 
 The argument is interpreted as specified in the table \ref{table:slcan_uart_baud_rate_configuration}.
 
-\begin{ZubaxSimpleTable}{UART baud rate interpretation}{|l X|}\label{table:slcan_uart_baud_rate_configuration}
+\begin{ZubaxSimpleTable}{UART baud rate setting interpretation}{|l X|}
+\label{table:slcan_uart_baud_rate_configuration}
     Value     & Interpretation, baud/s \\
     0         & 230400 \\ 
     1         & 115200 \\
