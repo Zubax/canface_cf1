@@ -1176,7 +1176,7 @@ For this reason, Babel is given SMD pads spaced at the standard 2.54\,mm pitch.
 Standard 2.54\,mm pin connectors can be soldered to the SMD pads in order to enable easy integration
 with standard breadboards.
 
-The signals that are routed to the pads are shown on the figure \ref{fig:pinout}.
+The signals that are routed to the SMD pads and other connectors are shown on the figure \ref{fig:pinout}.
 
 \section{Custom applications}
 
@@ -1188,7 +1188,8 @@ Zubax Babel is based on the microcontroller STM32F373CBT6; its main characterist
     \item Core: ARM Cortex-M4F (with a hardware floating point unit) clocked at 72 MHz.
     \item Flash memory capacity: 128 KB.
     \begin{itemize}
-        \item First 32 KB are occupied by the bootloader and some auxiliary persistent data.
+        \item First 32 KB are occupied by the bootloader and some auxiliary persistent data
+              (which should never be erased by the user).
         \item The following 94 KB are available for the user's application.
         \item Last 2 KB are reserved for non-volatile configuration storage.
     \end{itemize}
@@ -1208,8 +1209,7 @@ More information about the bootloader can be gathered in the section \ref{sec:bo
 \chapter{Configuration parameters}\label{sec:configuration_parameters}
 
 Configuration parameters are stored in a non-volatile memory on the adapter.
-
-Some configuration parameters can be modified via dedicated SLCAN commands,
+They can be modified by using the CLI and also by using dedicated SLCAN commands,
 as described in the section \ref{sec:slcan}.
 
 UAVCAN GUI Tool\footnote{\url{http://uavcan.org}} provides a convenient way of managing the
