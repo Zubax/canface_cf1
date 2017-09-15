@@ -1145,10 +1145,11 @@ bus_voltage           : 4.8
 
 \subsubsection{bootloader}
 
-Reboots the device into the bootloader, where it will wait forever for commands.
-
 This command reboots the device into the bootloader mode, described in the section \ref{sec:bootloader}.
 It can be used to initiate a firmware update procedure over USB or UART.
+
+When the bootloader is started using this command, it will not boot the application automatically
+upon expiration of the boot timeout.
 
 \subsubsection{reboot}
 
