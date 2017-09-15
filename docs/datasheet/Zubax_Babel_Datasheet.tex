@@ -741,7 +741,7 @@ by the adapter.
     Block ID   & Arguments & Purpose \\
 
     \texttt{U} & Section \ref{sec:slcan_uart_baud_rate_configuration}
-               & Set the UART baud rate. The UART baud rate will be stored in the configuration parameter
+               & Set the UART baud rate. The setting will be stored in the configuration parameter
                  \CfgRef{uart.baudrate}. \\
 
     \texttt{Z} & \texttt{0} or \texttt{1}
@@ -791,7 +791,7 @@ The command \texttt{Z} can be used to enable and disable the CAN frame timestamp
 
 The state of the timestamping feature is kept in the configuration parameter \CfgRef{slcan.timestamping+on}.
 
-The changes will take effect shortly after the command was executed (typically within 100 milliseconds),
+The changes will take effect shortly after the command is executed (typically within 100 milliseconds),
 no reboot is necessary.
 
 \subsubsection{Reading and clearing the status flags}
@@ -813,12 +813,13 @@ Bits that are not used should be ignored when processing the bit mask.
 
     2   & 4              &               & Not used. \\
 
-    3   & 8              & RX overrun    & The RX queue has overflowed at least once since the last
-                                           invocation of the F command or since the channel was open. \\
+    3   & 8              & RX overrun    & The RX queues (software, hardware, or both) have overflowed at
+                                           least once since the last invocation of the F command
+                                           or since the channel was opened. \\
 
     4   & 16             &               & Not used. \\
 
-    5   & 32             & Error passive & The CAN error counters have exceeded the error passive limit
+    5   & 32             & Error passive & The CAN error counter values are above the error passive limit
                                            (refer to the CAN bus specification for details). \\
 
     6   & 64             &               & Not used. \\
@@ -849,9 +850,10 @@ Babel emits SLCAN notifications in the following cases:
     \item If loopback is enabled: a CAN frame has been successfully delivered to the bus.
 \end{itemize}
 
-The format of notifications is the same as for CAN transmission commands.
+The format of notifications is the same as for the CAN transmission commands,
+as described in the table \ref{table:slcan_notifications}.
 
-\begin{ZubaxSimpleTable}{SLCAN notifications}{|l l X|}
+\begin{ZubaxSimpleTable}{SLCAN notifications}{|l l X|}\label{table:slcan_notifications}
     Block ID   & Argument format     & Purpose \\
     \texttt{T} & \texttt{iiiiiiiid*} & Received or successfully transmitted a 29-bit data frame.  \\
     \texttt{t} & \texttt{iiid*}      & Received or successfully transmitted an 11-bit data frame. \\
@@ -861,11 +863,11 @@ The format of notifications is the same as for CAN transmission commands.
 
 Obviously, notifications for transmitted frames will be emitted only if the channel is open in the loopback mode.
 
-Frame notifications may be extended with the timestamp information and/or with flags,
+Frame notifications may be extended with timestamps and/or with flags,
 depending on the values of the configuration parameters \CfgRef{slcan.timestamping+on}
 and \CfgRef{slcan.flags+on}, respectively.
 
-When timestamping is enabled, every emitted CAN frame notification will be extended with
+When timestamping is enabled, every emitted CAN frame notification will be appended with
 four more hexadecimal characters containing the time, in milliseconds, when the frame was received.
 The millisecond timestamp overflows every 60\,000 milliseconds (once a minute),
 so the valid values lie in the range from 0 to 59\,999, inclusive.
@@ -876,14 +878,15 @@ using the Olson algorithm\footnote{
 {``A Passive Solution to the Sensor Synchronization Problem'', Edwin Olson, 2010}.}
 (the timestamp synchronization feature in PyUAVCAN is based on the Olson algorithm as well).
 
-In the loopback mode with timestamping enabled the loopback frame notifications will carry the timestamp of
+In the loopback mode with timestamping enabled loopback frame notifications will carry the timestamp of
 the moment when they were delivered to the bus.
+This is sometimes called ``TX timestamping''.
 
 When SLCAN flags are enabled, frame notifications will be amended as listed below.
-Note that flags are always added at the end of the block.
+Note that flags are always added at the end of an SLCAN block.
 \begin{itemize}
     \item Loopback frames will be appended with the character \verb|L| at the end of the block.
-          This flag allows the host to distinguish the frames received from the bus from the
+          This flag allows the host to distinguish frames received from the bus from
           transmitted frames that were looped back.
 
     \item Other flags may be added in future revisions of the protocol.
