@@ -51,6 +51,8 @@ There is a wide selection of software products that can communicate with SLCAN-c
 
     \item Embedded CAN bus power supply output that can be turned on and off by a command.
 
+    \item Hardware RX/TX timestamping.
+
     \item CAN bus supply voltage monitoring.
 
     \item SMD soldering pads for OEM applications.
@@ -471,6 +473,13 @@ When the tunnel is opened, all of the buffers become flushed (i.e. cleared)
 and the interface statistic counters get reset.
 An attempt to open the tunnel when it is already opened is interpreted as if there was an implicit
 close command before the tunnel is re-opened again.
+
+Babel contains two RX buffers connected in series: a hardware buffer that can contain up to 3 CAN frames,
+and a software buffer that can contain up to 255 CAN frames.
+The specifics of RX buffering are explained in the subsequent chapters of this document.
+
+The capacity of the software TX buffer is 100 frames.
+The TX logic is not equipped with hardware buffers.
 
 Babel runs a single instance of an SLCAN protocol handler that can be attached either to the
 USB CDC ACM interface (virtual serial port) or to the physical UART interface.
