@@ -37,8 +37,8 @@ This algoritm is employed in the SLCAN backend in [PyUAVCAN library](http://uavc
 
 ## Firmware
 
-If you're not running Linux or OSX natively, you can download
-[Bistromathic - a Linux virtual machine pre-configured for embedded development](https://files.zubax.com/vm/bistromathic.ova).
+If you're not running Linux or OSX natively, you can use
+[Bistromathic - a Linux virtual machine pre-configured for embedded development](https://kb.zubax.com/x/KIEh).
 
 ### Change Log
 
@@ -55,7 +55,7 @@ Initial release.
 
 ### Building
 
-Install the ARM GCC toolchain version 6.3 or newer.
+Install ARM GCC toolchain version 6.3.
 Clone this repository, init all submodules (`git submodule update --init --recursive`),
 then execute the following from the repository root:
 
