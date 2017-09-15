@@ -1366,8 +1366,7 @@ The table \ref{table:bootloader_states} summarizes the states.
 
     3  & AppUpgradeinProgress & The application is currently being updated.
                                 If interrupted, the bootloader will switch into
-                                \textbf{NoAppToBoot} or \textbf{BootCancelled},
-                                depending on whether there is a valid image after the interruption.\\
+                                \textbf{NoAppToBoot} or \textbf{BootCancelled}.\\
     
     4  & ReadyToBoot          & The application is about to be booted.
                                 This state is very transient and is left automatically as soon as possible.\\
