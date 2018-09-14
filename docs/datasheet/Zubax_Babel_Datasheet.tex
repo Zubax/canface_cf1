@@ -73,6 +73,7 @@ There is a wide selection of software products that can communicate with SLCAN-c
 \centering{
     \includegraphics[width=0.45\textwidth]{top}
     \includegraphics[width=0.45\textwidth]{bottom}
+    \includegraphics[width=0.45\textwidth]{breadboard}
 }
 
 \end{titlepage}
@@ -111,7 +112,7 @@ general-purpose desktop CAN adapter tool.
 
 \begin{figure}[hb]
     \centering
-    \includegraphics[width=0.45\textwidth]{housing}
+    \includegraphics[width=0.7\textwidth]{housing}
     \caption{Plastic enclosure.\label{fig:enclosure}}
 \end{figure}
 
@@ -285,34 +286,34 @@ If redundancy is desired, multiple Babels should be used in parallel, one per bu
         3       & Input/output    & CAN Low\\
         4       & Ground          & Power \& signal ground\\
     \end{ZubaxWrappedTable}
-	\begin{tablenotes}
-	    \item[a] Power output can be enabled/disabled by setting the configuration parameter \CfgRef{can.power+on}.
-	\end{tablenotes}
+    \begin{tablenotes}
+        \item[a] Power output can be enabled/disabled by setting the configuration parameter \CfgRef{can.power+on}.
+    \end{tablenotes}
 \end{ZubaxTableWrapper}
 
 \begin{ZubaxTableWrapper}{CAN bus interface characteristics}
-	\begin{ZubaxWrappedTable}{|c X|c c c|c|}
-		Symbol  & Parameter                                 & Min  & Typ  & Max  & Unit \\
-		        & Bit rate                                  & 10   &      & 1000 & Kbps \\
-		        & Positive-going input threshold voltage    &      & 750  & 900  & mV \\
-		        & Negative-going input threshold voltage    & 500  & 600  &      & mV \\
-		        & Differential output voltage, dominant     & 1.5  & 2.0  & 3.0  & V \\
-		        & Differential output voltage, recessive    & -120 & 0    & 12   & mV \\
-		        & Inter-connector current pass-through\tnote{a}& -1&      & 1    & A \\
-		        & Connector resistance during the device's lifetime && 30 & 50   & $\text{m}\Omega$ \\
-		        & CAN bus power output voltage\tnote{b}     & $V_\text{supply}-$0.4
-		                                                    & $V_\text{supply}-$0.3
-		                                                    & $V_\text{supply}$
-		                                                    & V \\
-		        & CAN bus power output current              & -1   &      & 0.3  & mA \\
-		        & Resistance of the embedded CAN terminator & 113  & 120  & 127  & $\Omega$ \\
-	\end{ZubaxWrappedTable}
-	\begin{tablenotes}
-	    \item[a] The limit is imposed by the PCB.
-	    \item[b] CAN power supply voltage is a function of the input supply voltage and
-	             the voltage drop in the CAN power switch circuit.
-	             The latter is dependent on the CAN power supply current.
-	\end{tablenotes}
+    \begin{ZubaxWrappedTable}{|c X|c c c|c|}
+        Symbol  & Parameter                                 & Min  & Typ  & Max  & Unit \\
+                & Bit rate                                  & 10   &      & 1000 & Kbps \\
+                & Positive-going input threshold voltage    &      & 750  & 900  & mV \\
+                & Negative-going input threshold voltage    & 500  & 600  &      & mV \\
+                & Differential output voltage, dominant     & 1.5  & 2.0  & 3.0  & V \\
+                & Differential output voltage, recessive    & -120 & 0    & 12   & mV \\
+                & Inter-connector current pass-through\tnote{a}& -1&      & 1    & A \\
+                & Connector resistance during the device's lifetime && 30 & 50   & $\text{m}\Omega$ \\
+                & CAN bus power output voltage\tnote{b}     & $V_\text{supply}-$0.4
+                                                            & $V_\text{supply}-$0.3
+                                                            & $V_\text{supply}$
+                                                            & V \\
+                & CAN bus power output current              & -1   &      & 0.3  & mA \\
+                & Resistance of the embedded CAN terminator & 113  & 120  & 127  & $\Omega$ \\
+    \end{ZubaxWrappedTable}
+    \begin{tablenotes}
+        \item[a] The limit is imposed by the PCB.
+        \item[b] CAN power supply voltage is a function of the input supply voltage and
+                 the voltage drop in the CAN power switch circuit.
+                 The latter is dependent on the CAN power supply current.
+    \end{tablenotes}
 \end{ZubaxTableWrapper}
 
 \subsection{USB}\label{sec:usb}
@@ -384,15 +385,15 @@ The recommended SWD adapter for use with Babel is the \href{https://kb.zubax.com
 \end{ZubaxTableWrapper}
 
 \begin{ZubaxSimpleTable}{Dronecode debug port characteristics}{|c X|c c c|c|}
-	Symbol  & Parameter                                 & Min  & Typ    & Max         & Unit \\
-                & Supported UART baud rates                 & 2400 & 115200 & 3\,000\,000 & baud/s \\
-                & Low-level input voltage                   & -0.3 & 0      & 1.6         & V\\
-                & High-level input voltage                  & 2.1  & 3.3    & 5.5         & V\\
-                & Low-level output voltage                  & 0    & 0      & 0.5         & V\\
-                & High-level output voltage                 & 2.8  & 3.3    & 3.4         & V\\
-                & Source/sink current via data pins         &      &        & 10          & mA\\
-                & UART RX pull up resistance                & 30   & 40     & 50          & $\text{k}\Omega$\\
-	        & Connector resistance during device lifetime &    & 20     & 40          & $\text{m}\Omega$\\
+    Symbol  & Parameter                                 & Min  & Typ    & Max         & Unit \\
+            & Supported UART baud rates                 & 2400 & 115200 & 3\,000\,000 & baud/s \\
+            & Low-level input voltage                   & -0.3 & 0      & 1.6         & V\\
+            & High-level input voltage                  & 2.1  & 3.3    & 5.5         & V\\
+            & Low-level output voltage                  & 0    & 0      & 0.5         & V\\
+            & High-level output voltage                 & 2.8  & 3.3    & 3.4         & V\\
+            & Source/sink current via data pins         &      &        & 10          & mA\\
+            & UART RX pull up resistance                & 30   & 40     & 50          & $\text{k}\Omega$\\
+            & Connector resistance during device lifetime &    & 20     & 40          & $\text{m}\Omega$\\
 \end{ZubaxSimpleTable}
 
 \subsection{SMD pads}\label{sec:smd_pads}
@@ -445,14 +446,14 @@ The pinout of the SMD pads and other connectors is shown on the figure \ref{fig:
 \end{ZubaxSimpleTable}
 
 \begin{figure}[hbtp]
-	\centerline{\includegraphics[width=1.2\textwidth]{babel_dimensions}}
-	\caption{Physical dimensions of Babel.\label{fig:drawing}}
+    \centerline{\includegraphics[width=1.2\textwidth]{babel_dimensions}}
+    \caption{Physical dimensions of Babel.\label{fig:drawing}}
 \end{figure}
 
 \begin{figure}[hbtp]
-	\centerline{\includegraphics[width=1\textwidth]{pinout_annotated}}
-	\vspace{2em}
-	\caption{Babel pinout.\label{fig:pinout}}
+    \centerline{\includegraphics[width=1\textwidth]{pinout_annotated}}
+    \vspace{2em}
+    \caption{Babel pinout.\label{fig:pinout}}
 \end{figure}
 
 \chapter{Operating principles}
@@ -633,7 +634,7 @@ A high quality host-side implementation of the SLCAN protocol in Python can be f
     \makecell[lt]{\texttt{l}\\\footnotesize{(lowercase L)}}
                & None                      & Open CAN channel in normal mode with loopback enabled;
                                              re-open if already open.
-                                             The bit rate value will be taken from \CfgRef{can.bitrate}. 
+                                             The bit rate value will be taken from \CfgRef{can.bitrate}.
                                              Section \ref{sec:slcan_loopback_mode}. \\
 
     \texttt{C} & None                      & Close CAN channel; do nothing if the channel is not open. \\
@@ -655,7 +656,7 @@ If the channel is open, changes in the bit rate configuration will not take effe
 The values are interpreted as specified in the table \ref{table:slcan_can_bit_rate_interpretation}.
 
 \begin{ZubaxSimpleTable}{CAN bit rate setting interpretation}{|l X|}\label{table:slcan_can_bit_rate_interpretation}
-    Value     & Interpretation, bit/s \\ 
+    Value     & Interpretation, bit/s \\
     0         & 10000 \\
     1         & 20000 \\
     2         & 50000 \\
@@ -724,7 +725,7 @@ therefore, the complete set of characters that may occur in a hexadecimal number
     \end{tablenotes}
 \end{ZubaxTableWrapper}
 
-All of the above listed commands may generate the responses specified in the table 
+All of the above listed commands may generate the responses specified in the table
 \ref{table:slcan_transmission_responses}.
 
 Note that if a frame could not be scheduled for transmission due to the TX buffer being full,
@@ -758,7 +759,7 @@ by the adapter.
                  The provided value will be stored in the configuration parameter \CfgRef{slcan.timestamping+on}.\\
 
     \texttt{F} & None
-               & Get and clear the status flags. \\ 
+               & Get and clear the status flags. \\
 
     \texttt{V} & None
                & Get the hardware and software version numbers. \\
@@ -781,7 +782,7 @@ The argument is interpreted as specified in the table \ref{table:slcan_uart_baud
 \begin{ZubaxSimpleTable}{UART baud rate setting interpretation}{|l X|}
 \label{table:slcan_uart_baud_rate_configuration}
     Value     & Interpretation, baud/s \\
-    0         & 230400 \\ 
+    0         & 230400 \\
     1         & 115200 \\
     2         & 57600 \\
     3         & 38400 \\
@@ -964,7 +965,7 @@ distinguish SLCAN data from CLI data in real time:
 \begin{itemize}
     \item CLI commands and their responses are terminated with \verb|\r\n| rather than plain \verb|\r|.
     \item A valid SLCAN command cannot be also a valid CLI command.
-\end{itemize} 
+\end{itemize}
 A compliant SLCAN driver that is capable of dealing with CLI extensions with virtually zero performance penalty
 can be found in the PyUAVCAN library.
 
@@ -1225,8 +1226,8 @@ UAVCAN GUI Tool\footnote{\url{http://uavcan.org}} provides a convenient way of m
 Babel's configuration parameters.
 
 \begin{figure}[hbtp]
-	\centerline{\includegraphics[width=0.7\textwidth]{uavcan_gui_tool_adapter_configuration}}
-	\caption{Using the UAVCAN GUI Tool for configuration parameter management.}
+    \centerline{\includegraphics[width=0.7\textwidth]{uavcan_gui_tool_adapter_configuration}}
+    \caption{Using the UAVCAN GUI Tool for configuration parameter management.}
 \end{figure}
 
 \section{Non-volatile configuration storage}
@@ -1357,8 +1358,8 @@ The behavior of the bootloader if defined by a simple state machine documented o
 The table \ref{table:bootloader_states} summarizes the states.
 
 \begin{figure}[!hbt]
-	\centerline{\includegraphics[width=\textwidth]{bootloader_state_machine}}
-	\caption{Bootloader state machine.\label{bootloader_state_machine}}
+    \centerline{\includegraphics[width=\textwidth]{bootloader_state_machine}}
+    \caption{Bootloader state machine.\label{bootloader_state_machine}}
 \end{figure}
 
 \begin{ZubaxSimpleTable}{Bootloader states}{|c l X|}\label{table:bootloader_states}
@@ -1376,7 +1377,7 @@ The table \ref{table:bootloader_states} summarizes the states.
     3  & AppUpgradeinProgress & The application is currently being updated.
                                 If interrupted, the bootloader will switch into
                                 \textbf{NoAppToBoot} or \textbf{BootCancelled}.\\
-    
+
     4  & ReadyToBoot          & The application is about to be booted.
                                 This state is very transient and is left automatically as soon as possible.\\
 \end{ZubaxSimpleTable}
@@ -1388,7 +1389,7 @@ While the bootloader is running, the LED indicators behave as described in this 
 The status LED (blue \ShowColor{blue}) is always on, which is the main indicator that the bootloader,
 rather than the application (firmware), is currently running.
 
-The CAN traffic LED (green \ShowColor{green}) displays one of the blinking patterns shown in the table 
+The CAN traffic LED (green \ShowColor{green}) displays one of the blinking patterns shown in the table
 \ref{table:bootloader_can2_led_behavior}, depending on which state the bootloader is in.
 
 \begin{ZubaxSimpleTable}{Bootloader state indicated via the CAN traffic LED indicator}{|l l X|}
@@ -1621,7 +1622,7 @@ Being compatible with three different protocols, the receiver supports the follo
 \begin{itemize}
     \item The host is free to send the zero block with the file metadata, as defined by YMODEM.
           The receiver will collect the file size information from the metadata packet and ignore the rest.
-    
+
     \item The host is free to use either 256-byte or 1024-byte sized blocks, the receiver supports both.
           The former are defined by YMODEM and XMODEM, the latter are defined by YMODEM and XMODEM-1K.
 \end{itemize}
@@ -1649,10 +1650,10 @@ There are various GUI-based alternatives for Windows and Mac OS as well.
 
 \begin{figure}[hbtp]
     \centering
-	\centerline{\includegraphics[width=1.2\textwidth]{Generic_SLCAN_API}}
-	\caption{An overview of the SLCAN API implemented in various SLCAN-compatible adapters.
-	\label{fig:Generic_SLCAN_API}}
-	Prepared by Oliver Hartkopp (Linux SocketCAN project).
+    \centerline{\includegraphics[width=1.2\textwidth]{Generic_SLCAN_API}}
+    \caption{An overview of the SLCAN API implemented in various SLCAN-compatible adapters.
+    \label{fig:Generic_SLCAN_API}}
+    Prepared by Oliver Hartkopp (Linux SocketCAN project).
 \end{figure}
 
 \end{document}
