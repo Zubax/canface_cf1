@@ -68,9 +68,9 @@ info('''
 Usage instructions:
 1. Connect a CAN adapter to this computer. Supported adapters are:
 1.1. SLCAN-compliant adapters. If you're using an SLCAN adapter,
-     use its serial port name as CAN interface name (e.g. "/dev/ttyACM0").
+     use its serial port name as a CAN interface name (e.g. "/dev/ttyACM0").
 1.2. SocketCAN-compatible adapters. In this case it is recommended to use
-     8devices USB2CAN. Correct interface name would be "can0".
+     8devices USB2CAN. The correct interface name would be "can0".
 2. Connect exactly one DroneCode Probe to this computer.
    For more info refer to https://kb.zubax.com/x/iIAh.
 3. Follow the instructions printed in green. If you have any questions,
@@ -96,7 +96,7 @@ def resolve_adapter_uid():
             logger.debug('SLCAN adapter port: %r --> %r, UID: %r', p, p_real, uid)
             return uid.lower()
 
-    fatal('Could not determine UID of the SLCAN adapter')
+    fatal('Could not determine the UID of the SLCAN adapter')
 
 SLCAN_ADAPTER_UID_LOWERCASE = resolve_adapter_uid()
 
@@ -129,7 +129,7 @@ def wait_for_boot():
         if 'bootloader' in target_serial_symlink.lower():
             if not bootloader_detected:
                 bootloader_detected = True
-                info('Bootloader port detected, waiting for application to boot...')
+                info('Bootloader port detected, waiting for the application to boot...')
         else:
             info('Boot successful')
             return
@@ -217,7 +217,7 @@ def make_random_can_frame():
 
 def process_one_device(set_device_info):
     out = input('1. Connect DroneCode Probe to the debug connector.\n'
-                '2. Connect CAN to the first CAN connector on the Babel; leve the other CAN connector empty.\n'
+                '2. Connect CAN to the first CAN connector on the Babel; leave the other CAN connector empty.\n'
                 '3. Connect USB to the Micro USB port on the Babel.\n'
                 '4. If you want to skip firmware upload, type F now.\n'
                 '5. Press ENTER.')
@@ -345,7 +345,7 @@ def process_one_device(set_device_info):
         if gen_sign_response.new:
             info('New signature has been generated')
         else:
-            info('This particular device has been signed earlier, reusing existing signature')
+            info('This particular device was signed earlier, reusing the existing signature')
         base64_signature = b64encode(gen_sign_response.signature).decode()
         logger.info('Generated signature in Base64: %s', base64_signature)
 
