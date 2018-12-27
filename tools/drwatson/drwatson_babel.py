@@ -264,9 +264,9 @@ def process_one_device(set_device_info):
             # Otherwise the command will silently fail. The CAN power output must be disabled because it interferes
             # with the power supply delivery testing.
             try:
-                drv_test.execute_cli_command('cfg set can.power_on 0')
+                drv_test.execute_cli_command('cfg set can.power_on 0', lambda _: None)
             except Exception as ex:
-                logger.debug('CAN adapter CLI command failed:', ex)
+                logger.debug('CAN adapter CLI command failed: %s', ex)
 
             info('Testing CAN bus exchange: target --> test')
             for idx, rf in enumerate(random_frames):
