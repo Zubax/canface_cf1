@@ -260,6 +260,14 @@ def process_one_device(set_device_info):
         with closing(uavcan.driver.make_driver(args.iface, bitrate=CAN_BITRATE)) as drv_test:
             random_frames = [make_random_can_frame() for _ in range(NUM_TEST_FRAMES)]
 
+            # If we're using another Zubax Babel as a CAN adapter, this command will disable its CAN power output.
+            # Otherwise the command will silently fail. The CAN power output must be disabled because it interferes
+            # with the power supply delivery testing.
+            try:
+                drv_test.execute_cli_command('cfg set can.power_on 0')
+            except Exception as ex:
+                logger.debug('CAN adapter CLI command failed:', ex)
+
             info('Testing CAN bus exchange: target --> test')
             for idx, rf in enumerate(random_frames):
                 drv_target.send(rf.id, rf.data, rf.extended)
