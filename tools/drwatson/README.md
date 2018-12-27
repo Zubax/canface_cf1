@@ -13,7 +13,7 @@ A working GNU ARM toolchain version 7 or newer must be installed.
 Please read this for installation instructions: <https://kb.zubax.com/x/NoEh>.
 
 After checking out this repository and all of its submodules (`git clone --recursive <URL of the repository>`),
-execute `sudo ./setup.sh`, and you're ready to get started:
+execute `./setup.sh`, and you're ready to get started:
 
 ```bash
 ./run.sh --help
