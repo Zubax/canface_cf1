@@ -112,7 +112,9 @@ def get_target_serial_port_symlink():
                     '%r, %r', out, p)
             out = p
 
-    logger.debug('Detected target serial port symlink: %r', out)
+    if out:
+        logger.debug('Detected target serial port symlink: %r', out)
+
     return out
 
 
@@ -124,6 +126,7 @@ def wait_for_boot():
     while boot_deadline > time.monotonic():
         target_serial_symlink = get_target_serial_port_symlink()
         if not target_serial_symlink:
+            time.sleep(0.5)
             continue
 
         if 'bootloader' in target_serial_symlink.lower():
