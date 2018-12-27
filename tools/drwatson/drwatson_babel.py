@@ -62,8 +62,7 @@ If you're a licensed manufacturer, you should have received usage
 instructions with the manufacturing doc pack.''',
             lambda p: p.add_argument('iface', help='CAN interface or device path, e.g. "can0", "/dev/ttyACM0", etc.'),
             lambda p: p.add_argument('--firmware', '-f', help='location of the firmware file (if not provided, ' +
-                                     'the firmware will be downloaded from Zubax Robotics file server)'),
-            require_root=True)
+                                     'the firmware will be downloaded from Zubax Robotics file server)'))
 
 info('''
 Usage instructions:
