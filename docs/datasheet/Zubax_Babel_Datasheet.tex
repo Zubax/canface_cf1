@@ -1,5 +1,5 @@
 %
-% Copyright (c) 2017  Zubax Robotics OU  <info@zubax.com>
+% Copyright (c) 2017-2019  Zubax Robotics  <info@zubax.com>
 %
 % Distributed under BY-NC-ND (attribution required, non-commercial use only, no derivatives).
 %
@@ -405,6 +405,7 @@ Babel exposes a set of SMD pads which facilitate the following applications of t
     \item CAN development board.
           Standard 2.54\,mm connectors can be soldered to the SMD pads in order to make the device compatible with
           standard prototyping breadboards.
+    \item Generic USB/UART GPIO controller (section \ref{sec:cli_gpio}).
 \end{itemize}
 
 Information about the use of Babel in OEM applications is provided in the section \ref{sec:oem_applications}.
@@ -416,6 +417,7 @@ The pinout specification for the SMD pads is provided on the figure \ref{fig:pin
            & High-level input voltage        & 2.1  & 3.3 & 5.5 & V \\
            & Low-level output voltage        & 0    & 0   & 0.5 & V \\
            & High-level output voltage       & 2.8  & 3.3 & 3.4 & V \\
+           & Pull-down or pull-up resistance & 25   & 40  & 55 & $\text{k}\Omega$ \\
            & Source/sink current (magnitude) &      &     & 10  & mA \\
 \end{ZubaxSimpleTable}
 
@@ -499,6 +501,13 @@ If no commands requesting it to download a new firmware image or to wait longer 
 and if a valid application (i.e. firmware) was found in the ROM,
 the bootloader starts the application.
 If no valid application is found in the ROM, the bootloader will wait for commands forever.
+
+\section{GPIO pins}\label{sec:principles_gpio}
+
+The device allows the user to control some of its SMD-exposed GPIO pins via CLI (section \ref{sec:cli_gpio}).
+The specified GPIO configuration survives until the device is restarted.
+Upon restart, the default configuration is applied, which is identical for all GPIO pins:
+discrete input with pull-down.
 
 \section{LED indicators}
 
@@ -985,18 +994,18 @@ The configuration parameters and their non-volatile storage are described in det
 
 Syntax:
 \begin{itemize}
-    \item \verb|cfg list| - list all configuration parameters, their current values,
+    \item \verb|cfg list| --- list all configuration parameters, their current values,
           acceptable value intervals, and default values.
 
-    \item \verb|cfg save| - save the current configuration into the non-volatile storage.
+    \item \verb|cfg save| --- save the current configuration into the non-volatile storage.
           This command is redundant and normally need not be used,
           because firmware revisions starting from v1.1 commit all configuration
           into the non-volatile storage automatically upon modification.
 
-    \item \verb|cfg erase| - erase the current configuration and reset the non-volatile memory to
+    \item \verb|cfg erase| --- erase the current configuration and reset the non-volatile memory to
           the factory defaults.
 
-    \item \verb|cfg set <name> <value>| - assign the configuration parameter named \verb|<name>| the value
+    \item \verb|cfg set <name> <value>| --- assign the configuration parameter named \verb|<name>| the value
           \verb|<value>|. For example: \verb|cfg set foo 42|.
           The non-volatile storage will be updated automatically.
 \end{itemize}
@@ -1164,6 +1173,44 @@ upon expiration of the boot timeout.
 \subsubsection{reboot}
 
 Unconditionally reboots the device.
+
+\subsubsection{gpio}\label{sec:cli_gpio}
+
+Controls the GPIO pins exposed on the SMD pads.
+This command is available since firmware v1.2.
+
+Syntax:
+
+\begin{itemize}
+    \item \verb|gpio <pin>| --- read the current status of the pin without changing its mode.
+    \item \verb|gpio <pin> <mode>| --- apply the specified mode and then read the status of the pin.
+\end{itemize}
+
+Where \verb|pin| can be one of the following (see the pinout diagram \ref{fig:pinout}) (case sensitive):
+
+\begin{itemize}
+    \item \verb|pa4|
+    \item \verb|pa5|
+    \item \verb|pa6|
+    \item \verb|pb0|
+    \item \verb|pb6|
+    \item \verb|pb7|
+\end{itemize}
+
+The \verb|mode| argument, if specified, can be one of the following (case sensitive):
+
+\begin{itemize}
+    \item \verb|oh| --- discrete output at high level.
+    \item \verb|ol| --- discrete output at low level.
+    \item \verb|ih| --- discrete input with pull-up.
+    \item \verb|il| --- discrete input with pull-down.
+\end{itemize}
+
+Upon successful execution, the command returns either \verb|h| or \verb|l| (lowercase Latin L),
+depending on the current logical level of the selected pin.
+
+The specified GPIO configuration survives until the device is restarted.
+After restart, the default GPIO configuration will be applied, as specified in the section \ref{sec:principles_gpio}.
 
 \chapter{OEM applications}\label{sec:oem_applications}
 
@@ -1374,7 +1421,7 @@ The table \ref{table:bootloader_states} summarizes the states.
     2  & BootCancelled        & There is a valid application to boot; however,
                                 booting was canceled by an external command.\\
 
-    3  & AppUpgradeinProgress & The application is currently being updated.
+    3  & AppUpgradeInProgress & The application is currently being updated.
                                 If interrupted, the bootloader will switch into
                                 \textbf{NoAppToBoot} or \textbf{BootCancelled}.\\
 

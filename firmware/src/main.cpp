@@ -634,6 +634,91 @@ class CommandProcessor
         os::requestReboot();
     }
 
+    void cmdGPIO(int argc, char** argv)
+    {
+        // Examples:
+        //      gpio pa5
+        //      gpio pb0 <oh|ol|ih|il>
+        // Upon success, the command returns the logical level of the pin: either "l" or "h".
+        if ((argc < 2) || (argc > 3))
+        {
+            std::puts("ERROR: bad arguments");
+            return;
+        }
+
+        /*
+         * Parse the pin specifier.
+         */
+        stm32_gpio_t* port = nullptr;
+        std::uint8_t pin = 0;
+        {
+            const char* const pin_specifier = argv[1];
+            if ((pin_specifier[0] != 'p') ||
+                (pin_specifier[1] == '\0') ||
+                (pin_specifier[2] == '\0') ||
+                (pin_specifier[3] != '\0'))
+            {
+                std::puts("ERROR: malformed pin spec");
+                return;
+            }
+
+            static const std::tuple<const char*, stm32_gpio_t*, std::uint8_t> Map[] =
+            {
+                {"pa4", GPIOA, 4},
+                {"pa5", GPIOA, 5},
+                {"pa6", GPIOA, 6},
+                {"pb0", GPIOB, 0},
+                {"pb6", GPIOB, 6},
+                {"pb7", GPIOB, 7},
+            };
+
+            for (auto& m : Map)
+            {
+                if (startsWith(pin_specifier, std::get<0>(m)))
+                {
+                    port = std::get<1>(m);
+                    pin  = std::get<2>(m);
+                    break;
+                }
+            }
+        }
+
+        if (port == nullptr)
+        {
+            std::puts("ERROR: unknown pin");
+            return;
+        }
+
+        /*
+         * If target state is provided, parse and execute.
+         */
+        if (argc > 2)
+        {
+            const char* const state_specifier = argv[2];
+            if (state_specifier[0] == 'o')                      // Output
+            {
+                const bool level = state_specifier[1] == 'h';
+                palWritePad(port, pin, std::uint8_t(level));
+                palSetPadMode(port, pin, PAL_MODE_OUTPUT_PUSHPULL);
+            }
+            else if (state_specifier[0] == 'i')                 // Input
+            {
+                const auto mode = (state_specifier[1] == 'h') ? PAL_MODE_INPUT_PULLUP : PAL_MODE_INPUT_PULLDOWN;
+                palSetPadMode(port, pin, mode);
+            }
+            else
+            {
+                std::puts("ERROR: invalid mode");
+                return;
+            }
+        }
+
+        /*
+         * Unconditional readback.
+         */
+        std::puts(palReadPad(port, pin) ? "h" : "l");
+    }
+
     static bool startsWith(const char* const str, const char* const prefix)
     {
         return std::strncmp(prefix, str, std::strlen(prefix)) == 0;
@@ -752,6 +837,10 @@ public:
         else if (startsWith(cmd, "reboot"))
         {
             return processComplexCommand(cmd, &CommandProcessor::cmdReboot);
+        }
+        else if (startsWith(cmd, "gpio"))
+        {
+            return processComplexCommand(cmd, &CommandProcessor::cmdGPIO);
         }
         else
         {
