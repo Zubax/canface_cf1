@@ -42,6 +42,10 @@ If you're not running Linux or OSX natively, you can use
 
 ### Change Log
 
+#### v1.2
+
+* Added a new CLI command: `gpio`. This command allows one to control the SMD GPIO pads via USB/UART.
+
 #### v1.1
 
 * CAN terminator is turned ON by default.
