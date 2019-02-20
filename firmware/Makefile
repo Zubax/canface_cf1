@@ -21,7 +21,7 @@ PROJECT = com.zubax.babel
 
 HW_VERSION_MAJOR = 1
 FW_VERSION_MAJOR = 1
-FW_VERSION_MINOR = 1
+FW_VERSION_MINOR = 2
 
 #
 # Application
