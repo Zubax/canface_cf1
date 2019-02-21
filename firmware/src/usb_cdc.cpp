@@ -241,6 +241,22 @@ static const USBDescriptor *get_descriptor(USBDriver *usbp, uint8_t dtype, uint8
 }
 
 /*
+ * USB stack crash workaround.
+ * See http://www.chibios.com/forum/viewtopic.php?f=25&t=4568&p=32429
+ * This bug is fixed in ChibiOS 18+, so the workaround does not have to be here after the OS is updated.
+ */
+static void sduDataReceivedProxy(USBDriver* const usbp, const usbep_t ep)
+{
+    if (auto sdup = static_cast<SerialUSBDriver*>(usbp->out_params[ep - 1U]))
+    {
+        if (usbGetReceiveTransactionSizeX(sdup->config->usbp, sdup->config->bulk_out) > 0)
+        {
+            sduDataReceived(usbp, ep);
+        }
+    }
+}
+
+/*
  * USB endpoints
  */
 static USBInEndpointState ep1instate;           ///< IN EP1 state.
@@ -265,7 +281,7 @@ static const USBEndpointConfig ep2config =      ///< EP1 initialization structur
     USB_EP_MODE_TYPE_BULK,
     NULL,
     sduDataTransmitted,
-    sduDataReceived,
+    sduDataReceivedProxy,
     0x0040,
     0x0040,
     &ep2instate,
@@ -299,7 +315,7 @@ static void usb_event(USBDriver* usbp, usbevent_t event)
         chSysLockFromISR();
 
         /*
-         * Enables the endpoints specified into the configuration.
+         * Enables the endpoints specified in the configuration.
          * Note, this callback is invoked from an ISR so I-Class functions
          * must be used.
          */
