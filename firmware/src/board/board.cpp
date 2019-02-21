@@ -171,23 +171,23 @@ void restart()
 
 void setStatusLED(bool state)
 {
-    palWritePad(GPIOE, GPIOE_LED_STATUS, !state);
+    palWritePad(GPIOE, GPIOE_LED_STATUS, std::uint8_t(!state));
 }
 
 void setTrafficLED(bool state)
 {
-    palWritePad(GPIOE, GPIOE_LED_TRAFFIC, !state);
+    palWritePad(GPIOE, GPIOE_LED_TRAFFIC, std::uint8_t(!state));
 }
 
 void enableCANPower(bool state)
 {
-    palWritePad(GPIOA, GPIOA_CAN_POWER_DIS, !state);
-    palWritePad(GPIOB, GPIOB_LED_CAN_POWER_DIS, !state);
+    palWritePad(GPIOA, GPIOA_CAN_POWER_DIS, std::uint8_t(!state));
+    palWritePad(GPIOB, GPIOB_LED_CAN_POWER_DIS, std::uint8_t(!state));
 }
 
 void enableCANTerminator(bool state)
 {
-    palWritePad(GPIOB, GPIOB_CAN_TERMINATOR_EN, state);
+    palWritePad(GPIOB, GPIOB_CAN_TERMINATOR_EN, std::uint8_t(state));
 }
 
 float getBusVoltage()
