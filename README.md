@@ -45,6 +45,8 @@ If you're not running Linux or OSX natively, you can use
 #### v1.2
 
 * Added a new CLI command: `gpio`. This command allows one to control the SMD GPIO pads via USB/UART.
+* [Fixed handling of zero-length USB transactions](http://www.chibios.com/forum/viewtopic.php?f=25&t=4568&p=32429).
+* Fixed naming of software version fields in the bootloader: `fw_` --> `sw_`.
 
 #### v1.1
 
