@@ -21,7 +21,7 @@ PROJECT = com.zubax.babel
 
 HW_VERSION = 1
 BL_VERSION_MAJOR = 1
-BL_VERSION_MINOR = 1
+BL_VERSION_MINOR = 2
 
 APPLICATION_OFFSET = 32768
 
@@ -66,7 +66,8 @@ DEBUG_OPT = -Os -g3 -DDISABLE_WATCHDOG=1
 
 LDSCRIPT = ld.ld
 
-CWARN += -Wshadow -Wpointer-arith -Wno-packed -Wno-attributes -Wno-error=undef -Wno-error=shadow
+CWARN += -Wshadow -Wpointer-arith -Wno-packed -Wno-attributes -Wno-error=undef \
+         -Wno-error=shadow -Wno-error=implicit-fallthrough -Wno-class-memaccess -Wno-bool-operation
 CPPWARN += $(CWARN)
 
 include zubax_chibios/rules_stm32f37x.mk
