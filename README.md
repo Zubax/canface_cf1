@@ -42,6 +42,11 @@ If you're not running Linux or OSX natively, you can use
 
 ### Change Log
 
+#### v1.3
+
+* Fix a hardware compatibility problem for Babel-Babel:
+  enable the built-in pull-up resistor on the CAN power disable line.
+
 #### v1.2
 
 * Added a new CLI command: `gpio`. This command allows one to control the SMD GPIO pads via USB/UART.
