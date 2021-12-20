@@ -1,6 +1,7 @@
 # [Zubax Babel](https://zubax.com/products/babel)
 
-[![Join the chat at https://gitter.im/Zubax/general](https://img.shields.io/badge/GITTER-join%20chat-green.svg)](https://gitter.im/Zubax/general)
+[![Forum](https://img.shields.io/discourse/https/forum.zubax.com/users.svg?color=e00000)](https://forum.zubax.com)
+[![Forum](https://img.shields.io/discourse/https/forum.uavcan.org/users.svg?color=1700b3)](https://forum.uavcan.org)
 
 Zubax Babel is a high performance USB-CAN and UART-CAN adapter that can be used as a
 standalone device or as an embeddable module for original equipment manufacturers (OEM).
@@ -8,8 +9,7 @@ standalone device or as an embeddable module for original equipment manufacturer
 Babel implements the quasi-standard SLCAN protocol (aka LAWICEL protocol) that is understood by
 majority of CAN software products, including the Linux SocketCAN framework.
 If Babel is used with [UAVCAN](http://uavcan.org) networks,
-we recommend to use the [UAVCAN GUI Tool](http://uavcan.org/GUI_Tool),
-which fully supports all of the advanced features available in Zubax Babel.
+we recommend to use the [Yakut CLI tool](https://github.com/UAVCAN/yakut).
 
 [**ZUBAX BABEL HOMEPAGE**](https://zubax.com/products/babel).
 
@@ -37,10 +37,12 @@ This algoritm is employed in the SLCAN backend in [PyUAVCAN library](http://uavc
 
 ## Firmware
 
-If you're not running Linux or OSX natively, you can use
-[Bistromathic - a Linux virtual machine pre-configured for embedded development](https://kb.zubax.com/x/KIEh).
-
 ### Change Log
+
+#### v1.3
+
+* Fix a hardware compatibility problem for Babel-Babel:
+  enable the built-in pull-up resistor on the CAN power disable line.
 
 #### v1.2
 
@@ -61,7 +63,7 @@ Initial release.
 
 ### Building
 
-Install ARM GCC toolchain version 6.3.
+Install ARM GCC toolchain of the correct version (consult with `main.cpp`).
 Clone this repository, init all submodules (`git submodule update --init --recursive`),
 then execute the following from the repository root:
 

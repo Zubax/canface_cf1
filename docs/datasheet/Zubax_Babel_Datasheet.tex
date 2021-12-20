@@ -1,5 +1,5 @@
 %
-% Copyright (c) 2017-2019  Zubax Robotics  <info@zubax.com>
+% Copyright (c) 2017  Zubax Robotics  <info@zubax.com>
 %
 % Distributed under BY-NC-ND (attribution required, non-commercial use only, no derivatives).
 %
@@ -65,7 +65,7 @@ There is a wide selection of software products that can communicate with SLCAN-c
 \begin{itemize}
     \item General-purpose USB-CAN or UART-CAN adapter.
     \item Diagnostic, monitoring, and development tool for \href{http://uavcan.org}{UAVCAN} networks.
-          We recommend the UAVCAN GUI Tool for use with UAVCAN applications.
+          We recommend Yakut for use with UAVCAN applications.
     \item Generic CAN/UAVCAN development board.
     \item Programmable CAN unit in OEM applications.
 \end{itemize}
@@ -1319,7 +1319,7 @@ Intervals and default values may change in newer revisions of the firmware or th
     \tabularnewline
 }%
 \newenvironment{CfgParamIndex}[1]{%
-    \begin{ZubaxTableWrapper}{#1}
+    \begin{ZubaxTableWrapper}[wide]{#1}
     \setlength\tabcolsep{2.5pt}
     \begin{ZubaxWrappedTable}{@{} l c l l | c c c | X @{}}
     Name & \makecell[cb]{SLCAN\\alias} & \makecell[lb]{Takes\\effect at} & Pages & Min & Max & Def. & Description \\

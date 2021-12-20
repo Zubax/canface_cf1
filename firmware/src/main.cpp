@@ -1146,6 +1146,7 @@ int main()
 #define MATCH_GCC_VERSION(major, minor, patch)  \
     ((__GNUC__ == (major)) && (__GNUC_MINOR__ == (minor)) && (__GNUC_PATCHLEVEL__ == (patch)))
 
-#if !(MATCH_GCC_VERSION(6, 3, 1))
+#if !(MATCH_GCC_VERSION(10, 3, 1))
+# error __GNUC__
 # error "This compiler is not supported"
 #endif
