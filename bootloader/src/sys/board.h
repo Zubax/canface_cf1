@@ -162,7 +162,7 @@
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN_5) |\
                                      PIN_PUPDR_PULLDOWN(GPIOA_PIN_6) |\
                                      PIN_PUPDR_PULLDOWN(7) |\
-                                     PIN_PUPDR_FLOATING(GPIOA_CAN_POWER_DIS) |\
+                                     PIN_PUPDR_PULLUP(GPIOA_CAN_POWER_DIS) |\
                                      PIN_PUPDR_FLOATING(GPIOA_UART1_TX) |\
                                      PIN_PUPDR_PULLUP(GPIOA_UART1_RX) |\
                                      PIN_PUPDR_FLOATING(GPIOA_USB_DM) |\
