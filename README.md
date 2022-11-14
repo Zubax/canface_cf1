@@ -39,6 +39,10 @@ This algoritm is employed in the SLCAN backend in [PyUAVCAN library](http://uavc
 
 ### Change Log
 
+### V1.4
+
+* Fix a hardware compatibility problem for Babel: disable the built-in pull-up resistor on the CAN power disable line.
+
 #### v1.3
 
 * Fix a hardware compatibility problem for Babel-Babel:
