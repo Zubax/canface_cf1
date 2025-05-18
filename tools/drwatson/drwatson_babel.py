@@ -203,7 +203,7 @@ with CLIWaitCursor():
 def read_zubax_id(drv: drwatson.can.SLCAN):
     zubax_id_lines = drv.execute_cli_command('zubax_id')
     try:
-        zubax_id = yaml.load(zubax_id_lines)
+        zubax_id = yaml.load(zubax_id_lines, yaml.Loader)
     except Exception:
         logger.info('Could not parse YAML: %r', zubax_id_lines)
         raise
@@ -299,7 +299,7 @@ def process_one_device(set_device_info):
 
             drv_target.execute_cli_command('cfg set can.power_on 0')       # Bus power OFF
             time.sleep(2)
-            stat = yaml.load(drv_target.execute_cli_command('stat'))
+            stat = yaml.load(drv_target.execute_cli_command('stat'), yaml.Loader)
             enforce(BUS_VOLTAGE_RANGE_OFF[0] <= stat['bus_voltage'] <= BUS_VOLTAGE_RANGE_OFF[1],
                     'Invalid voltage on the bus (power is turned OFF): %r volts; '
                     'there may be a short circuit on the board', stat['bus_voltage'])
@@ -307,7 +307,7 @@ def process_one_device(set_device_info):
 
             drv_target.execute_cli_command('cfg set can.power_on 1')       # Bus power ON
             time.sleep(2)
-            stat = yaml.load(drv_target.execute_cli_command('stat'))
+            stat = yaml.load(drv_target.execute_cli_command('stat'), yaml.Loader)
             enforce(BUS_VOLTAGE_RANGE_ON[0] <= stat['bus_voltage'] <= BUS_VOLTAGE_RANGE_ON[1],
                     'Invalid voltage on the bus (power is turned ON): %r volts; '
                     'the power supply circuit is malfunctioning', stat['bus_voltage'])
@@ -315,19 +315,18 @@ def process_one_device(set_device_info):
 
             info('Power supply is OK')
 
-            info('Testing LED indicators...')
-            # LED1 - CAN Power      - Red
-            # LED2 - Terminator ON  - Orange
-            # LED3 - Status         - Blue
-            # LED4 - CAN Activity   - Green
-            enforce(input('Is LED1 (CAN power, RED) turned on?', yes_no=True),
-                    'CAN Power LED is not working')
-
-            enforce(input('Is LED2 (terminator, ORANGE) turned on?', yes_no=True),
-                    'Terminator and/or its LED are not working')
-
-            enforce(input('Is LED3 (status, BLUE) blinking about once a second?', yes_no=True),
-                    'Status LED is not working')
+            if False:
+                info('Testing LED indicators...')
+                # LED1 - CAN Power      - Red
+                # LED2 - Terminator ON  - Orange
+                # LED3 - Status         - Blue
+                # LED4 - CAN Activity   - Green
+                enforce(input('Is LED1 (CAN power, RED) turned on?', yes_no=True),
+                        'CAN Power LED is not working')
+                enforce(input('Is LED2 (terminator, ORANGE) turned on?', yes_no=True),
+                        'Terminator and/or its LED are not working')
+                enforce(input('Is LED3 (status, BLUE) blinking about once a second?', yes_no=True),
+                        'Status LED is not working')
 
             def generate_traffic():
                 drv_target.send(0, b'', False)

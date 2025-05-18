@@ -1,4 +1,3 @@
-# Build outputs
 *.o
 *.elf
 *.hex
@@ -13,20 +12,8 @@ build
 *~
 *.pyc
 __pycache__
-
-# Temporary
 *.log
 *.tmp
-
-# Eclipse
-.metadata
-.settings
-.project
-.cproject
-.pydevproject
-
-# JetBrains stuff
+venv/
 .idea
-
-# Libs
 dsdlc_generated
