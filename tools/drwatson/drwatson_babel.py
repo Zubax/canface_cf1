@@ -218,7 +218,7 @@ def make_random_can_frame():
     return uavcan.driver.CANFrame(can_id=can_id, data=data, extended=extended)
 
 
-def process_one_device(set_device_info):
+def process_one_device(set_device_info, test_leds: bool = False):
     out = input('1. Connect DroneCode Probe to the debug connector.\n'
                 '2. Connect CAN to the first CAN connector on the Babel; leave the other CAN connector empty.\n'
                 '3. Connect USB to the Micro USB port on the Babel.\n'
@@ -315,7 +315,7 @@ def process_one_device(set_device_info):
 
             info('Power supply is OK')
 
-            if False:
+            if test_leds:
                 info('Testing LED indicators...')
                 # LED1 - CAN Power      - Red
                 # LED2 - Terminator ON  - Orange
@@ -328,13 +328,13 @@ def process_one_device(set_device_info):
                 enforce(input('Is LED3 (status, BLUE) blinking about once a second?', yes_no=True),
                         'Status LED is not working')
 
-            def generate_traffic():
-                drv_target.send(0, b'', False)
-                time.sleep(0.2)
+                def generate_traffic():
+                    drv_target.send(0, b'', False)
+                    time.sleep(0.2)
 
-            with BackgroundSpinner(generate_traffic):
-                enforce(input('Is LED4 (activity, GREEN) blinking quickly?', yes_no=True),
-                        'Activity LED is not working, or the bus has been disconnected')
+                with BackgroundSpinner(generate_traffic):
+                    enforce(input('Is LED4 (activity, GREEN) blinking quickly?', yes_no=True),
+                            'Activity LED is not working, or the bus has been disconnected')
 
         info('Resetting configuration to factory defaults...')
         drv_target.execute_cli_command('cfg erase')
