@@ -38,7 +38,7 @@ import uavcan.driver
 
 
 PRODUCT_NAME = 'com.zubax.babel'
-DEFAULT_FIRMWARE_GLOB = 'https://files.zubax.com:49152/products/%s/*.compound.bin' % PRODUCT_NAME
+DEFAULT_FIRMWARE_GLOB = 'https://files.zubax.com/products/%s/*.compound.bin' % PRODUCT_NAME
 CAN_BITRATE = 1000000
 FLASH_OFFSET = 0x08000000
 TOOLCHAIN_PREFIX = 'arm-none-eabi-'
