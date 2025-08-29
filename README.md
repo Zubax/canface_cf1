@@ -39,14 +39,19 @@ This algoritm is employed in the SLCAN backend in [PyUAVCAN library](http://uavc
 
 ### Change Log
 
-### V1.4
+#### v1.5
 
-* Fix a hardware compatibility problem for Babel: disable the built-in pull-up resistor on the CAN power disable line.
+Remove the mandatory boot delay at power-on.
+Starting from this version, the device boots the normal firmware immediately, bypassing the multiple-second delay.
+
+#### v1.4
+
+Fix a hardware compatibility problem for Babel: disable the built-in pull-up resistor on the CAN power disable line.
 
 #### v1.3
 
-* Fix a hardware compatibility problem for Babel-Babel:
-  enable the built-in pull-up resistor on the CAN power disable line.
+Fix a hardware compatibility problem for Babel-Babel:
+enable the built-in pull-up resistor on the CAN power disable line.
 
 #### v1.2
 
