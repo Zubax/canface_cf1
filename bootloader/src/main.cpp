@@ -151,19 +151,6 @@ int main()
 
     chibios_rt::BaseThread::setPriority(LOWPRIO);
 
-    /*
-     * USB initialization
-     */
-    const auto uid = board::readUniqueID();
-
-    usb_cdc::DeviceSerialNumber sn;
-    std::fill(sn.begin(), sn.end(), 0);
-    std::copy(uid.begin(), uid.end(), sn.begin());
-
-    watchdog.reset();
-    usb_cdc::init(sn);                  // Must not exceed watchdog timeout
-    watchdog.reset();
-
     board::setStatusLED(true);
 
     /*
@@ -171,13 +158,14 @@ int main()
      */
     app::AppStorageBackend backend;
 
-    bootloader::Bootloader bl(backend);
+    bootloader::Bootloader bl(backend, 5000);
 
     cli::init(bl);
 
     /*
-     * Parsing the app shared struct
+     * Parsing the state
      */
+    watchdog.reset();
     const auto app_shared = bootloader_app_interface::readAndErase();
     if (app_shared.second)
     {
@@ -191,41 +179,59 @@ int main()
     {
         DEBUG_LOG("App shared struct not found\n");
     }
-
-    /*
-     * Main loop
-     */
-    while (!os::isRebootRequested())
-    {
-        watchdog.reset();
-
-        const auto bl_state = bl.getState();
-        if (bl_state == bootloader::State::ReadyToBoot)
-        {
-            break;
-        }
-
-        const auto duration = app::bootloaderStateToLEDOnOffDurationMSec(bl_state);
-        if (duration.first == 0 && duration.second == 0)
-        {
-            board::setTrafficLED(false);
-            chThdSleepMilliseconds(100);
-        }
-        else
-        {
-            board::setTrafficLED(true);
-            chThdSleepMilliseconds(duration.first);
-            board::setTrafficLED(false);
-            chThdSleepMilliseconds(duration.second);
-        }
-    }
-
+    const bool fast_track = bl.getAppInfo().second && !app_shared.second;
     watchdog.reset();
 
-    if (os::isRebootRequested())
+    if (!fast_track)
     {
-        ::usleep(500000);       // Providing some time for other components to react
-        board::restart();
+        /*
+        * USB initialization
+        */
+        const auto uid = board::readUniqueID();
+
+        usb_cdc::DeviceSerialNumber sn;
+        std::fill(sn.begin(), sn.end(), 0);
+        std::copy(uid.begin(), uid.end(), sn.begin());
+
+        watchdog.reset();
+        usb_cdc::init(sn);                  // Must not exceed watchdog timeout
+        watchdog.reset();
+
+        /*
+        * Main loop
+        */
+        while (!os::isRebootRequested())
+        {
+            watchdog.reset();
+
+            const auto bl_state = bl.getState();
+            if (bl_state == bootloader::State::ReadyToBoot)
+            {
+                break;
+            }
+
+            const auto duration = app::bootloaderStateToLEDOnOffDurationMSec(bl_state);
+            if (duration.first == 0 && duration.second == 0)
+            {
+                board::setTrafficLED(false);
+                chThdSleepMilliseconds(100);
+            }
+            else
+            {
+                board::setTrafficLED(true);
+                chThdSleepMilliseconds(duration.first);
+                board::setTrafficLED(false);
+                chThdSleepMilliseconds(duration.second);
+            }
+        }
+
+        watchdog.reset();
+
+        if (os::isRebootRequested())
+        {
+            ::usleep(500000);       // Providing some time for other components to react
+            board::restart();
+        }
     }
 
     /*
@@ -238,9 +244,6 @@ int main()
     os::requestReboot();        // Notifying other components that we're going down
 
     ::usleep(500000);           // Providing some time for other components to react
-
-    // Actually the state may have been switched, but it's ok for debugging
-    assert(bl.getState() == bootloader::State::ReadyToBoot);
 
     watchdog.reset();           // The final reset, the application will have time to boot and init until next timeout
 
